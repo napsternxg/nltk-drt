@@ -1,5 +1,5 @@
-from nltk.sem.logic import Variable, unique_variable
-from nltk.sem.drt import DRS, Tokens, DrtTokens, DrtParser, DrtApplicationExpression, DrtConstantExpression, DrtLambdaExpression, DrtVariableExpression, ConcatenationDRS
+from nltk.sem.logic import Variable, unique_variable, ApplicationExpression, EqualityExpression, AbstractVariableExpression, NegatedExpression, ImpExpression, BinaryExpression, LambdaExpression
+from nltk.sem.drt import DRS, Tokens, DrtTokens, DrtParser, DrtApplicationExpression, DrtConstantExpression, DrtLambdaExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
 from nltk import load_parser
 
 #def sb(e, bindings):
@@ -50,9 +50,9 @@ class FocusConstantExpression(DrtConstantExpression):
                     raise ValueError('expected a string feature value')
                 features.append(val)
 
-        return self.make_DrtLambdaExpression(expression, self.focus_type, features)
+        return self._make_DrtLambdaExpression(expression, self.focus_type, features)
 
-    def make_DrtLambdaExpression(self, expression, focus_type, features):
+    def _make_DrtLambdaExpression(self, expression, focus_type, features):
         assert isinstance(expression, DrtLambdaExpression)
         assert isinstance(expression.term, ConcatenationDRS)
         assert isinstance(expression.term.first, DRS)
@@ -61,22 +61,6 @@ class FocusConstantExpression(DrtConstantExpression):
         focus_structure = {var: (focus_type, features)}
 
         return DrtLambdaExpression(expression.variable, ConcatenationFocusDRS(FocusDRS(expression.term.first.refs, expression.term.first.conds, focus_structure), expression.term.second))
-
-#    def replace(self, variable, expression, replace_bound=False):
-#        print "FocusAbstractExpression.replace(%s, %s, %s)" % (variable, expression, replace_bound)
-#        return FocusConstantExpression(self.expression.replace(variable, expression, replace_bound), self.focus_structure)
-
-#    def free(self, indvar_only=True):
-#        return self.expression.free(indvar_only)
-
-#    def variables(self):
-#        print "FocusExpression.variables()", type(self.expression)
-#        return self.expression.variables()
-
-#    def visit(self, function, combinator, default):
-#        if hasattr(self.expression, 'visit'):
-#            print 'visit'
-#            self.expression.visit(function, combinator, default)
 
 class FocusDRS(DRS):
     """A Discourse Representation Structure with Focus."""
@@ -138,6 +122,9 @@ class FocusDRS(DRS):
 
     def simplify(self):
         return FocusDRS(self.refs, [cond.simplify() for cond in self.conds], self.focus)
+    
+    def resolve_anaphora(self):
+        return resolve_anaphora(self)
 
     def str(self, syntax=DrtTokens.NLTK):
         if syntax == DrtTokens.PROVER9:
@@ -179,8 +166,6 @@ class ConcatenationFocusDRS(ConcatenationDRS):
 
 class FocusDrtParser(DrtParser):
     """A lambda calculus expression parser."""
-    def __init__(self):
-        DrtParser.__init__(self)
 
     def isvariable(self, tok):
         return tok not in FocusDrtTokens.TOKENS
@@ -246,10 +231,9 @@ class FocusDrtParser(DrtParser):
 
         self.assertToken(self.token(), DrtTokens.CLOSE)
 
-        #return Focus(features, expression)
         if self.token(0) == Tokens.OPEN:
             #The Focus is used as a function
-            self.token() #swallow the Open Paren
+            self.token() #swallow the Open Parenthesis
             argument = self.parse_Expression()
             self.assertToken(self.token(), Tokens.CLOSE)
             return self.make_ApplicationExpression(FocusConstantExpression(expression, focus_type, features), argument)
@@ -264,71 +248,113 @@ class FocusDrtParser(DrtParser):
 
 class FocusDrtApplicationExpression(DrtApplicationExpression):
 
-    def __init__(self, function, argument):
-        DrtApplicationExpression.__init__(self, function, argument)
-
     def substitute_bindings(self, bindings):
         argument = self.argument.substitute_bindings(bindings)
         function = self.function.substitute_bindings(bindings)
         return FocusDrtApplicationExpression(function, argument).simplify()
 
-#    def __simplify(self):
-#        function = self.function.simplify()
-#        argument = self.argument.simplify()
-#        print "function=", function, "argument=", argument
-#        if isinstance(function, FocusLambdaExpression) and isinstance(argument, FocusAbstractExpression):
-#
-#            #result = function.replace(function.variable, argument, True).simplify()
-#            result = function.term.replace(function.variable, argument.expression, True).simplify()
-#            print "fofo result=", result, type(result)
-#            return FocusExpression(result, function.focus_structure)
-#        elif isinstance(function, FocusLambdaExpression):
-#            #a_refs = function.expression.visit(lambda e: isinstance(e, DRS) and [e.refs] or [], lambda *parts: sum(parts, []), [])
-#            drs = function.expression.term.first
-#            if isinstance(drs, DRS):
-#                refs = function.expression.term.first.refs
-#            else:
-#                raise ValueError("expected a DRS")
-#
-#            result = function.expression.term.replace(function.expression.variable, argument).simplify()
-#            print "foa refs=", refs
-#            print "result=", result
-#            if len(refs) == 1:
-#                a_refs = {refs[0]:(self.function.focus_type, self.function.features)}
-#            else:
-#                raise ValueError("expected a DRS with exactly one referent")
-#
-#            return FocusDRS(result.refs,a_refs,[],result.conds)
-#
-#        elif isinstance(argument, FocusAbstractExpression): 
-#            result = function.term.replace(function.variable, argument.expression).simplify()
-#            return FocusExpression(result, argument.focus_structure)
-#        else:
-#            return self.__class__(function, argument)
+def resolve_anaphora(expression, trail=[]):
+    
+    if isinstance(expression, ApplicationExpression):
+        if expression.is_pronoun_function():
+            possible_antecedents = PossibleAntecedents()
+            for ancestor in trail:
+                for ref in ancestor.focus:
+                    var = expression.make_VariableExpression(ref)
+                    if not var == expression.argument:
+                        possible_antecedents.append(var)
+                    
+                    #==========================================================
+                    # Don't allow resolution to itself or other types
+                    #==========================================================
+#                        if refex.__class__ == expression.argument.__class__ and \
+#                           not (refex == expression.argument):
+#                            possible_antecedents.append(refex)
 
+            if len(possible_antecedents) == 1:
+                resolution = possible_antecedents[0]
+            else:
+                resolution = possible_antecedents 
+            return expression.make_EqualityExpression(expression.argument, resolution)
+        else:
+            r_function = resolve_anaphora(expression.function, trail + [expression])
+            r_argument = resolve_anaphora(expression.argument, trail + [expression])
+            return expression.__class__(r_function, r_argument)
 
-#from nltk.sem.drt import AbstractDrs
-#
-#def gr(s, recursive=False):
-#    print "I am %s, %s" % (s, type(s))
-#    return []
-#
-#AbstractDrs.get_refs = gr
+    elif isinstance(expression, FocusDRS):
+        r_conds = []
+        focus = {}
+        for key, value in expression.focus.iteritems():
+            focus[expression.make_VariableExpression(key)] = value
+
+        for cond in expression.conds:
+            r_cond = resolve_anaphora(cond, trail + [expression])
+
+            # if the condition is of the form '(x = [])' then raise exception
+            if isinstance(r_cond, EqualityExpression):
+                if isinstance(r_cond.first, PossibleAntecedents):
+                    #Reverse the order so that the variable is on the left
+                    temp = r_cond.first
+                    r_cond.first = r_cond.second
+                    r_cond.second = temp
+                #filter out the variables with non-matching features
+                filtered_antecedents = PossibleAntecedents()
+                first_features = focus[r_cond.first]
+                print "var=", r_cond.first
+                for var in r_cond.second:
+                    if focus[var] == first_features:
+                        filtered_antecedents.append(var)
+
+                r_cond.second = filtered_antecedents
+                print(filtered_antecedents)
+                
+                if isinstance(r_cond.second, PossibleAntecedents):
+                    if not r_cond.second:
+                        raise AnaphoraResolutionException("Variable '%s' does not "
+                                "resolve to anything." % r_cond.first)
+                        
+            r_conds.append(r_cond)
+
+        return expression.__class__(expression.refs, r_conds, expression.focus)
+    
+    elif isinstance(expression, AbstractVariableExpression):
+        return expression
+    
+    elif isinstance(expression, NegatedExpression):
+        return expression.__class__(resolve_anaphora(expression.term, trail + [expression]))
+
+    elif isinstance(expression, ImpExpression): 
+        return expression.__class__(resolve_anaphora(expression.first, trail + [expression]),
+                              resolve_anaphora(expression.second, trail + [expression, expression.first]))
+
+    elif isinstance(expression, BinaryExpression):
+        return expression.__class__(resolve_anaphora(expression.first, trail + [expression]), 
+                              resolve_anaphora(expression.second, trail + [expression]))
+
+    elif isinstance(expression, LambdaExpression):
+        return expression.__class__(expression.variable, resolve_anaphora(expression.term, trail + [expression]))
+
 
 def test():
 
     parser = load_parser('file:../data/focus-drt.fcfg', logic_parser=FocusDrtParser())
 
-    #parser = load_parser('file:check.fcfg', logic_parser=DrtParser())
-
-    #trees = parser.nbest_parse('Butch smokes'.split())
     trees = parser.nbest_parse('Butch picks-up a chainsaw'.split())
-    #trees = parser.nbest_parse('no hammer does smoke'.split())
 
     drs1 = trees[0].node['SEM'].simplify()
     print(drs1)
-    print(type(drs1))
-    #drs1.draw()
+    trees = parser.nbest_parse('He likes it'.split())
+    drs2 = trees[0].node['SEM'].simplify()
+    print(drs2)
+    drs3 = drs1 + drs2
+    drs3 = drs3.simplify()
+    print(drs3)
+    drs4 = drs3.resolve_anaphora()
+    print(drs4)
+    
+    import nltkfix
+
+    drs4.draw()
 
 if __name__ == '__main__':
     test()
