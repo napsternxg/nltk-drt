@@ -300,13 +300,22 @@ def resolve_anaphora(expression, trail=[]):
                 #filter out the variables with non-matching features
                 filtered_antecedents = PossibleAntecedents()
                 first_features = focus[r_cond.first]
-                print "var=", r_cond.first
+                # first filter by features
                 for var in r_cond.second:
-                    if focus[var] == first_features:
+                    if focus[var][1] == first_features[1]:
                         filtered_antecedents.append(var)
 
+                # second filter by thematic role
+                if len(filtered_antecedents) > 1:
+                    second_filtered_antecedents = PossibleAntecedents()
+                    for var in filtered_antecedents:
+                        if focus[var][0] == first_features[0]:
+                            second_filtered_antecedents.append(var)
+                    # check if we still have some variables left, otherwise revert
+                    if len(filtered_antecedents) > 0:
+                        filtered_antecedents = second_filtered_antecedents
+
                 r_cond.second = filtered_antecedents
-                print(filtered_antecedents)
                 
                 if isinstance(r_cond.second, PossibleAntecedents):
                     if not r_cond.second:
@@ -340,7 +349,6 @@ def test():
     parser = load_parser('file:../data/focus-drt.fcfg', logic_parser=FocusDrtParser())
 
     trees = parser.nbest_parse('Butch picks-up a chainsaw'.split())
-
     drs1 = trees[0].node['SEM'].simplify()
     print(drs1)
     trees = parser.nbest_parse('He likes it'.split())
