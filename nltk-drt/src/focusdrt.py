@@ -1,26 +1,26 @@
-from nltk.sem.logic import Variable, Expression, VariableExpression, unique_variable
-from nltk.sem.drt import DRS,Tokens,DrtTokens,DrtParser,DrtApplicationExpression, DrtConstantExpression, DrtLambdaExpression, DrtVariableExpression, ConcatenationDRS
+from nltk.sem.logic import Variable, unique_variable
+from nltk.sem.drt import DRS, Tokens, DrtTokens, DrtParser, DrtApplicationExpression, DrtConstantExpression, DrtLambdaExpression, DrtVariableExpression, ConcatenationDRS
 from nltk import load_parser
 
-def sb(e, bindings):
-    print "Expression.substitute_bindings(%s,%s)" % (e,bindings)
-    expr = e
-    for var in expr.variables():
-        if var in bindings:
-            val = bindings[var]
-            if isinstance(val, Variable):
-                val = VariableExpression(val)
-            elif not isinstance(val, Expression):
-                raise ValueError('Can not substitute a non-expression '
-                                 'value into an expression: %r' % (val,))
-            # Substitute bindings in the target value.
-            val = val.substitute_bindings(bindings)
-            # Replace var w/ the target value.
-            print "expr=%s, var=%s, val=%s" % (expr, var,val)
-            expr = expr.replace(var, val)
-    r = expr.simplify()
-    print "result=%s" % (r)
-    return r
+#def sb(e, bindings):
+#    print "Expression.substitute_bindings(%s,%s)" % (e,bindings)
+#    expr = e
+#    for var in expr.variables():
+#        if var in bindings:
+#            val = bindings[var]
+#            if isinstance(val, Variable):
+#                val = VariableExpression(val)
+#            elif not isinstance(val, Expression):
+#                raise ValueError('Can not substitute a non-expression '
+#                                 'value into an expression: %r' % (val,))
+#            # Substitute bindings in the target value.
+#            val = val.substitute_bindings(bindings)
+#            # Replace var w/ the target value.
+#            print "expr=%s, var=%s, val=%s" % (expr, var,val)
+#            expr = expr.replace(var, val)
+#    r = expr.simplify()
+#    print "result=%s" % (r)
+#    return r
 
 #Expression.substitute_bindings = sb
 
@@ -39,17 +39,14 @@ class FocusConstantExpression(DrtConstantExpression):
         self.focus_features = focus_features
 
     def substitute_bindings(self, bindings):
-        print "FocusConstantExpression.substitute_bindings(%s)" % (bindings)
+        #print "FocusConstantExpression.substitute_bindings(%s)" % (bindings)
         expression = self.variable.substitute_bindings(bindings)
 
         features = []
         for var in self.focus_features:
             if var in bindings:
                 val = bindings[var]
-                if isinstance(val, str):
-#TODO: remove this crap
-                    val = val
-                else:
+                if not isinstance(val, str):
                     raise ValueError('expected a string feature value')
                 features.append(val)
 
@@ -61,7 +58,6 @@ class FocusConstantExpression(DrtConstantExpression):
         assert isinstance(expression.term.first, DRS)
         assert len(expression.term.first.refs) > 0
         var = expression.term.first.refs[-1]
-        print "NP", var
         focus_structure = {var: (focus_type, features)}
 
         return DrtLambdaExpression(expression.variable, ConcatenationFocusDRS(FocusDRS(expression.term.first.refs, expression.term.first.conds, focus_structure), expression.term.second))
@@ -84,7 +80,7 @@ class FocusConstantExpression(DrtConstantExpression):
 
 class FocusDRS(DRS):
     """A Discourse Representation Structure with Focus."""
-    def __init__(self, refs, conds, focus = {}):
+    def __init__(self, refs, conds, focus={}):
         """
         @param refs: C{list} of C{DrtIndividualVariableExpression} for the 
         discourse referents
@@ -118,7 +114,7 @@ class FocusDRS(DRS):
             if not replace_bound:
                 return self
             else:
-                return FocusDRS(self.refs[:i]+[expression.variable]+self.refs[i+1:],
+                return FocusDRS(self.refs[:i] + [expression.variable] + self.refs[i + 1:],
                            [cond.replace(variable, expression, True) for cond in self.conds],
                            self._replace_focus(variable, expression.variable))
         except ValueError:
@@ -130,7 +126,7 @@ class FocusDRS(DRS):
                 newvar = unique_variable(ref) 
                 newvarex = DrtVariableExpression(newvar)
                 i = self.refs.index(ref)
-                self = FocusDRS(self.refs[:i]+[newvar]+self.refs[i+1:],
+                self = FocusDRS(self.refs[:i] + [newvar] + self.refs[i + 1:],
                            [cond.replace(ref, newvarex, True) for cond in self.conds],
                             self._replace_focus(ref, newvar))
 
@@ -141,32 +137,45 @@ class FocusDRS(DRS):
                         self._replace_focus(variable, expression.variable))
 
     def simplify(self):
-        print "FocusDRS.simplify"
         return FocusDRS(self.refs, [cond.simplify() for cond in self.conds], self.focus)
-    
+
     def str(self, syntax=DrtTokens.NLTK):
         if syntax == DrtTokens.PROVER9:
             return self.fol().str(syntax)
         else:
             return '([%s],[%s],[%s])' % (','.join([str(r) for r in self.refs]),
                                     ', '.join([c.str(syntax) for c in self.conds]),
-                                    ','.join([str(v) + str(d) for v,d in self.focus.iteritems()]))
+                                    ','.join([str(v) + str(d) for v, d in self.focus.iteritems()]))
 
 class ConcatenationFocusDRS(ConcatenationDRS):
     def simplify(self):
         first = self.first.simplify()
         second = self.second.simplify()
-
-        if isinstance(first, FocusDRS) and isinstance(second, FocusDRS):
+        
+        def _alpha_covert_second(first, second):
             # For any ref that is in both 'first' and 'second'
             for ref in (set(first.get_refs(True)) & set(second.get_refs(True))):
                 # alpha convert the ref in 'second' to prevent collision
                 newvar = DrtVariableExpression(unique_variable(ref))
                 second = second.replace(ref, newvar, True)
-            
-            return FocusDRS(first.refs + second.refs, first.conds + second.conds, dict(first.focus).update(second.focus))
+            return second
+
+        if isinstance(first, FocusDRS) and isinstance(second, FocusDRS):
+            second = _alpha_covert_second(first, second)            
+            focus = dict(first.focus)
+            focus.update(second.focus)
+            return FocusDRS(first.refs + second.refs, first.conds + second.conds, focus)
+
+        elif isinstance(first, FocusDRS) and isinstance(second, DRS):
+            second = _alpha_covert_second(first, second)            
+            return FocusDRS(first.refs + second.refs, first.conds + second.conds, first.focus)
+
+        elif isinstance(first, DRS) and isinstance(second, FocusDRS):
+            second = _alpha_covert_second(first, second)            
+            return FocusDRS(first.refs + second.refs, first.conds + second.conds, second.focus)
+
         else:
-            return self.__class__(first,second)
+            return self.__class__(first, second)
 
 class FocusDrtParser(DrtParser):
     """A lambda calculus expression parser."""
@@ -177,12 +186,6 @@ class FocusDrtParser(DrtParser):
         return tok not in FocusDrtTokens.TOKENS
 
     def handle(self, tok):
-        #print "handle(%s) = " % (tok)
-        r = self.handle1(tok)
-        #print " = %s" % (r)
-        return r 
-
-    def handle1(self, tok):
         """This method is intended to be overridden for logics that 
         use different operators or expressions"""
         if tok in DrtTokens.NOT:
@@ -201,7 +204,7 @@ class FocusDrtParser(DrtParser):
             self.assertToken(self.token(), DrtTokens.OPEN)
             return self.handle_DRS()
 
-        #NEW ADDITION
+        #focus handling
 
         elif tok.upper() == FocusDrtTokens.FOCUS:
             self.assertToken(self.token(), DrtTokens.OPEN)
@@ -243,7 +246,6 @@ class FocusDrtParser(DrtParser):
 
         self.assertToken(self.token(), DrtTokens.CLOSE)
 
-        print(type(expression))
         #return Focus(features, expression)
         if self.token(0) == Tokens.OPEN:
             #The Focus is used as a function
@@ -270,48 +272,48 @@ class FocusDrtApplicationExpression(DrtApplicationExpression):
         function = self.function.substitute_bindings(bindings)
         return FocusDrtApplicationExpression(function, argument).simplify()
 
-    def __simplify(self):
-        function = self.function.simplify()
-        argument = self.argument.simplify()
-        print "function=", function, "argument=", argument
-        if isinstance(function, FocusLambdaExpression) and isinstance(argument, FocusAbstractExpression):
+#    def __simplify(self):
+#        function = self.function.simplify()
+#        argument = self.argument.simplify()
+#        print "function=", function, "argument=", argument
+#        if isinstance(function, FocusLambdaExpression) and isinstance(argument, FocusAbstractExpression):
+#
+#            #result = function.replace(function.variable, argument, True).simplify()
+#            result = function.term.replace(function.variable, argument.expression, True).simplify()
+#            print "fofo result=", result, type(result)
+#            return FocusExpression(result, function.focus_structure)
+#        elif isinstance(function, FocusLambdaExpression):
+#            #a_refs = function.expression.visit(lambda e: isinstance(e, DRS) and [e.refs] or [], lambda *parts: sum(parts, []), [])
+#            drs = function.expression.term.first
+#            if isinstance(drs, DRS):
+#                refs = function.expression.term.first.refs
+#            else:
+#                raise ValueError("expected a DRS")
+#
+#            result = function.expression.term.replace(function.expression.variable, argument).simplify()
+#            print "foa refs=", refs
+#            print "result=", result
+#            if len(refs) == 1:
+#                a_refs = {refs[0]:(self.function.focus_type, self.function.features)}
+#            else:
+#                raise ValueError("expected a DRS with exactly one referent")
+#
+#            return FocusDRS(result.refs,a_refs,[],result.conds)
+#
+#        elif isinstance(argument, FocusAbstractExpression): 
+#            result = function.term.replace(function.variable, argument.expression).simplify()
+#            return FocusExpression(result, argument.focus_structure)
+#        else:
+#            return self.__class__(function, argument)
 
-            #result = function.replace(function.variable, argument, True).simplify()
-            result = function.term.replace(function.variable, argument.expression, True).simplify()
-            print "fofo result=", result, type(result)
-            return FocusExpression(result, function.focus_structure)
-        elif isinstance(function, FocusLambdaExpression):
-            #a_refs = function.expression.visit(lambda e: isinstance(e, DRS) and [e.refs] or [], lambda *parts: sum(parts, []), [])
-            drs = function.expression.term.first
-            if isinstance(drs, DRS):
-                refs = function.expression.term.first.refs
-            else:
-                raise ValueError("expected a DRS")
 
-            result = function.expression.term.replace(function.expression.variable, argument).simplify()
-            print "foa refs=", refs
-            print "result=", result
-            if len(refs) == 1:
-                a_refs = {refs[0]:(self.function.focus_type, self.function.features)}
-            else:
-                raise ValueError("expected a DRS with exactly one referent")
-
-            return FocusDRS(result.refs,a_refs,[],result.conds)
-
-        elif isinstance(argument, FocusAbstractExpression): 
-            result = function.term.replace(function.variable, argument.expression).simplify()
-            return FocusExpression(result, argument.focus_structure)
-        else:
-            return self.__class__(function, argument)
-
-
-from nltk.sem.drt import AbstractDrs
-
-def gr(s, recursive=False):
-    print "I am %s, %s" % (s, type(s))
-    return []
-
-AbstractDrs.get_refs = gr
+#from nltk.sem.drt import AbstractDrs
+#
+#def gr(s, recursive=False):
+#    print "I am %s, %s" % (s, type(s))
+#    return []
+#
+#AbstractDrs.get_refs = gr
 
 def test():
 
