@@ -24,6 +24,7 @@ VP[NUM=?n,SEM=<?v>] -> IV[NUM=?n,SEM=?v]
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[Butch(x)])+P(x))>] -> 'Butch'
 PropN[NUM=sg,GEN=f,SEM=<\P.(DRS([x],[Mia(x)])+P(x))>] -> 'Mia'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he' | 'He'
+PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'him' | 'Him'
 PropN[NUM=sg,GEN=f,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'she' | 'She'
 PropN[NUM=sg,GEN=n,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it' | 'It'
 
