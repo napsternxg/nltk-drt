@@ -271,11 +271,8 @@ def resolve_anaphora(expression, trail=[]):
 #                           not (refex == expression.argument):
 #                            possible_antecedents.append(refex)
 
-            if len(possible_antecedents) == 1:
-                resolution = possible_antecedents[0]
-            else:
-                resolution = possible_antecedents 
-            return expression.make_EqualityExpression(expression.argument, resolution)
+            return expression.make_EqualityExpression(expression.argument, possible_antecedents)
+        
         else:
             r_function = resolve_anaphora(expression.function, trail + [expression])
             r_argument = resolve_anaphora(expression.argument, trail + [expression])
@@ -315,6 +312,9 @@ def resolve_anaphora(expression, trail=[]):
                     if len(filtered_antecedents) > 0:
                         filtered_antecedents = second_filtered_antecedents
 
+            if len(filtered_antecedents) == 1:
+                r_cond.second  = filtered_antecedents[0]
+            else:
                 r_cond.second = filtered_antecedents
                 
                 if isinstance(r_cond.second, PossibleAntecedents):
