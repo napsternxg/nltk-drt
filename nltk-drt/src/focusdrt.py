@@ -346,7 +346,7 @@ def resolve_anaphora(expression, trail=[]):
 
 def test():
 
-    parser = load_parser('file:../data/focus-drt.fcfg', logic_parser=FocusDrtParser())
+    parser = load_parser('file:../data/focusdrt.fcfg', logic_parser=FocusDrtParser())
 
     trees = parser.nbest_parse('Butch picks-up a chainsaw'.split())
     drs1 = trees[0].node['SEM'].simplify()
