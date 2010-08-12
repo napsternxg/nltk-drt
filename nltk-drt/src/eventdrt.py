@@ -1,5 +1,5 @@
-from nltk.sem.logic import Variable, unique_variable, ApplicationExpression, EqualityExpression, AbstractVariableExpression, NegatedExpression, ImpExpression, BinaryExpression, LambdaExpression
-from nltk.sem.drt import DrtEventVariableExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
+from nltk.sem.logic import ParseException, Variable, unique_variable, ApplicationExpression, EqualityExpression, AbstractVariableExpression, NegatedExpression, ImpExpression, BinaryExpression, LambdaExpression
+from nltk.sem.drt import DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
 from nltk import load_parser
 
 class EventDrtTokens(DrtTokens):
@@ -9,6 +9,40 @@ class EventDrtTokens(DrtTokens):
     SYMBOLS = DrtTokens.SYMBOLS + PUNCT
     TOKENS = DrtTokens.TOKENS + PUNCT
     
+
+class FeatureExpression(DrtConstantExpression):
+    """An expression with syntactic features attached"""
+    def __init__(self, expression, features):
+        self.variable = expression
+        self.features = features
+
+    def substitute_bindings(self, bindings):
+        #print "FeatureConstantExpression.substitute_bindings(%s)" % (bindings)
+        expression = self.variable.substitute_bindings(bindings)
+
+        features = []
+        for var in self.features:
+            try:
+                val = bindings[var]
+                if not isinstance(val, str):
+                    raise ValueError('expected a string feature value')
+                features.append(val)
+            except KeyError:
+                pass
+
+        #print features
+        return self._make_DrtLambdaExpression(expression, features)
+
+    def _make_DrtLambdaExpression(self, expression, features):
+        assert isinstance(expression, DrtLambdaExpression)
+        assert isinstance(expression.term, ConcatenationDRS)
+        assert isinstance(expression.term.first, DRS), type(expression.term.first)
+        assert len(expression.term.first.refs) == 1
+        var = expression.term.first.refs[-1]
+        features = {var: features}
+
+        return DrtLambdaExpression(expression.variable, ConcatenationEventDRS(EventDRS(expression.term.first.refs, expression.term.first.conds, features), expression.term.second))
+
 
 class EventDRS(DRS):
     """An event based Discourse Representation Structure with features."""
@@ -89,6 +123,7 @@ class EventDRS(DRS):
 
 class ConcatenationEventDRS(ConcatenationDRS):
     def simplify(self):
+        #print "ConcatenationEventDRS.simplify(%s)" % (self)
         first = self.first.simplify()
         second = self.second.simplify()
         
@@ -134,55 +169,25 @@ class EventDrtParser(DrtParser):
     def isvariable(self, tok):
         return tok not in EventDrtTokens.TOKENS
 
-    def handle_DRS(self):
-        # a DRS
-        self.assertToken(self.token(), DrtTokens.OPEN_BRACKET)
-        refs = []
-        features = {}
-        ref = None
-        counter = 0
-        while self.token(0) != DrtTokens.CLOSE_BRACKET:
-            # Support expressions like: DRS([x y],C) == DRS([x,y],C)
-            if self.token(0) == DrtTokens.COMMA:
-                self.token() # swallow the comma
-                # the referent can not accept any features
-                ref = None
+    def handle_variable(self, tok):
+        var = DrtParser.handle_variable(self, tok)
+        if isinstance(var, DrtConstantExpression) or isinstance(var, DrtApplicationExpression):
             # handle the feature structure of the variable
-            elif self.token(0) == EventDrtTokens.OPEN_BRACE:
-                self.token() # swallow the OPEN_BRACE
-                ref_features = []
-                while self.token(0) != EventDrtTokens.CLOSE_BRACE:
-                    ref_features.append(self.token())
-                    
-                    if self.token(0) == DrtTokens.COMMA:
-                        self.token() # swallow the comma
-                # if we have a referent assign the features to it 
-                if ref:
-                    features[ref] = ref_features
-                else: # just assign a number to the features
-                    features[counter] = ref_features
-                    counter+=1
-
-                self.token() # swallow the CLOSE_BRACE
-            else:
-                ref = Variable(self.token())
-                refs.append(ref)
-        self.token() # swallow the CLOSE_BRACKET token
-        
-        if self.token(0) == DrtTokens.COMMA: #if there is a comma (it's optional)
-            self.token() # swallow the comma
-            
-        self.assertToken(self.token(), DrtTokens.OPEN_BRACKET)
-        conds = []
-        while self.token(0) != DrtTokens.CLOSE_BRACKET:
-            # Support expressions like: DRS([x y],C) == DRS([x, y],C)
-            if self.token(0) == DrtTokens.COMMA:
-                self.token() # swallow the comma
-            else:
-                conds.append(self.parse_Expression())
-        self.token() # swallow the CLOSE_BRACKET token
-        self.assertToken(self.token(), DrtTokens.CLOSE)
-        return EventDRS(refs, conds, features)
+            try:
+                if self.token(0) == EventDrtTokens.OPEN_BRACE:
+                    self.token() # swallow the OPEN_BRACE
+                    features = []
+                    while self.token(0) != EventDrtTokens.CLOSE_BRACE:
+                        features.append(Variable(self.token()))
+                        
+                        if self.token(0) == DrtTokens.COMMA:
+                            self.token() # swallow the comma
+                    self.token() # swallow the CLOSE_BRACE
+                    return FeatureExpression(var, features)
+            except ParseException:
+                #we reached the end of input, this constant has no features
+                pass
+        return var
 
     def make_ApplicationExpression(self, function, argument):
         if isinstance(argument, DrtEventVariableExpression):
@@ -191,15 +196,6 @@ class EventDrtParser(DrtParser):
             return DrtRoleApplicationExpression(function, argument)
         else:
             return DrtApplicationExpression(function, argument)
-        
-    def get_BooleanExpression_factory(self, tok):
-        """This method serves as a hook for other logic parsers that
-        have different boolean operators"""
-        if tok == DrtTokens.DRS_CONC:
-            return ConcatenationEventDRS
-        else:
-            return DrtParser.get_BooleanExpression_factory(self, tok)
-
 
 class DrtEventApplicationExpression(DrtApplicationExpression):
     pass
@@ -226,7 +222,7 @@ def resolve_anaphora(expression, trail=[]):
             for ancestor in trail:
                 for cond in ancestor.conds:
                     if isinstance(cond, DrtRoleApplicationExpression):
-                        print(cond.argument.variable)
+                        #print(cond.argument.variable)
                         var = expression.make_VariableExpression(cond.argument.variable)
                         if not var == expression.argument:
                             possible_antecedents.append(var, cond.function.function)
@@ -266,13 +262,13 @@ def resolve_anaphora(expression, trail=[]):
                 #filter out the variables with non-matching features
                 filtered_antecedents = PossibleEventAntecedents()
                 first_features = features[r_cond.first]
-                print r_cond.second, r_cond.second.roles
+                #print r_cond.second, r_cond.second.roles
                 # first filter by features
                 for var,role in r_cond.second.iteritems():
                     if features[var] == first_features:
                         filtered_antecedents.append(var, role)
 
-                print(filtered_antecedents)
+                #print(filtered_antecedents)
                 # second filter by thematic role
                 if len(filtered_antecedents) > 1:
                     second_filtered_antecedents = PossibleEventAntecedents()
@@ -283,7 +279,7 @@ def resolve_anaphora(expression, trail=[]):
                     if len(filtered_antecedents) > 0:
                         filtered_antecedents = second_filtered_antecedents
                         
-                    print(second_filtered_antecedents)
+                    #print(second_filtered_antecedents)
 
                 if len(filtered_antecedents) == 1:
                     r_cond.second  = filtered_antecedents[0]
@@ -321,10 +317,10 @@ def test():
 
     parser = load_parser('file:../data/eventdrt.fcfg', logic_parser=EventDrtParser())
 
-    trees = parser.nbest_parse('Jeff likes Bill'.split())
+    trees = parser.nbest_parse('Jeff likes a car'.split())
     drs1 = trees[0].node['SEM'].simplify()
     print(drs1)
-    trees = parser.nbest_parse('He kills him'.split())
+    trees = parser.nbest_parse('He kills it'.split())
     drs2 = trees[0].node['SEM'].simplify()
     print(drs2)
     drs = drs1 + drs2
@@ -333,9 +329,9 @@ def test():
     drs = drs.resolve_anaphora()
     print(drs)
 
-    import nltkfix
+    #import nltkfix
 
-    drs.draw()
+    #drs.draw()
 
 if __name__ == '__main__':
     test()
