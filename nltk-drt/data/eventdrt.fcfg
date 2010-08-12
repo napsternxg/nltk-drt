@@ -5,16 +5,13 @@
 
 S[SEM = <?subj(?vp)>] -> NP[NUM=?n,GEN=?g,SEM=?subj] VP[NUM=?n,SEM=?vp]
 
-NP[NUM=?n,GEN=?g,SEM=<?det(?nom){?n,?g}> ] -> Det[NUM=?n,SEM=?det]  Nom[NUM=?n,GEN=?g,SEM=?nom]
+NP[NUM=?n,GEN=?g,SEM=<?det(?nom){?n,?g}> ] -> Det[NUM=?n,SEM=?det]  N[NUM=?n,GEN=?g,SEM=?nom]
 
 NP[NUM=?n,GEN=?g,SEM=<?np{?n,?g}>] -> PropN[NUM=?n,GEN=?g,SEM=?np]
 
-Nom[NUM=?n,GEN=?g,SEM=<?nom>] -> N[NUM=?n,GEN=?g,SEM=?nom]
-
 VP[NUM=?n,SEM=<?v(?obj)>] -> TV[NUM=?n,SEM=?v] NP[NUM=?n,GEN=?g,SEM=?obj]
 
-#TODO: should be VP[NUM=?n,SEM=?v] -> IV[NUM=?n,SEM=?v]
-VP[NUM=?n,SEM=<?v>] -> IV[NUM=?n,SEM=?v]
+VP[NUM=?n,SEM=?v] -> IV[NUM=?n,SEM=?v]
 
 #############################
 # Lexical Rules
