@@ -143,10 +143,6 @@ class ConcatenationEventDRS(ConcatenationDRS):
                     features[ref] = second.features[idx]
 
             features.update(second.features)
-            # remove all features with integer keys
-            for key in features.keys():
-                if isinstance(key, int):
-                    del features[key]
             return EventDRS(first.refs + second.refs, first.conds + second.conds, features)
 
         elif isinstance(first, EventDRS) and isinstance(second, DRS):
@@ -200,41 +196,64 @@ class EventDrtParser(DrtParser):
 class DrtEventApplicationExpression(DrtApplicationExpression):
     pass
 class DrtRoleApplicationExpression(DrtApplicationExpression):
-    pass
+    def get_role(self):
+        return self.function.function
+    def get_variable(self):
+        return self.argument.variable
 
 class PossibleEventAntecedents(PossibleAntecedents):
-    def __init__(self):
-        self.roles = []
 
-    def append(self, var, role):
-        list.append(self, var)
-        self.roles.append(role)
+    def free(self, indvar_only=True):
+        """Set of free variables."""
+        return set([item[0] for item in self])
+
+    def replace(self, variable, expression, replace_bound=False):
+        """Replace all instances of variable v with expression E in self,
+        where v is free in self."""
+        result = PossibleEventAntecedents()
+        for item in self:
+            if item[0] == variable:
+                result.append(expression, item[1], item[2])
+            else:
+                result.append(item)
+        return result
+            
+    def exclude(self, vars):
+        result = PossibleEventAntecedents()
+        for item in self:
+            if item[0] not in vars:
+                result.append(item)
+        return result
         
-    def iteritems(self):
-        for var, role in zip(self, self.roles):
-            yield var, role
+    def index(self, variable):
+        for i, item in enumerate(self):
+            if item[0] == variable:
+                return i
+        raise ValueError
+            
+    def str(self, syntax=DrtTokens.NLTK):
+        return '[' +  ','.join([str(item[0]) + "(" + str(item[2]) + ")" for item in self]) + ']'
 
 def resolve_anaphora(expression, trail=[]):
     
     if isinstance(expression, ApplicationExpression):
         if expression.is_pronoun_function():
             possible_antecedents = PossibleEventAntecedents()
+            pronouns = []
             for ancestor in trail:
+                #look for role assigning expressions:
                 for cond in ancestor.conds:
                     if isinstance(cond, DrtRoleApplicationExpression):
-                        #print(cond.argument.variable)
-                        var = expression.make_VariableExpression(cond.argument.variable)
+                        var = expression.make_VariableExpression(cond.get_variable())
                         if not var == expression.argument:
-                            possible_antecedents.append(var, cond.function.function)
+                            possible_antecedents.append((var, cond.get_role(), 0))
                         else:
-                            expression.argument.role = cond.function.function
-                    
-                    #==========================================================
-                    # Don't allow resolution to itself or other types
-                    #==========================================================
-#                        if refex.__class__ == expression.argument.__class__ and \
-#                           not (refex == expression.argument):
-#                            possible_antecedents.append(refex)
+                            expression.argument.role = cond.get_role()
+                    elif cond.is_pronoun_function():
+                        pronouns.append(cond.argument)
+
+            #exclude pronouns from resolution
+            possible_antecedents = possible_antecedents.exclude(pronouns)
 
             return expression.make_EqualityExpression(expression.argument, possible_antecedents)
         
@@ -245,9 +264,6 @@ def resolve_anaphora(expression, trail=[]):
 
     elif isinstance(expression, EventDRS):
         r_conds = []
-        features = {}
-        for key, value in expression.features.iteritems():
-            features[expression.make_VariableExpression(key)] = value
 
         for cond in expression.conds:
             r_cond = resolve_anaphora(cond, trail + [expression])
@@ -261,35 +277,50 @@ def resolve_anaphora(expression, trail=[]):
                     r_cond.second = temp
                 #filter out the variables with non-matching features
                 filtered_antecedents = PossibleEventAntecedents()
-                first_features = features[r_cond.first]
-                #print r_cond.second, r_cond.second.roles
-                # first filter by features
-                for var,role in r_cond.second.iteritems():
-                    if features[var] == first_features:
-                        filtered_antecedents.append(var, role)
+                first_features = expression.features[r_cond.first.variable]
+                #print "start:", r_cond.second
+                # filter by features
+                for var,role,rank in r_cond.second:
+                    if expression.features[var.variable] == first_features:
+                        filtered_antecedents.append((var, role, rank))
 
-                #print(filtered_antecedents)
-                # second filter by thematic role
-                if len(filtered_antecedents) > 1:
-                    second_filtered_antecedents = PossibleEventAntecedents()
-                    for var, role in filtered_antecedents.iteritems():
-                        if role == r_cond.first.role:
-                            second_filtered_antecedents.append(var, role)
-                    # check if we still have some variables left, otherwise revert
-                    if len(filtered_antecedents) > 0:
-                        filtered_antecedents = second_filtered_antecedents
-                        
-                    #print(second_filtered_antecedents)
+                # allow only backward resolution
+                #print "before:", r_cond.first.variable, filtered_antecedents
+                new_filtered_antecedents = PossibleEventAntecedents()
+                first_index = expression.refs.index(r_cond.first.variable)
+                idx_map = {}
+                for idx, ref in enumerate(expression.refs[:first_index]):
+                    try:
+                        i = filtered_antecedents.index(expression.make_VariableExpression(ref))
+                        new_filtered_antecedents.append(filtered_antecedents[i])
+                        idx_map[idx] = filtered_antecedents[i][0]
+                    except ValueError:
+                        pass
+
+                filtered_antecedents = new_filtered_antecedents
+                #rank by proximity
+                if len(idx_map) > 1:
+                    for i,key in enumerate(sorted(idx_map)):
+                        j = filtered_antecedents.index(idx_map[key])
+                        filtered_antecedents[j] = (filtered_antecedents[j][0], filtered_antecedents[j][1], filtered_antecedents[j][2]+i)
+                
+                #print "after:", r_cond.first.variable, filtered_antecedents
+                # rank by thematic role
+                for i,(var, role, rank) in enumerate(filtered_antecedents):
+                    if role == r_cond.first.role:
+                        filtered_antecedents[i] = (var, role, rank+1)
+                
+                    #print(third_filtered_antecedents)
 
                 if len(filtered_antecedents) == 1:
-                    r_cond.second  = filtered_antecedents[0]
+                    r_cond.second  = filtered_antecedents[0][0]
                 else:
                     r_cond.second = filtered_antecedents
                     
-                    if isinstance(r_cond.second, PossibleEventAntecedents):
-                        if not r_cond.second:
-                            raise AnaphoraResolutionException("Variable '%s' does not "
-                                    "resolve to anything." % r_cond.first)
+                if isinstance(r_cond.second, PossibleEventAntecedents):
+                    if not r_cond.second:
+                        raise AnaphoraResolutionException("Variable '%s' does not "
+                                "resolve to anything." % r_cond.first)
                         
             r_conds.append(r_cond)
 
