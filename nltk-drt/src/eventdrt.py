@@ -10,6 +10,14 @@ class EventDrtTokens(DrtTokens):
     SYMBOLS = DrtTokens.SYMBOLS + PUNCT
     TOKENS = DrtTokens.TOKENS + PUNCT
 
+def is_pronoun_function(self):
+    """ Is self of the form "PRO(x)"? or "REFPRO(x)"? """
+    return isinstance(self, DrtApplicationExpression) and \
+           isinstance(self.function, DrtAbstractVariableExpression) and \
+           (self.function.variable.name == DrtTokens.PRONOUN or\
+           self.function.variable.name == EventDrtTokens.REFLEXIVE_PRONOUN) and \
+           isinstance(self.argument, DrtIndividualVariableExpression)
+
 def is_reflexive_pronoun_function(self):
     """ Is self of the form "REFPRO(x)"? """
     return isinstance(self, DrtApplicationExpression) and \
@@ -17,7 +25,13 @@ def is_reflexive_pronoun_function(self):
            self.function.variable.name == EventDrtTokens.REFLEXIVE_PRONOUN and \
            isinstance(self.argument, DrtIndividualVariableExpression)
 
+AbstractDrs.is_pronoun_function = is_pronoun_function
 AbstractDrs.is_reflexive_pronoun_function = is_reflexive_pronoun_function
+
+def get_refs(self, recursive=False):
+    return []
+
+AbstractDrs.get_refs = get_refs
 
 class FeatureExpression(DrtConstantExpression):
     """An expression with syntactic features attached"""
@@ -43,21 +57,25 @@ class FeatureExpression(DrtConstantExpression):
         return self._make_DrtLambdaExpression(expression, features)
 
     def _make_DrtLambdaExpression(self, expression, features):
+        #print "expression:", expression
         if isinstance(expression, DrtLambdaExpression) and\
         isinstance(expression.term, ConcatenationDRS) and\
         isinstance(expression.term.first, DRS) and\
-        len(expression.term.first.refs) == 1:
-            features_map = {expression.term.first.refs[-1]: features}
+        expression.term.second.argument.variable in expression.term.first.refs:
+            features_map = {expression.term.second.argument.variable: features}
+            if isinstance(expression.term.first, EventDRS):
+                features_map.update(expression.term.first.features)
             return DrtLambdaExpression(expression.variable, ConcatenationEventDRS(EventDRS(expression.term.first.refs, expression.term.first.conds, features_map), expression.term.second))
         elif isinstance(expression, DrtLambdaExpression) and\
         isinstance(expression.term, DRS) and\
         len(expression.term.conds) == 1 and\
         isinstance(expression.term.conds[0], DrtImpExpression) and\
         isinstance(expression.term.conds[0].first, DRS) and\
-        len(expression.term.conds[0].first.refs) == 1:
-            print type(expression.term.conds[0])
-            features_map = {expression.term.conds[0].first.refs[-1]: features}
+        expression.term.conds[0].second.argument.variable in expression.term.conds[0].first.refs:
+            #print type(expression.term.conds[0])
+            features_map = {expression.term.conds[0].second.argument.variable: features}
             return DrtLambdaExpression(expression.variable, EventDRS(expression.term.refs, [DrtImpExpression(EventDRS(expression.term.conds[0].first.refs, expression.term.conds[0].first.conds, features_map), expression.term.conds[0].second)]))
+
 
 class EventDRS(DRS):
     """An event based Discourse Representation Structure with features."""
@@ -169,7 +187,7 @@ class ConcatenationEventDRS(ConcatenationDRS):
             return EventDRS(first.refs + second.refs, first.conds + second.conds, second.features)
 
         else:
-            return self.__class__(first, second)
+            return ConcatenationDRS.simplify(self)
 
 class EventDrtParser(DrtParser):
     """A lambda calculus expression parser."""
@@ -182,7 +200,7 @@ class EventDrtParser(DrtParser):
 
     def handle_variable(self, tok):
         var = DrtParser.handle_variable(self, tok)
-        if isinstance(var, DrtConstantExpression) or isinstance(var, DrtApplicationExpression):
+        if isinstance(var, DrtConstantExpression): #or isinstance(var, DrtApplicationExpression):
             # handle the feature structure of the variable
             try:
                 if self.token(0) == EventDrtTokens.OPEN_BRACE:
@@ -208,6 +226,14 @@ class EventDrtParser(DrtParser):
         else:
             return DrtApplicationExpression(function, argument)
 
+    def get_BooleanExpression_factory(self, tok):
+        """This method serves as a hook for other logic parsers that
+        have different boolean operators"""
+        if tok == DrtTokens.DRS_CONC:
+            return ConcatenationEventDRS
+        else:
+            return DrtParser.get_BooleanExpression_factory(self, tok)
+
 class DrtEventApplicationExpression(DrtApplicationExpression):
     pass
 class DrtRoleApplicationExpression(DrtApplicationExpression):
@@ -215,6 +241,8 @@ class DrtRoleApplicationExpression(DrtApplicationExpression):
         return self.function.function
     def get_variable(self):
         return self.argument.variable
+    def get_event(self):
+        return self.function.argument
 
 class PossibleEventAntecedents(PossibleAntecedents):
 
@@ -257,9 +285,12 @@ def resolve_anaphora(expression, trail=[]):
             pronouns = []
             for ancestor in trail:
                 pro_var = expression.argument.variable
+                #print ancestor.features
                 pro_features = ancestor.features[pro_var]
                 roles = {}
+                events = {}
                 pro_role = None
+                pro_event = None
                 for cond in ancestor.conds:
                     #look for role assigning expressions:
                     if isinstance(cond, DrtRoleApplicationExpression):
@@ -271,34 +302,48 @@ def resolve_anaphora(expression, trail=[]):
                             if ancestor.features[var] == pro_features and ancestor.refs.index(var) <  ancestor.refs.index(pro_var):
                                 possible_antecedents.append((expression.make_VariableExpression(var), 0))
                                 roles[var] = cond.get_role()
+                                events[var] = cond.get_event()
                         else:
                             pro_role = cond.get_role()
+                            pro_event = cond.get_event()
 
                     elif cond.is_pronoun_function():
                         pronouns.append(cond.argument)
 
             #exclude pronouns from resolution
-            possible_antecedents = possible_antecedents.exclude(pronouns)
+            #possible_antecedents = possible_antecedents.exclude(pronouns)
+
+            #non reflexive pronouns can not resolve to variables having a role in the same event
+            antecedents = PossibleEventAntecedents()
+            
+            is_reflexive = expression.is_reflexive_pronoun_function()
+            if not is_reflexive:
+                possible_antecedents = possible_antecedents.exclude(pronouns)
+            for index, (var, rank) in enumerate(possible_antecedents):
+                if not is_reflexive and not events[var.variable] == pro_event:
+                    antecedents.append((var, rank))
+                elif is_reflexive and events[var.variable] == pro_event:
+                    antecedents.append((var, rank))
 
             #ranking system
             #increment ranking for matching roles and map the positions of antecedents
-            if len(possible_antecedents) > 1:
+            if len(antecedents) > 1:
                 idx_map = {}
-                for index, (var, rank) in enumerate(possible_antecedents):
+                for index, (var, rank) in enumerate(antecedents):
                     idx_map[ancestor.refs.index(var.variable)] = var
                     if roles[var.variable] == pro_role:
-                        possible_antecedents[index] = (var, rank+1)
+                        antecedents[index] = (var, rank+1)
     
                 #rank by proximity
 
                 for i,key in enumerate(sorted(idx_map)):
-                    j = possible_antecedents.index(idx_map[key])
-                    possible_antecedents[j] = (possible_antecedents[j][0], possible_antecedents[j][1]+i)
+                    j = antecedents.index(idx_map[key])
+                    antecedents[j] = (antecedents[j][0], antecedents[j][1]+i)
 
-            if len(possible_antecedents) == 1:
-                resolution = possible_antecedents[0][0]
+            if len(antecedents) == 1:
+                resolution = antecedents[0][0]
             else:
-                resolution = possible_antecedents 
+                resolution = antecedents 
 
             return expression.make_EqualityExpression(expression.argument, resolution)
         

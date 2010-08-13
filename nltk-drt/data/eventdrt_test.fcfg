@@ -5,13 +5,17 @@
 
 S[SEM = <?subj(?vp)>] -> NP[NUM=?n,GEN=?g,SEM=?subj] VP[NUM=?n,SEM=?vp]
 
-NP[NUM=?n,GEN=?g,SEM=<?det(?nom){?n,?g}> ] -> Det[NUM=?n,SEM=?det]  N[NUM=?n,GEN=?g,SEM=?nom]
-
 NP[NUM=?n,GEN=?g,SEM=<?np{?n,?g}>] -> PropN[NUM=?n,GEN=?g,SEM=?np]
+
+PropN[NUM=?n,GEN=?g,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  N[NUM=?n,GEN=?g,SEM=?nom]
 
 VP[NUM=?n,SEM=<?v(?obj)>] -> TV[NUM=?n,SEM=?v] NP[NUM=?n,GEN=?g,SEM=?obj]
 
-VP[NUM=?n,SEM=?v] -> IV[NUM=?n,SEM=?v]
+VP[NUM=?n,SEM=?v] -> IV[NUM=?n,SEM=?v] 
+
+Det[NUM=sg,SEM=<\P Q.((?pp(\y.(DRS([x,e],[possession(e), POSSESSOR(e,y), POSSESSED(e,x)]))) +P(x))+Q(x))>] -> FeatPosPron[SEM=?pp] 
+
+FeatPosPron[NUM=?n,GEN=?g,SEM=<?p{?n,?g}>] -> PosPron[NUM=?n,GEN=?g,SEM=?p]
 
 #############################
 # Lexical Rules
@@ -22,9 +26,12 @@ PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[Bill(x)])+P(x))>] -> 'Bill'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he' | 'He'
 PropN[NUM=sg,GEN=f,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'she' | 'She'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'him' | 'Him'
+PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[REFPRO(x)])+P(x))>] -> 'himself' | 'Himself'
 PropN[NUM=sg,GEN=n,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it' | 'It'
 Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
 Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'every' | 'Every'
+
+PosPron[NUM=sg,GEN=m,SEM=<\P.(DRS([y],[PRO(y)])+P(y))>] -> 'his' | 'His'
 
 N[NUM=sg,GEN=m,SEM=<\x.DRS([],[man(x)])>] -> 'man'
 N[NUM=sg,GEN=n,SEM=<\x.DRS([],[car(x)])>] -> 'car'
