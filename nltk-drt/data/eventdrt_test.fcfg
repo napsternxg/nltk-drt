@@ -26,7 +26,7 @@ PropN[NUM=sg,GEN=n,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it' | 'It'
 Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
 Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'every' | 'Every'
 
-N[NUM=sg,GEN=m,SEM=<\x.DRS([],[car(x)])>] -> 'man'
+N[NUM=sg,GEN=m,SEM=<\x.DRS([],[man(x)])>] -> 'man'
 N[NUM=sg,GEN=n,SEM=<\x.DRS([],[car(x)])>] -> 'car'
 
 TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[invite(e), AGENT(e,x), THEME(e,y)]))>] -> 'invites'

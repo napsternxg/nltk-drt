@@ -1,5 +1,5 @@
 from nltk.sem.logic import ParseException, Variable, unique_variable, ApplicationExpression, EqualityExpression, AbstractVariableExpression, NegatedExpression, ImpExpression, BinaryExpression, LambdaExpression
-from nltk.sem.drt import AbstractDrs, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
+from nltk.sem.drt import DrtImpExpression, AbstractDrs, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
 from nltk import load_parser
 
 class EventDrtTokens(DrtTokens):
@@ -47,12 +47,17 @@ class FeatureExpression(DrtConstantExpression):
         isinstance(expression.term, ConcatenationDRS) and\
         isinstance(expression.term.first, DRS) and\
         len(expression.term.first.refs) == 1:
-            var = expression.term.first.refs[-1]
-            features = {var: features}
-            return DrtLambdaExpression(expression.variable, ConcatenationEventDRS(EventDRS(expression.term.first.refs, expression.term.first.conds, features), expression.term.second))
+            features_map = {expression.term.first.refs[-1]: features}
+            return DrtLambdaExpression(expression.variable, ConcatenationEventDRS(EventDRS(expression.term.first.refs, expression.term.first.conds, features_map), expression.term.second))
         elif isinstance(expression, DrtLambdaExpression) and\
-        isinstance(expression.term, DRS):
-            return DrtLambdaExpression(expression.variable, EventDRS(expression.term.refs, expression.term.conds))
+        isinstance(expression.term, DRS) and\
+        len(expression.term.conds) == 1 and\
+        isinstance(expression.term.conds[0], DrtImpExpression) and\
+        isinstance(expression.term.conds[0].first, DRS) and\
+        len(expression.term.conds[0].first.refs) == 1:
+            print type(expression.term.conds[0])
+            features_map = {expression.term.conds[0].first.refs[-1]: features}
+            return DrtLambdaExpression(expression.variable, EventDRS(expression.term.refs, [DrtImpExpression(EventDRS(expression.term.conds[0].first.refs, expression.term.conds[0].first.conds, features_map), expression.term.conds[0].second)]))
 
 class EventDRS(DRS):
     """An event based Discourse Representation Structure with features."""
