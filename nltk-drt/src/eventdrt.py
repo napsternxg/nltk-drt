@@ -1,14 +1,23 @@
 from nltk.sem.logic import ParseException, Variable, unique_variable, ApplicationExpression, EqualityExpression, AbstractVariableExpression, NegatedExpression, ImpExpression, BinaryExpression, LambdaExpression
-from nltk.sem.drt import DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
+from nltk.sem.drt import AbstractDrs, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
 from nltk import load_parser
 
 class EventDrtTokens(DrtTokens):
+    REFLEXIVE_PRONOUN = 'REFPRO'
     OPEN_BRACE = '{'
     CLOSE_BRACE = '}'
     PUNCT = [OPEN_BRACE, CLOSE_BRACE]
     SYMBOLS = DrtTokens.SYMBOLS + PUNCT
     TOKENS = DrtTokens.TOKENS + PUNCT
-    
+
+def is_reflexive_pronoun_function(self):
+    """ Is self of the form "REFPRO(x)"? """
+    return isinstance(self, DrtApplicationExpression) and \
+           isinstance(self.function, DrtAbstractVariableExpression) and \
+           self.function.variable.name == EventDrtTokens.REFLEXIVE_PRONOUN and \
+           isinstance(self.argument, DrtIndividualVariableExpression)
+
+AbstractDrs.is_reflexive_pronoun_function = is_reflexive_pronoun_function
 
 class FeatureExpression(DrtConstantExpression):
     """An expression with syntactic features attached"""
@@ -34,15 +43,16 @@ class FeatureExpression(DrtConstantExpression):
         return self._make_DrtLambdaExpression(expression, features)
 
     def _make_DrtLambdaExpression(self, expression, features):
-        assert isinstance(expression, DrtLambdaExpression)
-        assert isinstance(expression.term, ConcatenationDRS)
-        assert isinstance(expression.term.first, DRS), type(expression.term.first)
-        assert len(expression.term.first.refs) == 1
-        var = expression.term.first.refs[-1]
-        features = {var: features}
-
-        return DrtLambdaExpression(expression.variable, ConcatenationEventDRS(EventDRS(expression.term.first.refs, expression.term.first.conds, features), expression.term.second))
-
+        if isinstance(expression, DrtLambdaExpression) and\
+        isinstance(expression.term, ConcatenationDRS) and\
+        isinstance(expression.term.first, DRS) and\
+        len(expression.term.first.refs) == 1:
+            var = expression.term.first.refs[-1]
+            features = {var: features}
+            return DrtLambdaExpression(expression.variable, ConcatenationEventDRS(EventDRS(expression.term.first.refs, expression.term.first.conds, features), expression.term.second))
+        elif isinstance(expression, DrtLambdaExpression) and\
+        isinstance(expression.term, DRS):
+            return DrtLambdaExpression(expression.variable, EventDRS(expression.term.refs, expression.term.conds))
 
 class EventDRS(DRS):
     """An event based Discourse Representation Structure with features."""
@@ -213,7 +223,7 @@ class PossibleEventAntecedents(PossibleAntecedents):
         result = PossibleEventAntecedents()
         for item in self:
             if item[0] == variable:
-                result.append(expression, item[1], item[2])
+                result.append(expression, item[1])
             else:
                 result.append(item)
         return result
@@ -229,10 +239,10 @@ class PossibleEventAntecedents(PossibleAntecedents):
         for i, item in enumerate(self):
             if item[0] == variable:
                 return i
-        raise ValueError
+        raise ValueError, type(variable)
             
     def str(self, syntax=DrtTokens.NLTK):
-        return '[' +  ','.join([str(item[0]) + "(" + str(item[2]) + ")" for item in self]) + ']'
+        return '[' +  ','.join([str(item[0]) + "(" + str(item[1]) + ")" for item in self]) + ']'
 
 def resolve_anaphora(expression, trail=[]):
     
@@ -241,21 +251,51 @@ def resolve_anaphora(expression, trail=[]):
             possible_antecedents = PossibleEventAntecedents()
             pronouns = []
             for ancestor in trail:
-                #look for role assigning expressions:
+                pro_var = expression.argument.variable
+                pro_features = ancestor.features[pro_var]
+                roles = {}
+                pro_role = None
                 for cond in ancestor.conds:
+                    #look for role assigning expressions:
                     if isinstance(cond, DrtRoleApplicationExpression):
-                        var = expression.make_VariableExpression(cond.get_variable())
-                        if not var == expression.argument:
-                            possible_antecedents.append((var, cond.get_role(), 0))
+                        var = cond.get_variable()
+                        #filter out the variable itself
+                        #filter out the variables with non-matching features
+                        #allow only backward resolution
+                        if not var == pro_var:
+                            if ancestor.features[var] == pro_features and ancestor.refs.index(var) <  ancestor.refs.index(pro_var):
+                                possible_antecedents.append((expression.make_VariableExpression(var), 0))
+                                roles[var] = cond.get_role()
                         else:
-                            expression.argument.role = cond.get_role()
+                            pro_role = cond.get_role()
+
                     elif cond.is_pronoun_function():
                         pronouns.append(cond.argument)
 
             #exclude pronouns from resolution
             possible_antecedents = possible_antecedents.exclude(pronouns)
 
-            return expression.make_EqualityExpression(expression.argument, possible_antecedents)
+            #ranking system
+            #increment ranking for matching roles and map the positions of antecedents
+            if len(possible_antecedents) > 1:
+                idx_map = {}
+                for index, (var, rank) in enumerate(possible_antecedents):
+                    idx_map[ancestor.refs.index(var.variable)] = var
+                    if roles[var.variable] == pro_role:
+                        possible_antecedents[index] = (var, rank+1)
+    
+                #rank by proximity
+
+                for i,key in enumerate(sorted(idx_map)):
+                    j = possible_antecedents.index(idx_map[key])
+                    possible_antecedents[j] = (possible_antecedents[j][0], possible_antecedents[j][1]+i)
+
+            if len(possible_antecedents) == 1:
+                resolution = possible_antecedents[0][0]
+            else:
+                resolution = possible_antecedents 
+
+            return expression.make_EqualityExpression(expression.argument, resolution)
         
         else:
             r_function = resolve_anaphora(expression.function, trail + [expression])
@@ -275,47 +315,6 @@ def resolve_anaphora(expression, trail=[]):
                     temp = r_cond.first
                     r_cond.first = r_cond.second
                     r_cond.second = temp
-                #filter out the variables with non-matching features
-                filtered_antecedents = PossibleEventAntecedents()
-                first_features = expression.features[r_cond.first.variable]
-                #print "start:", r_cond.second
-                # filter by features
-                for var,role,rank in r_cond.second:
-                    if expression.features[var.variable] == first_features:
-                        filtered_antecedents.append((var, role, rank))
-
-                # allow only backward resolution
-                #print "before:", r_cond.first.variable, filtered_antecedents
-                new_filtered_antecedents = PossibleEventAntecedents()
-                first_index = expression.refs.index(r_cond.first.variable)
-                idx_map = {}
-                for idx, ref in enumerate(expression.refs[:first_index]):
-                    try:
-                        i = filtered_antecedents.index(expression.make_VariableExpression(ref))
-                        new_filtered_antecedents.append(filtered_antecedents[i])
-                        idx_map[idx] = filtered_antecedents[i][0]
-                    except ValueError:
-                        pass
-
-                filtered_antecedents = new_filtered_antecedents
-                #rank by proximity
-                if len(idx_map) > 1:
-                    for i,key in enumerate(sorted(idx_map)):
-                        j = filtered_antecedents.index(idx_map[key])
-                        filtered_antecedents[j] = (filtered_antecedents[j][0], filtered_antecedents[j][1], filtered_antecedents[j][2]+i)
-                
-                #print "after:", r_cond.first.variable, filtered_antecedents
-                # rank by thematic role
-                for i,(var, role, rank) in enumerate(filtered_antecedents):
-                    if role == r_cond.first.role:
-                        filtered_antecedents[i] = (var, role, rank+1)
-                
-                    #print(third_filtered_antecedents)
-
-                if len(filtered_antecedents) == 1:
-                    r_cond.second  = filtered_antecedents[0][0]
-                else:
-                    r_cond.second = filtered_antecedents
                     
                 if isinstance(r_cond.second, PossibleEventAntecedents):
                     if not r_cond.second:
@@ -343,6 +342,8 @@ def resolve_anaphora(expression, trail=[]):
     elif isinstance(expression, LambdaExpression):
         return expression.__class__(expression.variable, resolve_anaphora(expression.term, trail + [expression]))
 
+    else:
+        return expression
 
 def test():
 
