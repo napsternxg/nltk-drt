@@ -8,7 +8,12 @@ def test():
     s1 = "Bill wants a car. Jones needs it. He wants it."
     s2 = "He invites Jones"
     s3 = "Every man wants a car. Bill needs a car"
-    drs = parse(parser,s3)
+    s4 = "Bill wants Jones. Jones needs him. He wants himself."
+    s5 = "Bill wants Jones. Himself wants Jones."
+    s6 = "Jones expects himself to win."
+    s7 = "Every man needs his car."
+    s8 = "Jones needs his car."
+    drs = parse(parser,s8)
     print(drs)
     drs.draw()
 
