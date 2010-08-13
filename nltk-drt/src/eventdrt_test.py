@@ -11,8 +11,9 @@ def test():
     s4 = "Bill wants Jones. Jones needs him. He wants himself."
     s5 = "Bill wants Jones. Himself wants Jones."
     s6 = "Jones expects himself to win."
-    s7 = "Every man needs his car."
-    s8 = "Jones needs his car."
+    s7 = "Bill walks. Every man needs his car."
+    s8 = "Jones needs his car. Bill wants it."
+    s9 = "Jones needs no car. Bill needs it."
     drs = parse(parser,s8)
     print(drs)
     drs.draw()

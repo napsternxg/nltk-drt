@@ -29,9 +29,10 @@ PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'him' | 'Him'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[REFPRO(x)])+P(x))>] -> 'himself' | 'Himself'
 PropN[NUM=sg,GEN=n,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it' | 'It'
 Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
+Det[NUM=sg,SEM=<\P Q.DRS([],[-((DRS([x],[])+P(x))+Q(x))])>] -> 'no' | 'No'
 Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'every' | 'Every'
 
-PosPron[NUM=sg,GEN=m,SEM=<\P.(DRS([y],[PRO(y)])+P(y))>] -> 'his' | 'His'
+PosPron[NUM=sg,GEN=m,SEM=<\P.(DRS([y],[POSPRO(y)])+P(y))>] -> 'his' | 'His'
 
 N[NUM=sg,GEN=m,SEM=<\x.DRS([],[man(x)])>] -> 'man'
 N[NUM=sg,GEN=n,SEM=<\x.DRS([],[car(x)])>] -> 'car'
