@@ -4,29 +4,37 @@ from nltk import load_parser
 
 class EventDrtTokens(DrtTokens):
     REFLEXIVE_PRONOUN = 'REFPRO'
+    POSSESSIVE_PRONOUN = 'POSPRO'
+    PRONOUNS = [DrtTokens.PRONOUN, REFLEXIVE_PRONOUN, POSSESSIVE_PRONOUN]
     OPEN_BRACE = '{'
     CLOSE_BRACE = '}'
     PUNCT = [OPEN_BRACE, CLOSE_BRACE]
     SYMBOLS = DrtTokens.SYMBOLS + PUNCT
     TOKENS = DrtTokens.TOKENS + PUNCT
 
-def is_pronoun_function(self):
-    """ Is self of the form "PRO(x)"? or "REFPRO(x)"? """
-    return isinstance(self, DrtApplicationExpression) and \
-           isinstance(self.function, DrtAbstractVariableExpression) and \
-           (self.function.variable.name == DrtTokens.PRONOUN or\
-           self.function.variable.name == EventDrtTokens.REFLEXIVE_PRONOUN) and \
-           isinstance(self.argument, DrtIndividualVariableExpression)
+def is_pronoun_function(expr):
+    """ Is self of the form "PRO(x)"? or "REFPRO(x)"? r "POSPRO(x)"? """
+    return isinstance(expr, DrtApplicationExpression) and \
+           isinstance(expr.function, DrtAbstractVariableExpression) and \
+           (expr.function.variable.name in EventDrtTokens.PRONOUNS) and \
+           isinstance(expr.argument, DrtIndividualVariableExpression)
 
-def is_reflexive_pronoun_function(self):
+def is_reflexive_pronoun_function(expr):
     """ Is self of the form "REFPRO(x)"? """
-    return isinstance(self, DrtApplicationExpression) and \
-           isinstance(self.function, DrtAbstractVariableExpression) and \
-           self.function.variable.name == EventDrtTokens.REFLEXIVE_PRONOUN and \
-           isinstance(self.argument, DrtIndividualVariableExpression)
+    return isinstance(expr, DrtApplicationExpression) and \
+           isinstance(expr.function, DrtAbstractVariableExpression) and \
+           expr.function.variable.name == EventDrtTokens.REFLEXIVE_PRONOUN and \
+           isinstance(expr.argument, DrtIndividualVariableExpression)
 
-AbstractDrs.is_pronoun_function = is_pronoun_function
-AbstractDrs.is_reflexive_pronoun_function = is_reflexive_pronoun_function
+def is_possessive_pronoun_function(expr):
+    """ Is self of the form "REFPRO(x)"? """
+    return isinstance(expr, DrtApplicationExpression) and \
+           isinstance(expr.function, DrtAbstractVariableExpression) and \
+           expr.function.variable.name == EventDrtTokens.POSSESSIVE_PRONOUN and \
+           isinstance(expr.argument, DrtIndividualVariableExpression)
+
+#AbstractDrs.is_pronoun_function = is_pronoun_function
+#AbstractDrs.is_reflexive_pronoun_function = is_reflexive_pronoun_function
 
 def get_refs(self, recursive=False):
     return []
@@ -57,7 +65,7 @@ class FeatureExpression(DrtConstantExpression):
         return self._make_DrtLambdaExpression(expression, features)
 
     def _make_DrtLambdaExpression(self, expression, features):
-        #print "expression:", expression
+        print "expression:", expression
         if isinstance(expression, DrtLambdaExpression) and\
         isinstance(expression.term, ConcatenationDRS) and\
         isinstance(expression.term.first, DRS) and\
@@ -280,35 +288,43 @@ class PossibleEventAntecedents(PossibleAntecedents):
 def resolve_anaphora(expression, trail=[]):
     
     if isinstance(expression, ApplicationExpression):
-        if expression.is_pronoun_function():
+        if is_pronoun_function(expression):
             possible_antecedents = PossibleEventAntecedents()
             pronouns = []
+            pro_var = expression.argument.variable
+            roles = {}
+            events = {}
+            pro_role = None
+            pro_event = None
+            pro_features = None
+            features = {}
+            refs = []
             for ancestor in trail:
-                pro_var = expression.argument.variable
-                #print ancestor.features
-                pro_features = ancestor.features[pro_var]
-                roles = {}
-                events = {}
-                pro_role = None
-                pro_event = None
-                for cond in ancestor.conds:
-                    #look for role assigning expressions:
-                    if isinstance(cond, DrtRoleApplicationExpression):
-                        var = cond.get_variable()
-                        #filter out the variable itself
-                        #filter out the variables with non-matching features
-                        #allow only backward resolution
-                        if not var == pro_var:
-                            if ancestor.features[var] == pro_features and ancestor.refs.index(var) <  ancestor.refs.index(pro_var):
-                                possible_antecedents.append((expression.make_VariableExpression(var), 0))
-                                roles[var] = cond.get_role()
-                                events[var] = cond.get_event()
-                        else:
-                            pro_role = cond.get_role()
-                            pro_event = cond.get_event()
-
-                    elif cond.is_pronoun_function():
-                        pronouns.append(cond.argument)
+                if isinstance(ancestor, EventDRS):
+                    features.update(ancestor.features)
+                    refs.extend(ancestor.refs)
+                    if pro_var in features:
+                        print features
+                        if not pro_features:
+                            pro_features = features[pro_var]
+                        for cond in ancestor.conds:
+                            #look for role assigning expressions:
+                            if isinstance(cond, DrtRoleApplicationExpression):
+                                var = cond.get_variable()
+                                #filter out the variable itself
+                                #filter out the variables with non-matching features
+                                #allow only backward resolution
+                                if not var == pro_var:
+                                    if features[var] == pro_features and refs.index(var) <  refs.index(pro_var):
+                                        possible_antecedents.append((expression.make_VariableExpression(var), 0))
+                                        roles[var] = cond.get_role()
+                                        events[var] = cond.get_event()
+                                else:
+                                    pro_role = cond.get_role()
+                                    pro_event = cond.get_event()
+        
+                            elif cond.is_pronoun_function():
+                                pronouns.append(cond.argument)
 
             #exclude pronouns from resolution
             #possible_antecedents = possible_antecedents.exclude(pronouns)
@@ -316,13 +332,14 @@ def resolve_anaphora(expression, trail=[]):
             #non reflexive pronouns can not resolve to variables having a role in the same event
             antecedents = PossibleEventAntecedents()
             
-            is_reflexive = expression.is_reflexive_pronoun_function()
+            is_reflexive = is_reflexive_pronoun_function(expression)
+            is_possesive = is_possessive_pronoun_function(expression)
             if not is_reflexive:
                 possible_antecedents = possible_antecedents.exclude(pronouns)
             for index, (var, rank) in enumerate(possible_antecedents):
                 if not is_reflexive and not events[var.variable] == pro_event:
                     antecedents.append((var, rank))
-                elif is_reflexive and events[var.variable] == pro_event:
+                elif (is_reflexive or is_possesive) and events[var.variable] == pro_event:
                     antecedents.append((var, rank))
 
             #ranking system
@@ -330,7 +347,7 @@ def resolve_anaphora(expression, trail=[]):
             if len(antecedents) > 1:
                 idx_map = {}
                 for index, (var, rank) in enumerate(antecedents):
-                    idx_map[ancestor.refs.index(var.variable)] = var
+                    idx_map[refs.index(var.variable)] = var
                     if roles[var.variable] == pro_role:
                         antecedents[index] = (var, rank+1)
     
