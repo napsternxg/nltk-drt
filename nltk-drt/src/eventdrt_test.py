@@ -5,8 +5,9 @@ import nltkfix
 
 def test():
     parser = load_parser('file:../data/eventdrt_test.fcfg', logic_parser=EventDrtParser())
-    s1 = "Jones needs a car. He wants it. Bill wants it. He needs it"
-    s2 = "Mia ordered a five dollar shake. Vincent tasted it."
+    s1 = "Bill wants a car. Jones needs it. He wants it."
+    s2 = "He invites Jones"
+    s3 = "Every man wants a car. Bill needs a car"
     drs = parse(parser,s1)
     print(drs)
     drs.draw()

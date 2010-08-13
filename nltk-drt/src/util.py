@@ -14,4 +14,6 @@ def parse(parser, text, show_interim = True):
             else:
                 drs = new_drs
 
+    if show_interim:
+        print drs
     return drs.resolve_anaphora()
