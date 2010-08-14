@@ -65,7 +65,7 @@ class FeatureExpression(DrtConstantExpression):
         return self._make_DrtLambdaExpression(expression, features)
 
     def _make_DrtLambdaExpression(self, expression, features):
-        print "expression:", expression
+        #print "expression:", expression
         if isinstance(expression, DrtLambdaExpression) and\
         isinstance(expression.term, ConcatenationDRS) and\
         isinstance(expression.term.first, DRS) and\
@@ -141,7 +141,7 @@ class EventDRS(DRS):
             return EventDRS(self.refs,
                        [cond.replace(variable, expression, replace_bound) 
                         for cond in self.conds],
-                        self._replace_features(variable, expression.variable))
+                        self.features)
 
     def simplify(self):
         return EventDRS(self.refs, [cond.simplify() for cond in self.conds], self.features)
@@ -187,11 +187,11 @@ class ConcatenationEventDRS(ConcatenationDRS):
             return EventDRS(first.refs + second.refs, first.conds + second.conds, features)
 
         elif isinstance(first, EventDRS) and isinstance(second, DRS):
-            second = _alpha_covert_second(first, second)            
+            second = _alpha_covert_second(first, second)
             return EventDRS(first.refs + second.refs, first.conds + second.conds, first.features)
 
         elif isinstance(first, DRS) and isinstance(second, EventDRS):
-            second = _alpha_covert_second(first, second)            
+            second = _alpha_covert_second(first, second)
             return EventDRS(first.refs + second.refs, first.conds + second.conds, second.features)
 
         else:
@@ -304,7 +304,7 @@ def resolve_anaphora(expression, trail=[]):
                     features.update(ancestor.features)
                     refs.extend(ancestor.refs)
                     if pro_var in features:
-                        print features
+                        #print features
                         if not pro_features:
                             pro_features = features[pro_var]
                         for cond in ancestor.conds:

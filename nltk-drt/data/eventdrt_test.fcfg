@@ -5,6 +5,8 @@
 
 S[SEM = <?subj(?vp)>] -> NP[NUM=?n,GEN=?g,SEM=?subj] VP[NUM=?n,SEM=?vp]
 
+S[SEM=<?and(?s1)(?s2)>] -> S[SEM=?s1] AND[SEM=?and] S[SEM=?s2]
+
 NP[NUM=?n,GEN=?g,SEM=<?np{?n,?g}>] -> PropN[NUM=?n,GEN=?g,SEM=?np]
 
 PropN[NUM=?n,GEN=?g,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  N[NUM=?n,GEN=?g,SEM=?nom]
@@ -20,6 +22,8 @@ FeatPosPron[NUM=?n,GEN=?g,SEM=<?p{?n,?g}>] -> PosPron[NUM=?n,GEN=?g,SEM=?p]
 #############################
 # Lexical Rules
 #############################
+
+AND[SEM=<\X Y.(X + Y)>] -> 'and'
 
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[Jones(x)])+P(x))>] -> 'Jones'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[Bill(x)])+P(x))>] -> 'Bill'
