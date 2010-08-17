@@ -1,0 +1,129 @@
+## Natural Language Toolkit: drt.fcfg
+## 
+## Author: Dan Garrette <dhgarrette@gmail.com> 
+## URL: <http://www.nltk.orgt>
+## For license information, see LICENSE.TXT
+
+% start IP
+############################
+# Grammar Rules
+#############################
+
+IP[SEM = <?ibar(?subj)>] -> NP[NUM=?n,SEM=?subj] Ibar[NUM=?n,SEM=?ibar]
+
+Ibar[NUM=?n,SEM=<?vp>] -> VP[+FIN,SEM=?vp]
+
+Ibar[NUM=?n,SEM=<?i(?vp)>] -> I[NUM=?n,SEM=?i] VP[-FIN,SEM=?vp]
+
+I[NUM=?n,SEM=<?neg(?i)>] -> I[NUM=?n,SEM=?i] Neg[SEM=?neg] 
+
+NP[NUM=?n,SEM=<app(?det,?nom)>] -> Det[NUM=?n,SEM=?det]  Nom[NUM=?n,SEM=?nom]
+NP[LOC=?l,NUM=?n,SEM=?np] -> PropN[LOC=?l,NUM=?n,SEM=?np]
+
+
+# Added N-bar level with adjectives and relative clauses
+
+NP[NUM=?n,SEM=<app(?det,?nbar)>] -> Det[NUM=?n,SEM=?det] NBAR[NUM=?n,SEM=?nbar]
+
+NBAR[NUM=?n,SEM=<app(?adj,?nom)>] -> ADJ[SEM=?adj] Nom[NUM=?n,SEM=?nom]
+
+NBAR[NUM=?n,SEM=<app(?rc,?nom)>] -> Nom[NUM=?n,SEM=?nom] RC[SEM=?rc]
+
+RC[SEM=<app(?rpro,?vp)>] -> Rpro[SEM=?rpro] VP[SEM=?vp]
+
+Nom[NUM=?n,SEM=?nom] -> N[NUM=?n,SEM=?nom]
+Nom[NUM=?n,SEM=<app(?pp,?nom)>] -> N[NUM=?n,SEM=?nom] PP[SEM=?pp]
+
+VP[NUM=?n,FIN=?fin,SEM=?v] -> V[SUBCAT=iv,FIN=?fin,NUM=?n,SEM=?v]
+VP[NUM=?n,FIN=?fin,SEM=<app(?v,?obj)>] -> V[SUBCAT=tv,FIN=?fin,NUM=?n,SEM=?v] NP[SEM=?obj]
+
+#############################
+# Lexical Rules
+#############################
+
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Angus(x)])+P(x))>] -> 'Angus'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Irene(x)])+P(x))>] -> 'Irene'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[John(x)])+P(x))>] -> 'John'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Mary(x)])+P(x))>] -> 'Mary'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Suzie(x)])+P(x))>] -> 'Suzie'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Vincent(x)])+P(x))>] -> 'Vincent'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Mia(x)])+P(x))>] -> 'Mia'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Marsellus(x)])+P(x))>] -> 'Marsellus'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Fido(x)])+P(x))>] -> 'Fido'
+PropN[+LOC,NUM=sg,SEM=<\P.(DRS([x],[Noosa(x)])+P(x))>] -> 'Noosa'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he' | 'He'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'she'
+PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it'
+
+Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'every' | 'Every' 
+Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'all' | 'All'
+Det[SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'some' | 'Some'
+Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
+Det[NUM=sg,SEM=<\P Q.(DRS([], [not ((DRS([x],[])+P(x))+Q(x))]))>] -> 'no' | 'No'
+
+# relative pronoun substitutes Subj NP
+
+Rpro[SEM=<\P Q x.(P(x)+Q(x))>] -> 'that'
+
+ADJ[SEM=<\P x.(DRS([],[red(x)])+P(x))>] -> 'red'
+
+N[NUM=sg,SEM=<\x.DRS([],[boy(x)])>] -> 'boy'
+N[NUM=pl,SEM=<\x.DRS([],[boy(x)])>] -> 'boys' 
+N[NUM=sg,SEM=<\x.DRS([],[girl(x)])>] -> 'girl'
+N[NUM=pl,SEM=<\x.DRS([],[girl(x)])>] -> 'girls'
+N[NUM=sg,SEM=<\x.DRS([],[dog(x)])>] -> 'dog'
+N[NUM=pl,SEM=<\x.DRS([],[dog(x)])>] -> 'dogs'
+N[NUM=sg,SEM=<\x.DRS([],[student(x)])>] -> 'student'
+N[NUM=pl,SEM=<\x.DRS([],[student(x)])>] -> 'students'
+N[NUM=sg,SEM=<\x.DRS([],[person(x)])>] -> 'person'
+N[NUM=pl,SEM=<\x.DRS([],[person(x)])>] -> 'persons'
+N[NUM=sg,SEM=<\x.DRS([],[boxerdog(x)])>] -> 'boxer'
+N[NUM=pl,SEM=<\x.DRS([],[boxerdog(x)])>] -> 'boxers'
+N[NUM=sg,SEM=<\x.DRS([],[boxer(x)])>] -> 'boxer'
+N[NUM=pl,SEM=<\x.DRS([],[boxer(x)])>] -> 'boxers'
+N[NUM=sg,SEM=<\x.DRS([],[garden(x)])>] -> 'garden'
+N[NUM=sg,SEM=<\x.DRS([],[kitchen(x)])>] -> 'kitchen'
+
+# Auxiliaries
+
+I[NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),eq(t,n)])+Y(X))>] -> 'does'
+I[NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),earlier(n,t)])+Y(X))>] -> 'will'
+I[NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+Y(X))>] -> 'did'
+
+#I[NUM=sg,SEM=<\P x.DRS([t],[loc_time(t),-P(x)])>] -> 'doesnt'
+Neg[SEM=<\Q P.Q(\x.DRS([],[-P(x)]))>] -> 'not'
+
+# Bare infinitives
+
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([s,t],[own(s,x,y),state(s),overlap(s,t),LOCPRO(t)]))>,tns=pres] -> 'own'
+V[SUBCAT=iv,-FIN,SEM=<\x.DRS([s,t],[walk(s,x),state(s),overlap(s,t),LOCPR0(t)])>,tns=pres] -> 'walk'
+
+
+V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\x.DRS([],[bark(x)])>,tns=pres] -> 'barks'
+V[SUBCAT=iv,+FIN,NUM=pl,SEM=<\x.DRS([],[bark(x)])>,tns=pres] -> 'bark'
+
+# Tensed forms with rich tense features
+
+V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),eq(t,n)])+X(\x.DRS([s],[include(s,t),walk(s,x),state(s)])))>,tns=pres] -> 'walks'
+V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+X(\x.DRS([s],[overlap(s,t),walk(s,x),state(s)])))>,tns=past] -> 'walked'
+
+V[SUBCAT=iv,+FIN,NUM=pl,SEM=<\x.DRS([],[walk(x)])>,tns=pres] -> 'walk'
+V[SUBCAT=iv,+FIN,NUM=pl,SEM=<\x.DRS([],[dance(x)])>,tns=pres] -> 'dance'
+V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\x.DRS([],[dance(x)])>,tns=pres] -> 'dances'
+
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[own(x,y)]))>,tns=pres] -> 'owns'
+V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[own(x,y)]))>,tns=pres] -> 'own'
+
+# Tensed forms with rich tense features
+
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[])+Y(\x.(X(\y.DRS([],[bite(x,y)])))))>,tns=pres] -> 'bites'
+V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[bite(x,y)]))>,tns=pres] -> 'bite'
+
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[chase(x,y)]))>,tns=pres] -> 'chases'
+V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[chase(x,y)]))>,tns=pres] -> 'chase'
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[marry(x,y)]))>,tns=pres] -> 'marries'
+V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[marry(x,y)]))>,tns=pres] -> 'marry'
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[know(x,y)]))>,tns=pres] -> 'knows'
+V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[know(x,y)]))>,tns=pres] -> 'know'
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[see(x,y)]))>,tns=pres] -> 'sees'
+V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[see(x,y)]))>,tns=pres] -> 'see'
