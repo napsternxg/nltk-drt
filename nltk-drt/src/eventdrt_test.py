@@ -1,7 +1,7 @@
 from nltk import load_parser
 from eventdrt import EventDrtParser
 from util import parse
-import nltkfix
+import nltkfixtemporal
 
 def test():
     parser = load_parser('file:../data/eventdrt_test.fcfg', logic_parser=EventDrtParser())

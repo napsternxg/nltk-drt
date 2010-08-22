@@ -1,40 +1,15 @@
-from nltk.sem.logic import ParseException, Variable, unique_variable, ApplicationExpression, EqualityExpression, AbstractVariableExpression, NegatedExpression, ImpExpression, BinaryExpression, LambdaExpression
-from nltk.sem.drt import DrtImpExpression, AbstractDrs, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
+from temporallogic import ParseException, Variable, unique_variable
+from temporaldrt import DrtImpExpression, AbstractDrs, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
 from nltk import load_parser
 
 class EventDrtTokens(DrtTokens):
     REFLEXIVE_PRONOUN = 'REFPRO'
     POSSESSIVE_PRONOUN = 'POSPRO'
-    PRONOUNS = [DrtTokens.PRONOUN, REFLEXIVE_PRONOUN, POSSESSIVE_PRONOUN]
     OPEN_BRACE = '{'
     CLOSE_BRACE = '}'
     PUNCT = [OPEN_BRACE, CLOSE_BRACE]
     SYMBOLS = DrtTokens.SYMBOLS + PUNCT
     TOKENS = DrtTokens.TOKENS + PUNCT
-
-def is_pronoun_function(expr):
-    """ Is self of the form "PRO(x)"? or "REFPRO(x)"? r "POSPRO(x)"? """
-    return isinstance(expr, DrtApplicationExpression) and \
-           isinstance(expr.function, DrtAbstractVariableExpression) and \
-           (expr.function.variable.name in EventDrtTokens.PRONOUNS) and \
-           isinstance(expr.argument, DrtIndividualVariableExpression)
-
-def is_reflexive_pronoun_function(expr):
-    """ Is self of the form "REFPRO(x)"? """
-    return isinstance(expr, DrtApplicationExpression) and \
-           isinstance(expr.function, DrtAbstractVariableExpression) and \
-           expr.function.variable.name == EventDrtTokens.REFLEXIVE_PRONOUN and \
-           isinstance(expr.argument, DrtIndividualVariableExpression)
-
-def is_possessive_pronoun_function(expr):
-    """ Is self of the form "REFPRO(x)"? """
-    return isinstance(expr, DrtApplicationExpression) and \
-           isinstance(expr.function, DrtAbstractVariableExpression) and \
-           expr.function.variable.name == EventDrtTokens.POSSESSIVE_PRONOUN and \
-           isinstance(expr.argument, DrtIndividualVariableExpression)
-
-#AbstractDrs.is_pronoun_function = is_pronoun_function
-#AbstractDrs.is_reflexive_pronoun_function = is_reflexive_pronoun_function
 
 def get_refs(self, recursive=False):
     return []
@@ -146,8 +121,12 @@ class EventDRS(DRS):
     def simplify(self):
         return EventDRS(self.refs, [cond.simplify() for cond in self.conds], self.features)
     
-    def resolve_anaphora(self):
-        return resolve_anaphora(self)
+    def resolve(self, trail=[]):
+        r_conds = []
+        for cond in self.conds:
+            r_cond = cond.resolve(trail + [self])            
+            r_conds.append(r_cond)
+        return self.__class__(self.refs, r_conds, self.features)
 
     def str(self, syntax=DrtTokens.NLTK):
         if syntax == DrtTokens.PROVER9:
@@ -206,8 +185,8 @@ class EventDrtParser(DrtParser):
     def isvariable(self, tok):
         return tok not in EventDrtTokens.TOKENS
 
-    def handle_variable(self, tok):
-        var = DrtParser.handle_variable(self, tok)
+    def handle_variable(self, tok, context):
+        var = DrtParser.handle_variable(self, tok, context)
         if isinstance(var, DrtConstantExpression): #or isinstance(var, DrtApplicationExpression):
             # handle the feature structure of the variable
             try:
@@ -227,10 +206,30 @@ class EventDrtParser(DrtParser):
         return var
 
     def make_ApplicationExpression(self, function, argument):
-        if isinstance(argument, DrtEventVariableExpression):
+        """ Is self of the form "PRO(x)"? """
+        if isinstance(function, DrtAbstractVariableExpression) and \
+               function.variable.name == EventDrtTokens.PRONOUN and \
+               isinstance(argument, DrtIndividualVariableExpression):
+            return DrtPronounApplicationExpression(function, argument)
+
+        """ Is self of the form "REFPRO(x)"? """
+        if isinstance(function, DrtAbstractVariableExpression) and \
+               function.variable.name == EventDrtTokens.REFLEXIVE_PRONOUN and \
+               isinstance(argument, DrtIndividualVariableExpression):
+            return DrtReflexivePronounApplicationExpression(function, argument)
+
+        """ Is self of the form "POSPRO(x)"? """
+        if isinstance(function, DrtAbstractVariableExpression) and \
+               function.variable.name == EventDrtTokens.POSSESSIVE_PRONOUN and \
+               isinstance(argument, DrtIndividualVariableExpression):
+            return DrtPossessivePronounApplicationExpression(function, argument)
+
+        elif isinstance(argument, DrtEventVariableExpression):
             return DrtEventApplicationExpression(function, argument)
+
         elif isinstance(function, DrtEventApplicationExpression):
             return DrtRoleApplicationExpression(function, argument)
+
         else:
             return DrtApplicationExpression(function, argument)
 
@@ -244,6 +243,7 @@ class EventDrtParser(DrtParser):
 
 class DrtEventApplicationExpression(DrtApplicationExpression):
     pass
+
 class DrtRoleApplicationExpression(DrtApplicationExpression):
     def get_role(self):
         return self.function.function
@@ -251,6 +251,92 @@ class DrtRoleApplicationExpression(DrtApplicationExpression):
         return self.argument.variable
     def get_event(self):
         return self.function.argument
+
+class DrtPronounApplicationExpression(DrtApplicationExpression):
+    def resolve(self, trail=[]):
+        possible_antecedents = PossibleEventAntecedents()
+        pronouns = []
+        pro_var = self.argument.variable
+        roles = {}
+        events = {}
+        pro_role = None
+        pro_event = None
+        pro_features = None
+        features = {}
+        refs = []
+        for ancestor in trail:
+            if isinstance(ancestor, EventDRS):
+                features.update(ancestor.features)
+                refs.extend(ancestor.refs)
+                if pro_var in features:
+                    #print features
+                    if not pro_features:
+                        pro_features = features[pro_var]
+                    for cond in ancestor.conds:
+                        #look for role assigning expressions:
+                        if isinstance(cond, DrtRoleApplicationExpression):
+                            var = cond.get_variable()
+                            #filter out the variable itself
+                            #filter out the variables with non-matching features
+                            #allow only backward resolution
+                            if not var == pro_var:
+                                if features[var] == pro_features and refs.index(var) <  refs.index(pro_var):
+                                    possible_antecedents.append((self.make_VariableExpression(var), 0))
+                                    roles[var] = cond.get_role()
+                                    events[var] = cond.get_event()
+                            else:
+                                pro_role = cond.get_role()
+                                pro_event = cond.get_event()
+    
+                        elif cond.is_pronoun_function():
+                            pronouns.append(cond.argument)
+
+        #exclude pronouns from resolution
+        #possible_antecedents = possible_antecedents.exclude(pronouns)
+
+        #non reflexive pronouns can not resolve to variables having a role in the same event
+        antecedents = PossibleEventAntecedents()
+        
+        is_reflexive = isinstance(self, DrtReflexivePronounApplicationExpression)
+        is_possessive = isinstance(self, DrtPossessivePronounApplicationExpression)
+        if not is_reflexive:
+            possible_antecedents = possible_antecedents.exclude(pronouns)
+        for index, (var, rank) in enumerate(possible_antecedents):
+            if not is_reflexive and not events[var.variable] == pro_event:
+                antecedents.append((var, rank))
+            elif (is_reflexive or is_possessive) and events[var.variable] == pro_event:
+                antecedents.append((var, rank))
+
+        #ranking system
+        #increment ranking for matching roles and map the positions of antecedents
+        if len(antecedents) > 1:
+            idx_map = {}
+            for index, (var, rank) in enumerate(antecedents):
+                idx_map[refs.index(var.variable)] = var
+                if roles[var.variable] == pro_role:
+                    antecedents[index] = (var, rank+1)
+
+            #rank by proximity
+
+            for i,key in enumerate(sorted(idx_map)):
+                j = antecedents.index(idx_map[key])
+                antecedents[j] = (antecedents[j][0], antecedents[j][1]+i)
+
+        if len(antecedents) == 0:
+            raise AnaphoraResolutionException("Variable '%s' does not "
+                                "resolve to anything." % self.argument)
+        elif len(antecedents) == 1:
+            resolution = antecedents[0][0]
+        else:
+            resolution = antecedents
+
+        return self.make_EqualityExpression(self.argument, resolution)
+
+class DrtReflexivePronounApplicationExpression(DrtPronounApplicationExpression):
+    pass
+
+class DrtPossessivePronounApplicationExpression(DrtPronounApplicationExpression):
+    pass
 
 class PossibleEventAntecedents(PossibleAntecedents):
 
@@ -285,133 +371,6 @@ class PossibleEventAntecedents(PossibleAntecedents):
     def str(self, syntax=DrtTokens.NLTK):
         return '[' +  ','.join([str(item[0]) + "(" + str(item[1]) + ")" for item in self]) + ']'
 
-def resolve_anaphora(expression, trail=[]):
-    
-    if isinstance(expression, ApplicationExpression):
-        if is_pronoun_function(expression):
-            possible_antecedents = PossibleEventAntecedents()
-            pronouns = []
-            pro_var = expression.argument.variable
-            roles = {}
-            events = {}
-            pro_role = None
-            pro_event = None
-            pro_features = None
-            features = {}
-            refs = []
-            for ancestor in trail:
-                if isinstance(ancestor, EventDRS):
-                    features.update(ancestor.features)
-                    refs.extend(ancestor.refs)
-                    if pro_var in features:
-                        #print features
-                        if not pro_features:
-                            pro_features = features[pro_var]
-                        for cond in ancestor.conds:
-                            #look for role assigning expressions:
-                            if isinstance(cond, DrtRoleApplicationExpression):
-                                var = cond.get_variable()
-                                #filter out the variable itself
-                                #filter out the variables with non-matching features
-                                #allow only backward resolution
-                                if not var == pro_var:
-                                    if features[var] == pro_features and refs.index(var) <  refs.index(pro_var):
-                                        possible_antecedents.append((expression.make_VariableExpression(var), 0))
-                                        roles[var] = cond.get_role()
-                                        events[var] = cond.get_event()
-                                else:
-                                    pro_role = cond.get_role()
-                                    pro_event = cond.get_event()
-        
-                            elif cond.is_pronoun_function():
-                                pronouns.append(cond.argument)
-
-            #exclude pronouns from resolution
-            #possible_antecedents = possible_antecedents.exclude(pronouns)
-
-            #non reflexive pronouns can not resolve to variables having a role in the same event
-            antecedents = PossibleEventAntecedents()
-            
-            is_reflexive = is_reflexive_pronoun_function(expression)
-            is_possesive = is_possessive_pronoun_function(expression)
-            if not is_reflexive:
-                possible_antecedents = possible_antecedents.exclude(pronouns)
-            for index, (var, rank) in enumerate(possible_antecedents):
-                if not is_reflexive and not events[var.variable] == pro_event:
-                    antecedents.append((var, rank))
-                elif (is_reflexive or is_possesive) and events[var.variable] == pro_event:
-                    antecedents.append((var, rank))
-
-            #ranking system
-            #increment ranking for matching roles and map the positions of antecedents
-            if len(antecedents) > 1:
-                idx_map = {}
-                for index, (var, rank) in enumerate(antecedents):
-                    idx_map[refs.index(var.variable)] = var
-                    if roles[var.variable] == pro_role:
-                        antecedents[index] = (var, rank+1)
-    
-                #rank by proximity
-
-                for i,key in enumerate(sorted(idx_map)):
-                    j = antecedents.index(idx_map[key])
-                    antecedents[j] = (antecedents[j][0], antecedents[j][1]+i)
-
-            if len(antecedents) == 1:
-                resolution = antecedents[0][0]
-            else:
-                resolution = antecedents 
-
-            return expression.make_EqualityExpression(expression.argument, resolution)
-        
-        else:
-            r_function = resolve_anaphora(expression.function, trail + [expression])
-            r_argument = resolve_anaphora(expression.argument, trail + [expression])
-            return expression.__class__(r_function, r_argument)
-
-    elif isinstance(expression, EventDRS):
-        r_conds = []
-
-        for cond in expression.conds:
-            r_cond = resolve_anaphora(cond, trail + [expression])
-
-            # if the condition is of the form '(x = [])' then raise exception
-            if isinstance(r_cond, EqualityExpression):
-                if isinstance(r_cond.first, PossibleEventAntecedents):
-                    #Reverse the order so that the variable is on the left
-                    temp = r_cond.first
-                    r_cond.first = r_cond.second
-                    r_cond.second = temp
-                    
-                if isinstance(r_cond.second, PossibleEventAntecedents):
-                    if not r_cond.second:
-                        raise AnaphoraResolutionException("Variable '%s' does not "
-                                "resolve to anything." % r_cond.first)
-                        
-            r_conds.append(r_cond)
-
-        return expression.__class__(expression.refs, r_conds, expression.features)
-    
-    elif isinstance(expression, AbstractVariableExpression):
-        return expression
-    
-    elif isinstance(expression, NegatedExpression):
-        return expression.__class__(resolve_anaphora(expression.term, trail + [expression]))
-
-    elif isinstance(expression, ImpExpression): 
-        return expression.__class__(resolve_anaphora(expression.first, trail + [expression]),
-                              resolve_anaphora(expression.second, trail + [expression, expression.first]))
-
-    elif isinstance(expression, BinaryExpression):
-        return expression.__class__(resolve_anaphora(expression.first, trail + [expression]), 
-                              resolve_anaphora(expression.second, trail + [expression]))
-
-    elif isinstance(expression, LambdaExpression):
-        return expression.__class__(expression.variable, resolve_anaphora(expression.term, trail + [expression]))
-
-    else:
-        return expression
-
 def test():
 
     parser = load_parser('file:../data/eventdrt.fcfg', logic_parser=EventDrtParser())
@@ -425,7 +384,7 @@ def test():
     drs = drs1 + drs2
     drs = drs.simplify()
     print(drs)
-    drs = drs.resolve_anaphora()
+    drs = drs.resolve()
     print(drs)
 
     #import nltkfix
