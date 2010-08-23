@@ -1,9 +1,9 @@
 import re, operator
-from nltk.sem.logic import BooleanExpression, Variable,\
+from nltk.sem.logic import BooleanExpression, Variable, Expression,\
 BasicType, IffExpression, ImpExpression, ApplicationExpression,\
 EqualityExpression, AllExpression, OrExpression, AbstractVariableExpression,\
 ConstantExpression, LambdaExpression, NegatedExpression, FunctionVariableExpression,\
-EventVariableExpression, IndividualVariableExpression, Expression, is_indvar, is_eventvar,\
+EventVariableExpression, IndividualVariableExpression, is_indvar, is_eventvar,\
 is_funcvar, unique_variable, ExistsExpression, AndExpression
 import nltk.sem.drt as drt
 from nltk.internals import Counter
