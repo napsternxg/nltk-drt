@@ -434,15 +434,13 @@ class DrtParser(LogicParser, drt.DrtParser):
         self.assertNextToken(DrtTokens.CLOSE_BRACKET)
         self.assertNextToken(DrtTokens.CLOSE)
         
-        """Changed return value from DRS(refs, conds)""" 
         return DRS(refs, conds)
 
     
     def get_BooleanExpression_factory(self, tok):
         """This method serves as a hook for other logic parsers that
-        have different boolean operators
+        have different boolean operators"""
         
-        Changed return value from ConcatenationDRS into TemporalConcatenationDRS"""
         if tok == DrtTokens.DRS_CONC:
             return ConcatenationDRS
         elif tok in DrtTokens.OR:
@@ -456,7 +454,6 @@ class DrtParser(LogicParser, drt.DrtParser):
     
     
     def make_VariableExpression(self, name):
-        """Changed return value from DrtVariableExpression(Variable(name))""" 
         return DrtVariableExpression(Variable(name))
 
     def make_ApplicationExpression(self, function, argument):
