@@ -323,7 +323,7 @@ class DrtConstantExpression(DrtAbstractVariableExpression, ConstantExpression):
     pass
 
     """Class for proper names added"""
-class DrtProperNameExpression(DrtAbstractVariableExpression, ConstantExpression):
+class DrtProperNameExpression(DrtConstantExpression):
     pass
 
 class DrtNegatedExpression(AbstractDrs, NegatedExpression):
@@ -431,7 +431,10 @@ class DrtEqualityExpression(AbstractDrs, EqualityExpression):
             return []
 
     def resolve(self, trail=[]):
-        return self
+        if isinstance(self.second, PossibleAntecedents):
+            return self.__class__(self.first, self.second.resolve(trail))
+        else:
+            return self
 
 class ConcatenationDRS(DrtBooleanExpression):
     """DRS of the form '(DRS + DRS)'"""
@@ -551,7 +554,7 @@ class PossibleAntecedents(list, AbstractDrs, Expression):
     def str(self, syntax=DrtTokens.NLTK):
         return '[' + ','.join(map(str, self)) + ']'
 
-class DrtTimeVariableExpression(TimeVariableExpression, DrtIndividualVariableExpression):
+class DrtTimeVariableExpression(DrtIndividualVariableExpression, TimeVariableExpression):
     """
     Type of discourse referents of time
     """
