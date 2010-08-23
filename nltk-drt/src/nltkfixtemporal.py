@@ -1,6 +1,5 @@
 from temporaldrt import DRS, DrtLambdaExpression, DrtApplicationExpression, PossibleAntecedents, DrtAbstractVariableExpression, DrtNegatedExpression, DrsDrawer
-from temporallogic import BinaryExpression
-from nltk.sem.drt import DrsDrawer
+from nltk.sem.logic import BinaryExpression
 
 #from nltk.sem.drt import AbstractDrs
 #

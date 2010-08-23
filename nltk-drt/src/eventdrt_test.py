@@ -15,7 +15,7 @@ def test():
     s8 = "Jones needs his car. Bill wants it."
     s9 = "Jones needs no car. Bill needs it."
     s10 = "Jones needs a car and he wants it."
-    drs = parse(parser,s10)
+    drs = parse(parser,s4)
     print(drs)
     drs.draw()
 

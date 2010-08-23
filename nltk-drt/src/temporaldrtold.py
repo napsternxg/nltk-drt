@@ -1,99 +1,12 @@
-import re, operator
-from nltk.sem.logic import BooleanExpression, Variable,\
-BasicType, IffExpression, ImpExpression, ApplicationExpression,\
+import operator
+from temporallogic import LogicParser, BooleanExpression, Variable,\
+TimeVariableExpression, IffExpression, ImpExpression, ApplicationExpression,\
 EqualityExpression, AllExpression, OrExpression, AbstractVariableExpression,\
 ConstantExpression, LambdaExpression, NegatedExpression, FunctionVariableExpression,\
 EventVariableExpression, IndividualVariableExpression, Expression, is_indvar, is_eventvar,\
-is_funcvar, unique_variable, ExistsExpression, AndExpression
+is_funcvar, is_timevar, unique_variable, ExistsExpression, AndExpression, is_propername
 import nltk.sem.drt as drt
-from nltk.internals import Counter
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
-
-"""
-Basic type of times added on top of nltk.sem.logic.
-Extend to utterance time referent 'n'.
-"""
-
-_counter = Counter()
-
-class TimeType(BasicType):
-    def __str__(self):
-        return 'i'
-
-    def str(self):
-        return 'TIME'
-
-TIME_TYPE = TimeType()
-
-def is_indvar(expr):
-    """
-    An individual variable must be a single lowercase character other than 'e', 't', 'n',
-    followed by zero or more digits.
-    
-    @param expr: C{str}
-    @return: C{boolean} True if expr is of the correct form 
-    """
-    assert isinstance(expr, str), "%s is not a string" % expr
-    return re.match(r'^[a-df-mo-su-z]\d*$', expr)
-
-
-def is_timevar(expr):
-    """
-    An time variable must be a single lowercase 't' or 'n' character followed by
-    zero or more digits. Do we need a separate type for utterance time n?
-    
-    @param expr: C{str}
-    @return: C{boolean} True if expr is of the correct form 
-    """
-    assert isinstance(expr, str), "%s is not a string" % expr
-    return re.match(r'^[tn]\d*$', expr)
-
-
-def is_propername(expr):
-    """
-    A proper name is capitalized. We assume that John(x) uniquely
-    identifies the bearer of the name John and so, when going from Kamp & Reyle's
-    DRT format into classical FOL logic, we change a condition like that into John = x.   
-    
-    @param expr: C{str}
-    @return: C{boolean} True if expr is of the correct form 
-    """
-    assert isinstance(expr, str), "%s is not a string" % expr
-    return expr[:1].isupper() and not expr.isupper()
-
-  
-def unique_variable(pattern=None, ignore=None):
-    """
-    Return a new, unique variable.
-    param pattern: C{Variable} that is being replaced.  The new variable must
-    be the same type.
-    param term: a C{set} of C{Variable}s that should not be returned from 
-    this function.
-    return: C{Variable}
-    """
-    if pattern is not None:
-        if is_indvar(pattern.name):
-            prefix = 'z'
-        elif is_funcvar(pattern.name):
-            prefix = 'F'
-        elif is_eventvar(pattern.name):
-            prefix = 'e0'
-        elif is_timevar(pattern.name):
-            prefix = 't0'
-        else:
-            assert False, "Cannot generate a unique constant"
-    else:
-        prefix = 'z'
-        
-    v = Variable(prefix + str(_counter.get()))
-    while ignore is not None and v in ignore:
-        v = Variable(prefix + str(_counter.get()))
-    return v
-
-class TimeVariableExpression(IndividualVariableExpression):
-    """This class represents variables that take the form of a single lowercase
-    'i' character followed by zero or more digits."""
-    type = TIME_TYPE
 
 """
 Temporal logic extension of nltk.sem.drt
@@ -138,40 +51,6 @@ class AbstractDrs(drt.AbstractDrs):
 
     def make_VariableExpression(self, variable):
         return DrtVariableExpression(variable)
-
-    def normalize(self):
-        """Rename auto-generated unique variables"""
-        print "visited %s", 'TemporalExpression'
-        def f(e):
-            if isinstance(e, Variable):
-                if re.match(r'^z\d+$', e.name) or re.match(r'^[et]0\d+$', e.name):
-                    return set([e])
-                else:
-                    return set([])
-            else: 
-                combinator = lambda * parts: reduce(operator.or_, parts)
-                return e.visit(f, combinator, set())
-        
-        result = self
-        for i, v in enumerate(sorted(list(f(self)))):
-            if is_eventvar(v.name):
-                newVar = 'e0%s' % (i + 1)
-            elif is_timevar(v.name):
-                newVar = 't0%s' % (i + 1)
-            else:
-                newVar = 'z%s' % (i + 1)
-            result = result.replace(v,
-                        self.make_VariableExpression(Variable(newVar)), True)
-        return result
-
-    def resolve(self, trail=[]):
-        """
-        resolve anaphora should not resolve individuals and events to time referents.
-
-        resolve location time picks out the nearest time referent other than the one in
-        LOCPRO(t), for which purpose the PossibleAntecedents class is not used.
-        """
-        raise NotImplementedError()
 
 class DRS(AbstractDrs, Expression):
     """A Temporal Discourse Representation Structure."""
@@ -307,9 +186,6 @@ class DrtAbstractVariableExpression(AbstractDrs, AbstractVariableExpression):
         """@see: AbstractExpression.get_refs()"""
         return []
     
-    def resolve(self, trail=[]):
-        return self
-    
 class DrtIndividualVariableExpression(DrtAbstractVariableExpression, IndividualVariableExpression):
     pass
 
@@ -333,9 +209,6 @@ class DrtNegatedExpression(AbstractDrs, NegatedExpression):
     def get_refs(self, recursive=False):
         """@see: AbstractExpression.get_refs()"""
         return self.term.get_refs(recursive)
-    
-    def resolve(self, trail=[]):
-        return self.__class__(self.term.resolve(trail + [self]))
 
 class DrtLambdaExpression(AbstractDrs, LambdaExpression):
     def alpha_convert(self, newvar):
@@ -348,32 +221,6 @@ class DrtLambdaExpression(AbstractDrs, LambdaExpression):
 
     def fol(self):
         return LambdaExpression(self.variable, self.term.fol())
-    
-    def resolve(self, trail=[]):
-        return self.__class__(self.variable, self.term.resolve(trail + [self]))
-
-    def replace(self, variable, expression, replace_bound=False):
-        """@see: Expression.replace()"""
-        assert isinstance(variable, Variable), "%s is not a Variable" % variable
-        assert isinstance(expression, Expression), "%s is not an Expression" % expression
-        #if the bound variable is the thing being replaced
-        if self.variable == variable:
-            if replace_bound: 
-                assert isinstance(expression, AbstractVariableExpression), \
-                       "%s is not a AbstractVariableExpression" % expression
-                return self.__class__(expression.variable,
-                                      self.term.replace(variable, expression, True))
-            else: 
-                return self
-        else:
-            # if the bound variable appears in the expression, then it must
-            # be alpha converted to avoid a conflict
-            if self.variable in expression.free():
-                self = self.alpha_convert(unique_variable(pattern=self.variable))
-                
-            #replace in the term
-            return self.__class__(self.variable,
-                                  self.term.replace(variable, expression, replace_bound))
 
 class DrtBooleanExpression(AbstractDrs, BooleanExpression):
     def get_refs(self, recursive=False):
@@ -382,10 +229,6 @@ class DrtBooleanExpression(AbstractDrs, BooleanExpression):
             return self.first.get_refs(True) + self.second.get_refs(True)
         else:
             return []
-        
-    def resolve(self, trail=[]):
-        return self.__class__(self.first.resolve(trail + [self]), 
-                              self.second.resolve(trail + [self]))
 
 class DrtOrExpression(DrtBooleanExpression, OrExpression):
     def fol(self):
@@ -410,10 +253,6 @@ class DrtImpExpression(DrtBooleanExpression, ImpExpression):
             accum = AllExpression(ref, accum)
             
         return accum
-    
-    def resolve(self, trail=[]):
-        return self.__class__(self.first.resolve(trail + [self]),
-                              self.second.resolve(trail + [self, self.first]))
 
 class DrtIffExpression(DrtBooleanExpression, IffExpression):
     def fol(self):
@@ -429,9 +268,6 @@ class DrtEqualityExpression(AbstractDrs, EqualityExpression):
             return self.first.get_refs(True) + self.second.get_refs(True)
         else:
             return []
-
-    def resolve(self, trail=[]):
-        return self
 
 class ConcatenationDRS(DrtBooleanExpression):
     """DRS of the form '(DRS + DRS)'"""
@@ -527,10 +363,6 @@ class DrtApplicationExpression(AbstractDrs, ApplicationExpression):
             return self.function.get_refs(True) + self.argument.get_refs(True)
         else:
             return []
-        
-    def resolve(self, trail=[]):
-        return self.__class__(self.function.resolve(trail + [self]),
-                              self.argument.resolve(trail + [self]))
 
 class PossibleAntecedents(list, AbstractDrs, Expression):
     def free(self, indvar_only=True):
@@ -587,7 +419,7 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
         raise LocationTimeResolutionException("Variable '%s' does not "
                             "resolve to anything." % self.argument)
 
-class DrtParser(drt.DrtParser):
+class DrtParser(LogicParser, drt.DrtParser):
     """DrtParser producing conditions and referents for temporal logic"""
         
     def handle_DRS(self, tok, context):
