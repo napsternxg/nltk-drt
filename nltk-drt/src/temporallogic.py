@@ -42,6 +42,19 @@ def is_timevar(expr):
     assert isinstance(expr, str), "%s is not a string" % expr
     return re.match(r'^[tn]\d*$', expr)
 
+
+def is_propername(expr):
+    """
+    A proper name is capitalized. We assume that John(x) uniquely
+    identifies the bearer of the name John and so, when going from Kamp & Reyle's
+    DRT format into classical FOL logic, we change a condition like that into John = x.   
+    
+    @param expr: C{str}
+    @return: C{boolean} True if expr is of the correct form 
+    """
+    assert isinstance(expr, str), "%s is not a string" % expr
+    return expr[:1].isupper() and not expr.isupper()
+
   
 def unique_variable(pattern=None, ignore=None):
     """
@@ -134,6 +147,7 @@ class ApplicationExpression(Expression, logic.ApplicationExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.function.resolve(trail + [self]),
                               self.argument.resolve(trail + [self]))
+    
 
 class AbstractVariableExpression(Expression, logic.AbstractVariableExpression):
     def resolve(self, trail=[]):

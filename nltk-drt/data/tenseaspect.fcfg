@@ -116,6 +116,9 @@ V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[own(x,y)]))>,tns=pres] -> 'own'
 
 # Tensed forms with rich tense features
 
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[eq(n,t)])+Y(\x.(X(\y.DRS([e],[(x=y),overlap(e,t)])))))>,tns=pres] -> 'is'
+
+
 V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[])+Y(\x.(X(\y.DRS([],[bite(x,y)])))))>,tns=pres] -> 'bites'
 V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[bite(x,y)]))>,tns=pres] -> 'bite'
 
