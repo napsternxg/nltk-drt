@@ -4,7 +4,7 @@ TimeVariableExpression, IffExpression, ImpExpression, ApplicationExpression,\
 EqualityExpression, AllExpression, OrExpression, AbstractVariableExpression,\
 ConstantExpression, LambdaExpression, NegatedExpression, FunctionVariableExpression,\
 EventVariableExpression, IndividualVariableExpression, Expression, is_indvar, is_eventvar,\
-is_funcvar, is_timevar, unique_variable, ExistsExpression, AndExpression
+is_funcvar, is_timevar, unique_variable, ExistsExpression, AndExpression, is_propername
 import nltk.sem.drt as drt
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
 
@@ -171,6 +171,9 @@ def DrtVariableExpression(variable):
         return DrtEventVariableExpression(variable)
     elif is_timevar(variable.name):
         return DrtTimeVariableExpression(variable)
+        """Condition for proper names added"""
+    elif is_propername(variable.name):
+        return DrtProperNameExpression(variable)
     else:
         return DrtConstantExpression(variable)
     
@@ -193,6 +196,10 @@ class DrtEventVariableExpression(DrtIndividualVariableExpression, EventVariableE
     pass
 
 class DrtConstantExpression(DrtAbstractVariableExpression, ConstantExpression):
+    pass
+
+    """Class for proper names added"""
+class DrtProperNameExpression(DrtAbstractVariableExpression, ConstantExpression):
     pass
 
 class DrtNegatedExpression(AbstractDrs, NegatedExpression):
@@ -342,7 +349,12 @@ class ConcatenationDRS(DrtBooleanExpression):
 
 class DrtApplicationExpression(AbstractDrs, ApplicationExpression):
     def fol(self):
-        return ApplicationExpression(self.function.fol(), 
+        """New condition for proper names added"""
+        if isinstance(self.function, DrtProperNameExpression):
+            return EqualityExpression(self.function.fol(),
+                                            self.argument.fol())          
+        else:
+            return ApplicationExpression(self.function.fol(), 
                                            self.argument.fol())
 
     def get_refs(self, recursive=False):
@@ -497,8 +509,16 @@ def test():
         print "%s : type %s" % (ref, ref.__class__)
         
     #print type(simplified_expr)
-        
+ 
+"""Converts Proper Names from DRT format 'John(x) into FOL 'John = x'"""
+def test_2():
+    p = DrtParser().parse
+    expr = p('DRS([x,y],[John(x), PRO(x), black(x)])')  
+    print expr.fol()
     
 if __name__ == "__main__":
     
     test()
+    
+    print "\nCheck: Converts Proper Names from DRT format 'John(x) into FOL 'John = x'"
+    test_2()

@@ -25,8 +25,8 @@ models make sense:
      be added all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) ->
      -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x))).
      
-    (iii) John in John(x) is treated as a predicate; either we write in our grammars
-     the way B&B2 do John=x or make it turn into John=x e.g. when the fol() method is called. 
+done (iii) John in John(x) is no longer treated as a predicate: the condition is converted
+    into John = x when the fol() method is called. 
      
     (iv) presupposition that all individuals mentioned in a discourse are uniquely
      and disjointly identified by their names. This could be done with following
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     expr = trees[0].node['SEM'].resolve()
     parse = expr.fol()
     
-    print "Temporal DRT Expression: %s \n" % parse
+    print "Temporal DRT Expression in FOL: %s \n" % parse
     
     m = MaceCommand(None, [parse])
     print "Mace: %s \n\n %s \n" % (m.build_model(), m.valuation) 
