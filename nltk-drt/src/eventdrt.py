@@ -231,7 +231,7 @@ class EventDrtParser(DrtParser):
             return DrtRoleApplicationExpression(function, argument)
 
         else:
-            return DrtApplicationExpression(function, argument)
+            return DrtParser.make_ApplicationExpression(self, function, argument)
 
     def get_BooleanExpression_factory(self, tok):
         """This method serves as a hook for other logic parsers that
