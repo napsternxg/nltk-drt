@@ -37,7 +37,6 @@ class FeatureExpression(DrtConstantExpression):
             except KeyError:
                 pass
 
-        #print features
         return self._make_DrtLambdaExpression(expression, features)
 
     def _make_DrtLambdaExpression(self, expression, features):
@@ -60,6 +59,8 @@ class FeatureExpression(DrtConstantExpression):
             features_map = {expression.term.conds[0].second.argument.variable: features}
             return DrtLambdaExpression(expression.variable, EventDRS(expression.term.refs, [DrtImpExpression(EventDRS(expression.term.conds[0].first.refs, expression.term.conds[0].first.conds, features_map), expression.term.conds[0].second)]))
 
+        else:
+            raise NotImplementedError()
 
 class EventDRS(DRS):
     """An event based Discourse Representation Structure with features."""

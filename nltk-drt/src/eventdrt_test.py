@@ -1,23 +1,25 @@
 from nltk import load_parser
-from eventdrt import EventDrtParser
+from eventdrt import EventDrtParser, AnaphoraResolutionException
 from util import parse
 import nltkfixtemporal
 
 def test():
     parser = load_parser('file:../data/eventdrt_test.fcfg', logic_parser=EventDrtParser())
-    s1 = "Bill wants a car. Jones needs it. He wants it."
-    s2 = "He invites Jones"
-    s3 = "Every man wants a car. Bill needs a car"
-    s4 = "Bill wants Jones. Jones needs him. He wants himself."
-    s5 = "Bill wants Jones. Himself wants Jones."
-    s6 = "Jones expects himself to win."
-    s7 = "Bill walks. Every man needs his car."
-    s8 = "Jones needs his car. Bill wants it."
-    s9 = "Jones needs no car. Bill needs it."
-    s10 = "Jones needs a car and he wants it."
-    drs = parse(parser,s4)
-    print(drs)
-    drs.draw()
+    sentences = []
+    sentences.append(("He wants a car. Jones needs it.", False))
+    sentences.append(("He invites Jones.", False))
+    sentences.append(("Jones loves Charlotte but Bill loves her too and he asks himself why", False))
+    
+    for number, (sentence, is_grammatical) in enumerate(sentences):
+        try:
+            print(parse(parser, sentence, False))
+        except AnaphoraResolutionException, e:
+            if not is_grammatical:
+                print("%s. *%s (%s)" % (number+1, sentence, e))
+            else:
+                print("Can't resolve %s" % (sentence))
+        except Exception, e:
+            print("%s. *%s (%s)" % (number+1, sentence, e))
 
 if __name__ == '__main__':
     test()
