@@ -12,10 +12,12 @@ class EventDrtTokens(DrtTokens):
     SYMBOLS = DrtTokens.SYMBOLS + PUNCT
     TOKENS = DrtTokens.TOKENS + PUNCT
 
-#def get_refs(self, recursive=False):
-#    return []
+def get_refs(self, recursive=False):
+    return []
 
-#AbstractDrs.get_refs = get_refs
+from temporaldrt import AbstractDrs
+
+AbstractDrs.get_refs = get_refs
 
 class FeatureExpression(DrtConstantExpression):
     """An expression with syntactic features attached"""
