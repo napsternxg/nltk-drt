@@ -219,7 +219,7 @@ class DRS(AbstractDrs, drt.DRS):
     def resolve(self, trail=[]):
         r_conds = []
         for cond in self.conds:
-            r_cond = cond.resolve(trail + [self])            
+            r_cond = cond.resolve(trail + [self])
             r_conds.append(r_cond)
         return self.__class__(self.refs, r_conds)
   
@@ -497,10 +497,40 @@ class DrtTimeApplicationExpression(DrtApplicationExpression):
     """Type of DRS-conditions used in temporal logic"""
     pass
 
+class ReverseIterator:
+    def __init__(self, sequence):
+        self.sequence = sequence
+    def __iter__(self):
+        length = len(self.sequence)
+        i = length
+        while i > 0:
+            i = i - 1
+            yield self.sequence[i]
+
 class DrtProperNameApplicationExpression(DrtApplicationExpression):
     def fol(self):
         """New condition for proper names added"""
         return EqualityExpression(self.function.fol(), self.argument.fol())
+    def resolve(self, trail=[]):
+        outer_drs = None
+        for ancestor in trail:
+            if isinstance(ancestor, DRS):
+                outer_drs = ancestor
+                break
+        if outer_drs:
+            inner_drs = None
+            for ancestor in ReverseIterator(trail):
+                if isinstance(ancestor, DRS):
+                    inner_drs = ancestor
+                    break
+            if inner_drs and inner_drs is not outer_drs:
+                inner_drs.refs.remove(self.get_variable())
+                outer_drs.refs.append(self.get_variable())
+                
+        return self
+
+    def get_variable(self):
+        return self.argument.variable
 
 class LocationTimeResolutionException(Exception):
     pass
@@ -608,7 +638,8 @@ def test_3():
     #expr = p(r'DRS([t],[-(DRS([w], [Jim(w)]) -> DRS([],[small(w)])), \x.DRS([k],[Bob(k), PRO(t)])])')
     print "lift_proper_names test:\nOriginal expression: ", expr
     #print expr.resolve()
-    print "lifted expression: ", expr.lift_proper_names()
+    #print "lifted expression: ", expr.lift_proper_names()
+    print "resolved expression: ", expr.resolve()
     
     #addDRS = DRS([],[expr])
     #print addDRS.__class__
