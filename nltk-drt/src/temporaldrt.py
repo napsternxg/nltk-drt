@@ -519,7 +519,6 @@ class DrtProperNameApplicationExpression(DrtApplicationExpression):
             if inner_drs and inner_drs is not outer_drs:
                 inner_drs.refs.remove(self.get_variable())
                 outer_drs.refs.append(self.get_variable())
-                
         return self
 
     def get_variable(self):

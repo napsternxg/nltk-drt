@@ -31,7 +31,7 @@ def test():
         except Exception, e:
             print("%s. *%s (%s)" % (number+1, sentence, e))
 
-    #print(parse(parser, "His car walks"))
+    print(parse(parser, "His car walks"))
 
 if __name__ == '__main__':
     test()

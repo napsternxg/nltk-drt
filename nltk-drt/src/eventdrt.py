@@ -15,7 +15,7 @@ class EventDrtTokens(DrtTokens):
 def get_refs(self, recursive=False):
     return []
 
-from temporaldrt import AbstractDrs
+from nltk.sem.drt import AbstractDrs
 
 AbstractDrs.get_refs = get_refs
 
