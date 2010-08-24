@@ -5,7 +5,18 @@ def parse(parser, text, show_interim = True):
     for sentence in sentences:
         sentence = sentence.lstrip()
         if sentence:
-            trees = parser.nbest_parse(sentence.split())
+            words = sentence.split()
+            new_words = []
+            for word in words:
+                if "'" in word:
+                    parts = word.split("'")
+                    new_words.append(parts[0])
+                    if parts[1]:
+                        new_words.append(parts[1])
+                else:
+                    new_words.append(word)
+
+            trees = parser.nbest_parse(new_words)
             new_drs = trees[0].node['SEM'].simplify()
             if show_interim:
                 print(new_drs)
