@@ -501,8 +501,7 @@ class ReverseIterator:
     def __init__(self, sequence):
         self.sequence = sequence
     def __iter__(self):
-        length = len(self.sequence)
-        i = length
+        i = len(self.sequence)
         while i > 0:
             i = i - 1
             yield self.sequence[i]
