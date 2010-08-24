@@ -288,17 +288,11 @@ class DRS(AbstractDrs, drt.DRS):
         else:
             """in outer DRS"""
             return (self.__class__(self.refs, r_conds) + storageDRS).simplify()
-        
+    
         
 class SubtractionException(Exception):
     pass
 
-    def resolve(self, trail=[]):
-        r_conds = []
-        for cond in self.conds:
-            r_cond = cond.resolve(trail + [self])            
-            r_conds.append(r_cond)
-        return self.__class__(self.refs, r_conds)
 
 def DrtVariableExpression(variable):
     """
