@@ -6,6 +6,10 @@ New function resolving LOCPRO(t) from a non-finite verb
 to the location time referent introduced by a finite auxiliary. 
 """
 
+__author__ = "Peter Makarov"
+__version__ = "1.0"
+__date__ = "Tue, 24 Aug 2010"
+
 import re
 import operator
 
