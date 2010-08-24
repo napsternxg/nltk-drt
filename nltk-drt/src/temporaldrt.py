@@ -265,8 +265,7 @@ class DRS(AbstractDrs, drt.DRS):
                 
                 r_cond = r_cond[0]
             
-            elif isinstance(r_cond, DrtApplicationExpression) and \
-                isinstance(r_cond.function, DrtProperNameExpression):
+            elif isinstance(r_cond, DrtProperNameApplicationExpression):
                 """in case I receive a proper name condition"""
                 
                 additional_conds.append(r_cond)
