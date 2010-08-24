@@ -210,6 +210,13 @@ class DRS(AbstractDrs, drt.DRS):
     def simplify(self):
         return self.__class__(self.refs, [cond.simplify() for cond in self.conds])
 
+    def resolve(self, trail=[]):
+        r_conds = []
+        for cond in self.conds:
+            r_cond = cond.resolve(trail + [self])            
+            r_conds.append(r_cond)
+        return self.__class__(self.refs, r_conds)
+
 def DrtVariableExpression(variable):
     """
     This is a factory method that instantiates and returns a subtype of 
