@@ -29,8 +29,6 @@ PossessiveNP[NUM=?n,GEN=?g,SEM=<?pos(?p)>] -> PropN[NUM=?n,GEN=?g,SEM=?p] PosMar
 
 AND[SEM=<\X Y.(X + Y)>] -> 'and' | 'but'
 
-PosMarker[SEM=<\P.P>] -> 's'
-
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([X],[Jones(x)])+P(x))>] -> 'Jones'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[Bill(x)])+P(x))>] -> 'Bill'
 PropN[NUM=sg,GEN=f,SEM=<\P.(DRS([x],[Charlotte(x)])+P(x))>] -> 'Charlotte'
@@ -45,6 +43,8 @@ Det[NUM=sg,SEM=<\P Q.DRS([],[-((DRS([x],[])+P(x))+Q(x))])>] -> 'no' | 'No'
 Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'every' | 'Every'
 
 PosPron[NUM=sg,GEN=m,SEM=<\P.(DRS([y],[POSPRO(y)])+P(y))>] -> 'his' | 'His'
+
+PosMarker[SEM=<\P.P>] -> 's'
 
 N[NUM=sg,GEN=m,SEM=<\x.DRS([],[man(x)])>] -> 'man'
 N[NUM=sg,GEN=n,SEM=<\x.DRS([],[car(x)])>] -> 'car'

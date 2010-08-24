@@ -13,11 +13,12 @@ def test():
     ("Jones loves Charlotte but Bill loves her and himself asks him.", False),
     ("Jones likes this picture of himself.", True),
     ("Jones likes this picture of him.", True),
-    ("Bill likes Jones' picture of himself", True),
-    ("Bill likes Jones' picture of him", True),
-    ("His car walks", False)
+    ("Bill likes Jones s picture of himself", True),
+    ("Bill likes Jones s picture of him", True),
+    ("Bill s car walks", True)
     ]
 
+    sentences = []
     for number, (sentence, is_grammatical) in enumerate(sentences):
         try:
             print("%s. %s %s" % (number+1, sentence, parse(parser, sentence, False)))
@@ -31,7 +32,7 @@ def test():
         except Exception, e:
             print("%s. *%s (%s)" % (number+1, sentence, e))
 
-    print(parse(parser, "His car walks"))
+    print(parse(parser, "Bill s car walks"))
 
 if __name__ == '__main__':
     test()
