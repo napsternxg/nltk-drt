@@ -175,6 +175,11 @@ class AbstractDrs(drt.AbstractDrs):
         """
         raise NotImplementedError()
 
+       
+    def lift_proper_names(self, trail=[]):
+        """added""" 
+        raise NotImplementedError()
+
 class DRS(AbstractDrs, drt.DRS):
     """A Temporal Discourse Representation Structure."""
 
@@ -209,6 +214,85 @@ class DRS(AbstractDrs, drt.DRS):
 
     def simplify(self):
         return self.__class__(self.refs, [cond.simplify() for cond in self.conds])
+   
+    
+    def resolve(self, trail=[]):
+        r_conds = []
+        for cond in self.conds:
+            r_cond = cond.resolve(trail + [self])            
+            r_conds.append(r_cond)
+        return self.__class__(self.refs, r_conds)
+  
+    
+    def subtract(self, otherDRS):
+        """Returns a DRS with refs and conds in self and not in other DRS"""
+        self_refs = set(self.refs)
+        self_conds = set(self.conds)
+
+        otherDRS_refs = set(otherDRS.refs)
+        otherDRS_conds = set(otherDRS.conds)
+         
+        if self_refs.issuperset(otherDRS_refs) and self_conds.issuperset(otherDRS_conds):
+            
+            result_refs = list(self_refs.difference(otherDRS_refs))           
+            result_conds = list(self_conds.difference(otherDRS_conds))
+
+            return self.__class__(result_refs, result_conds)
+        
+        else:
+            raise SubtractionException("Impossible to subtract %s from %s"
+                                       % (otherDRS, self))
+            
+    def lift_proper_names(self, trail=[]):
+
+        r_conds = []
+        
+        """a DRS containing referents and corresponding proper name conditions
+        from all subDRSs; to be merged with the outer DRS"""
+        storageDRS = DRS([],[])
+        
+        """A list of proper name conditions to be placed into storageDRS"""
+        additional_conds = []
+        
+        for cond in self.conds:
+            r_cond = cond.lift_proper_names(trail + [self])
+            
+            if isinstance(r_cond, tuple):
+                """in case I receive a tuple with a leftover DRS and a storage DRS"""
+                storageDRS = (storageDRS + r_cond[1]).simplify()
+                
+                #print "storageDRS: ", storageDRS
+                
+                r_cond = r_cond[0]
+            
+            elif isinstance(r_cond, DrtApplicationExpression) and \
+                isinstance(r_cond.function, DrtProperNameExpression):
+                """in case I receive a proper name condition"""
+                
+                additional_conds.append(r_cond)
+            
+            """collect conditions"""
+            r_conds.append(r_cond)    
+            
+        if any(isinstance(ancestor, DRS) for ancestor in trail):
+            """if there are any DRSs in trail, create additional DRS to be merged
+            with storage DRS and passed further up"""
+            add_refs = []
+            for cond in additional_conds:
+                add_refs.append(cond.argument.variable)
+                
+            addDRS = self.__class__(add_refs, additional_conds)
+            resultDRS = self.__class__(self.refs, r_conds)
+            
+            return (resultDRS.subtract(addDRS), (addDRS + storageDRS).simplify())
+        
+        else:
+            """in outer DRS"""
+            return (self.__class__(self.refs, r_conds) + storageDRS).simplify()
+        
+        
+class SubtractionException(Exception):
+    pass
 
     def resolve(self, trail=[]):
         r_conds = []
@@ -243,6 +327,10 @@ class DrtAbstractVariableExpression(AbstractDrs, drt.DrtAbstractVariableExpressi
     def resolve(self, trail=[]):
         return self
     
+    def lift_proper_names(self, trail=[]):
+        """added"""
+        return self
+    
 class DrtIndividualVariableExpression(DrtAbstractVariableExpression, drt.DrtIndividualVariableExpression):
     pass
 
@@ -263,14 +351,49 @@ class DrtNegatedExpression(AbstractDrs, drt.DrtNegatedExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.term.resolve(trail + [self]))
 
+    def lift_proper_names(self, trail=[]):
+        """added"""
+        lifted_condition = self.term.lift_proper_names(trail + [self])
+        
+        if isinstance(lifted_condition, tuple):
+            """A DRS with a storage received"""
+            return (self.__class__(lifted_condition[0]),lifted_condition[1])         
+        else:    
+            return self.__class__(lifted_condition)
+
 class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.variable, self.term.resolve(trail + [self]))
+    
+    def lift_proper_names(self, trail=[]):
+        """added"""
+        """Not implemented error"""
+        lifted_term = self.term.lift_proper_names(trail + [self])
+        
+        if isinstance(lifted_term, tuple):
+            return (self.__class__(self.variable, lifted_term[0]), lifted_term[1])
+        
+        else:
+            return self.__class__(self.variable, lifted_term)
 
 class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.first.resolve(trail + [self]), 
                               self.second.resolve(trail + [self]))
+           
+    def lift_proper_names(self, trail=[]):
+        """added"""
+        lifted_first = self.first.lift_proper_names(trail + [self])
+        lifted_second = self.second.lift_proper_names(trail + [self])
+        
+        if isinstance(lifted_first, tuple):
+            """Two DRSs with a storage received""" 
+            return (self.__class__(lifted_first[0], lifted_second[0]), 
+                              (lifted_first[1] + lifted_second[1]).simplify())
+        else:
+            return self.__class__(lifted_first, 
+                                  lifted_second)  
+
 
 class DrtOrExpression(DrtBooleanExpression, drt.DrtOrExpression):
     pass
@@ -279,12 +402,24 @@ class DrtImpExpression(DrtBooleanExpression, drt.DrtImpExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.first.resolve(trail + [self]),
                               self.second.resolve(trail + [self, self.first]))
+        
+    def lift_proper_names(self, trail=[]):
+        """added"""    
+        lifted_first = self.first.lift_proper_names(trail + [self])
+        lifted_second = self.second.lift_proper_names(trail + [self, self.first])       
+        
+        return (self.__class__(lifted_first[0], lifted_second[0]),
+                (lifted_first[1] + lifted_second[1]).simplify())
 
 class DrtIffExpression(DrtBooleanExpression, drt.DrtIffExpression):
     pass
 
 class DrtEqualityExpression(AbstractDrs, drt.DrtEqualityExpression):
     def resolve(self, trail=[]):
+        return self
+    
+    def lift_proper_names(self, trail=[]):
+        """added"""
         return self
 
 class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
@@ -344,6 +479,12 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.function.resolve(trail + [self]),
                               self.argument.resolve(trail + [self]))
+        
+   
+    def lift_proper_names(self, trail=[]):
+        """added""" 
+        return self.__class__(self.function.lift_proper_names(trail + [self]),
+                              self.argument.lift_proper_names(trail + [self]))  
 
 class PossibleAntecedents(AbstractDrs, drt.PossibleAntecedents):
     pass
@@ -461,9 +602,25 @@ def test_2():
     expr = p('DRS([x,y],[John(x), PRO(x), black(x)])')  
     print expr.fol()
     
+
+def test_3():
+    p = DrtParser().parse
+    expr = p('DRS([v],[Claire(v), -(DRS([w], [Jim(w)]) -> DRS([],[small(w)])), DRS([x,y],[John(x), PRO(x), -black(x), (DRS([z],[Bill(z)]) | DRS([j],[ (man(j) | woman(j)) ]))])])')
+    #expr = p(r'DRS([t],[-(DRS([w], [Jim(w)]) -> DRS([],[small(w)])), \x.DRS([k],[Bob(k), PRO(t)])])')
+    print "lift_proper_names test:\nOriginal expression: ", expr
+    #print expr.resolve()
+    print "lifted expression: ", expr.lift_proper_names()
+    
+    #addDRS = DRS([],[expr])
+    #print addDRS.__class__
+
+def test_4():
+    p = DrtParser().parse
+    expr = p('DRS([x,y],[John(x), PRO(x), -black(x), -DRS([z],[Bill(z),smoke(z),black(z)])])')
+    expr_2 = p('DRS([x],[John(x)])')
+    print "%s - %s = %s" % (expr, expr_2, expr.subtract(expr_2))
+
 if __name__ == "__main__":
     
-    test()
-    
-    print "\nCheck: Converts Proper Names from DRT format 'John(x) into FOL 'John = x'"
-    test_2()
+    #test_2()
+    test_3()
