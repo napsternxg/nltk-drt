@@ -20,7 +20,6 @@ I[NUM=?n,SEM=<?neg(?i)>] -> I[NUM=?n,SEM=?i] Neg[SEM=?neg]
 NP[NUM=?n,SEM=<app(?det,?nom)>] -> Det[NUM=?n,SEM=?det]  Nom[NUM=?n,SEM=?nom]
 NP[LOC=?l,NUM=?n,SEM=?np] -> PropN[LOC=?l,NUM=?n,SEM=?np]
 
-
 # Added N-bar level with adjectives and relative clauses
 
 NP[NUM=?n,SEM=<app(?det,?nbar)>] -> Det[NUM=?n,SEM=?det] NBAR[NUM=?n,SEM=?nbar]
