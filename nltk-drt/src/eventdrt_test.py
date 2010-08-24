@@ -5,14 +5,23 @@ import nltkfixtemporal
 
 def test():
     parser = load_parser('file:../data/eventdrt_test.fcfg', logic_parser=EventDrtParser())
-    sentences = []
-    sentences.append(("He wants a car. Jones needs it.", False))
-    sentences.append(("He invites Jones.", False))
-    sentences.append(("Jones loves Charlotte but Bill loves her too and he asks himself why", False))
-    
+    sentences = [
+    ("He wants a car. Jones needs it.", False),
+    ("He invites Jones.", False),
+    ("Jones loves Charlotte but Bill loves her and he asks himself.", True),
+    ("Jones loves Charlotte but Bill loves her and he asks him.", True),
+    ("Jones loves Charlotte but Bill loves her and himself asks him.", False),
+    ("Jones likes this picture of himself.", True),
+    ("Jones likes this picture of him.", True),
+    ("Bill likes Jones' picture of himself", True),
+    ("Bill likes Jones' picture of him", True)
+    ]
+
     for number, (sentence, is_grammatical) in enumerate(sentences):
         try:
-            print(parse(parser, sentence, False))
+            print("%s. %s %s" % (number+1, sentence, parse(parser, sentence, False)))
+            if not is_grammatical:
+                print("Error!")
         except AnaphoraResolutionException, e:
             if not is_grammatical:
                 print("%s. *%s (%s)" % (number+1, sentence, e))
@@ -20,6 +29,8 @@ def test():
                 print("Can't resolve %s" % (sentence))
         except Exception, e:
             print("%s. *%s (%s)" % (number+1, sentence, e))
+
+    #print(parse(parser, "Jones loves Charlotte but Bill loves her and he asks himself"))
 
 if __name__ == '__main__':
     test()
