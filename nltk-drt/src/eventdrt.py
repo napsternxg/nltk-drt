@@ -1,7 +1,7 @@
 from nltk import load_parser
 from nltk.sem.logic import ParseException
 from nltk.sem.logic import Variable
-from temporaldrt import unique_variable, DrtImpExpression, AbstractDrs, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
+from temporaldrt import unique_variable, DrtImpExpression, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
 
 class EventDrtTokens(DrtTokens):
     REFLEXIVE_PRONOUN = 'REFPRO'
@@ -12,10 +12,10 @@ class EventDrtTokens(DrtTokens):
     SYMBOLS = DrtTokens.SYMBOLS + PUNCT
     TOKENS = DrtTokens.TOKENS + PUNCT
 
-def get_refs(self, recursive=False):
-    return []
+#def get_refs(self, recursive=False):
+#    return []
 
-AbstractDrs.get_refs = get_refs
+#AbstractDrs.get_refs = get_refs
 
 class FeatureExpression(DrtConstantExpression):
     """An expression with syntactic features attached"""
