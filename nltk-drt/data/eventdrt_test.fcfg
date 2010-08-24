@@ -19,13 +19,19 @@ Det[NUM=sg,SEM=<\P Q.((?pp(\y.(DRS([x,e],[possession(e), POSSESSOR(e,y), POSSESS
 
 FeatPosPron[NUM=?n,GEN=?g,SEM=<?p{?n,?g}>] -> PosPron[NUM=?n,GEN=?g,SEM=?p]
 
+FeatPosPron[NUM=?n,GEN=?g,SEM=<?p{?n,?g}>] -> PossessiveNP[NUM=?n,GEN=?g,SEM=?p]
+
+PossessiveNP[NUM=?n,GEN=?g,SEM=<?pos(?p)>] -> PropN[NUM=?n,GEN=?g,SEM=?p] PosMarker[SEM=?pos]
+
 #############################
 # Lexical Rules
 #############################
 
 AND[SEM=<\X Y.(X + Y)>] -> 'and' | 'but'
 
-PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[Jones(x)])+P(x))>] -> 'Jones'
+PosMarker[SEM=<\P.P>] -> 's'
+
+PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([X],[Jones(x)])+P(x))>] -> 'Jones'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[Bill(x)])+P(x))>] -> 'Bill'
 PropN[NUM=sg,GEN=f,SEM=<\P.(DRS([x],[Charlotte(x)])+P(x))>] -> 'Charlotte'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he' | 'He'
