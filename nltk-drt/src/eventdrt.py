@@ -1,6 +1,7 @@
-from nltk.sem.logic import ParseException, Variable, unique_variable
-from temporaldrt import DrtImpExpression, AbstractDrs, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
 from nltk import load_parser
+from nltk.sem.logic import ParseException
+from nltk.sem.logic import Variable
+from temporaldrt import unique_variable, DrtImpExpression, AbstractDrs, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
 
 class EventDrtTokens(DrtTokens):
     REFLEXIVE_PRONOUN = 'REFPRO'

@@ -1,6 +1,5 @@
 from temporaldrt import DRS, DrtLambdaExpression, DrtApplicationExpression, PossibleAntecedents, DrtAbstractVariableExpression, DrtNegatedExpression, DrsDrawer
 from nltk.sem.logic import BinaryExpression
-
 #from nltk.sem.drt import AbstractDrs
 #
 #def gr(s, recursive=False):
