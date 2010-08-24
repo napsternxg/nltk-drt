@@ -281,7 +281,57 @@ class DrtEqualityExpression(AbstractDrs, drt.DrtEqualityExpression):
         return self
 
 class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
-    pass
+    """DRS of the form '(DRS + DRS)'"""
+    def replace(self, variable, expression, replace_bound=False):
+        """Replace all instances of variable v with expression E in self,
+        where v is free in self."""
+        first = self.first
+        second = self.second
+
+        # If variable is bound by both first and second 
+        if isinstance(first, DRS) and isinstance(second, DRS) and \
+           variable in (set(first.get_refs(True)) & set(second.get_refs(True))):
+            first  = first.replace(variable, expression, True)
+            second = second.replace(variable, expression, True)
+            
+        # If variable is bound by first
+        elif isinstance(first, DRS) and variable in first.refs:
+            if replace_bound: 
+                first  = first.replace(variable, expression, replace_bound)
+                second = second.replace(variable, expression, replace_bound)
+
+        # If variable is bound by second
+        elif isinstance(second, DRS) and variable in second.refs:
+            if replace_bound:
+                first  = first.replace(variable, expression, replace_bound)
+                second = second.replace(variable, expression, replace_bound)
+
+        else:
+            # alpha convert every ref that is free in 'expression'
+            for ref in (set(self.get_refs(True)) & expression.free()): 
+                v = DrtVariableExpression(unique_variable(ref))
+                first  = first.replace(ref, v, True)
+                second = second.replace(ref, v, True)
+
+            first  = first.replace(variable, expression, replace_bound)
+            second = second.replace(variable, expression, replace_bound)
+            
+        return self.__class__(first, second)
+
+    def simplify(self):
+        first = self.first.simplify()
+        second = self.second.simplify()
+
+        if isinstance(first, DRS) and isinstance(second, DRS):
+            # For any ref that is in both 'first' and 'second'
+            for ref in (set(first.get_refs(True)) & set(second.get_refs(True))):
+                # alpha convert the ref in 'second' to prevent collision
+                newvar = DrtVariableExpression(unique_variable(ref))
+                second = second.replace(ref, newvar, True)
+            
+            return DRS(first.refs + second.refs, first.conds + second.conds)
+        else:
+            return self.__class__(first,second)
 
 class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):       
     def resolve(self, trail=[]):
@@ -350,8 +400,7 @@ class DrtParser(drt.DrtParser):
             return DrtIffExpression
         else:
             return None
-    
-    
+  
     def make_VariableExpression(self, name):
         return DrtVariableExpression(Variable(name))
 
