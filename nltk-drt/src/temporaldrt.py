@@ -1,22 +1,43 @@
-import re, operator
-from nltk.sem.logic import BooleanExpression, Variable, Expression,\
-BasicType, IffExpression, ImpExpression, ApplicationExpression,\
-EqualityExpression, AllExpression, OrExpression, AbstractVariableExpression,\
-ConstantExpression, LambdaExpression, NegatedExpression, FunctionVariableExpression,\
-EventVariableExpression, IndividualVariableExpression, is_indvar, is_eventvar,\
-is_funcvar, unique_variable, ExistsExpression, AndExpression
-import nltk.sem.drt as drt
-from nltk.internals import Counter
+"""
+Temporal logic extension of nltk.sem.drt
+Keeps track of time referents and temporal DRS-conditions. 
+
+New function resolving LOCPRO(t) from a non-finite verb
+to the location time referent introduced by a finite auxiliary. 
+"""
+
+import re
+import operator
+
+from nltk.sem.logic import BooleanExpression
+from nltk.sem.logic import Variable
+from nltk.sem.logic import IffExpression
+from nltk.sem.logic import ImpExpression
+from nltk.sem.logic import ApplicationExpression
+from nltk.sem.logic import EqualityExpression
+from nltk.sem.logic import AllExpression
+from nltk.sem.logic import OrExpression
+from nltk.sem.logic import AbstractVariableExpression
+from nltk.sem.logic import ConstantExpression
+from nltk.sem.logic import LambdaExpression
+from nltk.sem.logic import NegatedExpression
+from nltk.sem.logic import FunctionVariableExpression
+from nltk.sem.logic import EventVariableExpression
+from nltk.sem.logic import IndividualVariableExpression
+from nltk.sem.logic import Expression
+from nltk.sem.logic import _counter, is_eventvar, is_funcvar
+from nltk.sem.logic import ExistsExpression
+from nltk.sem.logic import AndExpression
+from nltk.sem.logic import BasicType
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
 
-"""
-Basic type of times added on top of nltk.sem.logic.
-Extend to utterance time referent 'n'.
-"""
-
-_counter = Counter()
+import nltk.sem.drt as drt
 
 class TimeType(BasicType):
+    """
+    Basic type of times added on top of nltk.sem.logic.
+    Extend to utterance time referent 'n'.
+    """
     def __str__(self):
         return 'i'
 
@@ -95,14 +116,6 @@ class TimeVariableExpression(IndividualVariableExpression):
     'i' character followed by zero or more digits."""
     type = TIME_TYPE
 
-"""
-Temporal logic extension of nltk.sem.drt
-Keeps track of time referents and temporal DRS-conditions. 
-
-New function resolving LOCPRO(t) from a non-finite verb
-to the location time referent introduced by a finite auxiliary. 
-"""
-
 class DrtTokens(drt.DrtTokens):
     LOCATION_TIME = 'LOCPRO'
 
@@ -163,7 +176,7 @@ class AbstractDrs(drt.AbstractDrs):
             result = result.replace(v,
                         self.make_VariableExpression(Variable(newVar)), True)
         return result
-
+    
     def resolve(self, trail=[]):
         """
         resolve anaphora should not resolve individuals and events to time referents.
@@ -349,9 +362,6 @@ class DrtLambdaExpression(AbstractDrs, LambdaExpression):
     def fol(self):
         return LambdaExpression(self.variable, self.term.fol())
     
-    def resolve(self, trail=[]):
-        return self.__class__(self.variable, self.term.resolve(trail + [self]))
-
     def replace(self, variable, expression, replace_bound=False):
         """@see: Expression.replace()"""
         assert isinstance(variable, Variable), "%s is not a Variable" % variable
@@ -374,6 +384,9 @@ class DrtLambdaExpression(AbstractDrs, LambdaExpression):
             #replace in the term
             return self.__class__(self.variable,
                                   self.term.replace(variable, expression, replace_bound))
+
+    def resolve(self, trail=[]):
+        return self.__class__(self.variable, self.term.resolve(trail + [self]))
 
 class DrtBooleanExpression(AbstractDrs, BooleanExpression):
     def get_refs(self, recursive=False):
@@ -410,7 +423,7 @@ class DrtImpExpression(DrtBooleanExpression, ImpExpression):
             accum = AllExpression(ref, accum)
             
         return accum
-    
+
     def resolve(self, trail=[]):
         return self.__class__(self.first.resolve(trail + [self]),
                               self.second.resolve(trail + [self, self.first]))
@@ -429,12 +442,9 @@ class DrtEqualityExpression(AbstractDrs, EqualityExpression):
             return self.first.get_refs(True) + self.second.get_refs(True)
         else:
             return []
-
+        
     def resolve(self, trail=[]):
-        if isinstance(self.second, PossibleAntecedents):
-            return self.__class__(self.first, self.second.resolve(trail))
-        else:
-            return self
+        return self
 
 class ConcatenationDRS(DrtBooleanExpression):
     """DRS of the form '(DRS + DRS)'"""
@@ -516,13 +526,7 @@ class ConcatenationDRS(DrtBooleanExpression):
 
 class DrtApplicationExpression(AbstractDrs, ApplicationExpression):
     def fol(self):
-        """New condition for proper names added"""
-        if isinstance(self.function, DrtProperNameExpression):
-            return EqualityExpression(self.function.fol(),
-                                            self.argument.fol())          
-        else:
-            return ApplicationExpression(self.function.fol(), 
-                                           self.argument.fol())
+        return ApplicationExpression(self.function.fol(), self.argument.fol())
 
     def get_refs(self, recursive=False):
         """@see: AbstractExpression.get_refs()"""
@@ -567,6 +571,11 @@ class DrtTimeApplicationExpression(DrtApplicationExpression):
     """
     pass
 
+class DrtProperNameApplicationExpression(DrtApplicationExpression):
+    def fol(self):
+        """New condition for proper names added"""
+        return EqualityExpression(self.function.fol(), self.argument.fol())
+
 class LocationTimeResolutionException(Exception):
     pass
 
@@ -594,30 +603,8 @@ class DrtParser(drt.DrtParser):
     """DrtParser producing conditions and referents for temporal logic"""
         
     def handle_DRS(self, tok, context):
-        # a DRS
-        self.assertNextToken(DrtTokens.OPEN_BRACKET)
-        refs = []
-        while self.inRange(0) and self.token(0) != DrtTokens.CLOSE_BRACKET:
-            # Support expressions like: DRS([x y],C) == DRS([x,y],C)
-            if refs and self.token(0) == DrtTokens.COMMA:
-                self.token() # swallow the comma
-            refs.append(self.get_next_token_variable('quantified'))
-        self.assertNextToken(DrtTokens.CLOSE_BRACKET)
-        
-        if self.inRange(0) and self.token(0) == DrtTokens.COMMA: #if there is a comma (it's optional)
-            self.token() # swallow the comma
-            
-        self.assertNextToken(DrtTokens.OPEN_BRACKET)
-        conds = []
-        while self.inRange(0) and self.token(0) != DrtTokens.CLOSE_BRACKET:
-            # Support expressions like: DRS([x y],C) == DRS([x, y],C)
-            if conds and self.token(0) == DrtTokens.COMMA:
-                self.token() # swallow the comma
-            conds.append(self.parse_Expression(context))
-        self.assertNextToken(DrtTokens.CLOSE_BRACKET)
-        self.assertNextToken(DrtTokens.CLOSE)
-        
-        return DRS(refs, conds)
+        drs = drt.DrtParser.handle_DRS(self, tok, context)
+        return DRS(drs.refs, drs.conds)
 
     
     def get_BooleanExpression_factory(self, tok):
@@ -646,8 +633,10 @@ class DrtParser(drt.DrtParser):
         function.variable.name == DrtTokens.LOCATION_TIME and \
         isinstance(argument, DrtTimeVariableExpression):
             return DrtLocationTimeApplicationExpression(function, argument)
-        if isinstance(argument, DrtTimeVariableExpression):
+        elif isinstance(argument, DrtTimeVariableExpression):
             return DrtTimeApplicationExpression(function, argument)
+        elif isinstance(function, DrtProperNameExpression):
+            return DrtProperNameApplicationExpression(function, argument)
         else:
             return DrtApplicationExpression(function, argument)
 

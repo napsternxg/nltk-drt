@@ -1,5 +1,5 @@
 import operator
-from temporallogic import LogicParser, BooleanExpression, Variable,\
+from temporallogicold import LogicParser, BooleanExpression, Variable,\
 TimeVariableExpression, IffExpression, ImpExpression, ApplicationExpression,\
 EqualityExpression, AllExpression, OrExpression, AbstractVariableExpression,\
 ConstantExpression, LambdaExpression, NegatedExpression, FunctionVariableExpression,\
