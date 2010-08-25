@@ -26,7 +26,7 @@ def parse(parser, text, show_interim = True):
             trees = parser.nbest_parse(new_words)
             new_drs = trees[0].node['SEM'].simplify()
             if show_interim:
-                print(new_drs)
+               print(new_drs)
             if drs:
                 drs = (drs + new_drs).simplify()
             else:
@@ -45,15 +45,15 @@ def test(parser, logic_parser, cases):
             if error:
                 print("%s. !error: expected %s" % (number, str(error)))
             else:
-                if unresolved_drs == expected_drs:
+                if drs == expected_drs:
                     print("%s. %s (%s)" % (number, sentence, drs))
                 else:
-                    print("%s. !comparison failed %s != %s)" % (number, unresolved_drs, expected_drs))
+                    print("%s. !comparison failed %s != %s)" % (number, drs, expected_drs))
         except Exception, e:
             if error and isinstance(e, error):
-                if unresolved_drs == expected_drs:
+                if drs == expected_drs:
                     print("%s. *%s (%s)" % (number, sentence, e))
                 else:
-                    print("%s. !comparison failed %s != %s)" % (number, unresolved_drs, expected_drs))
+                    print("%s. !comparison failed %s != %s)" % (number, drs, expected_drs))
             else:
                 print("%s. !unexpected error: %s" % (number, e))

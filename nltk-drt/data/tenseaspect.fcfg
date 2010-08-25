@@ -88,6 +88,8 @@ N[NUM=sg,SEM=<\x.DRS([],[student(x)])>] -> 'student'
 N[NUM=pl,SEM=<\x.DRS([],[student(x)])>] -> 'students'
 N[NUM=sg,SEM=<\x.DRS([],[garden(x)])>] -> 'garden'
 N[NUM=sg,SEM=<\x.DRS([],[kitchen(x)])>] -> 'kitchen'
+N[NUM=sg,SEM=<\x.DRS([],[car(x)])>] -> 'car'
+
 
 # Auxiliary Verbs and Negation:
 
@@ -142,7 +144,7 @@ V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,
 ### States:
 
 V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+X(\x.DRS([e],[live(e,x),state(e),overlap(t,e)])))>,tns=past] -> 'lived'
-
+V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),eq(t,n)])+X(\x.DRS([e],[live(e,x),state(e),include(e,t)])))>,tns=pres] -> 'lives'
 
 ## Transitives:
 
@@ -154,6 +156,7 @@ V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),earlier(
 ### States:
 
 V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+Y(\x.(X(\y.DRS([e],[own(e,x,y),state(e),overlap(t,e)])))))>,tns=past] -> 'owned'
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),eq(t,n)])+Y(\x.(X(\y.DRS([e],[own(e,x,y),state(e),include(e,t)])))))>,tns=pres] -> 'owns'
 
 ## Ditransitives:
 
