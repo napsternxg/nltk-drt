@@ -30,7 +30,7 @@ def test():
             else:
                 print("Can't resolve %s" % (sentence))
         except Exception, e:
-            print("%s. *%s (%s)" % (number+1, sentence, e))
+            print("%s. *%s (Unexpected Error: %s)" % (number+1, sentence, e))
 
     print(parse(parser, "Bill's car walks"))
 
