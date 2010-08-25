@@ -15,13 +15,15 @@ VP[NUM=?n,SEM=<?v(?obj)>] -> TV[NUM=?n,SEM=?v] NP[NUM=?n,GEN=?g,SEM=?obj]
 
 VP[NUM=?n,SEM=?v] -> IV[NUM=?n,SEM=?v] 
 
-Det[NUM=sg,SEM=<\P Q.((?pp(\y.(DRS([x,e],[possession(e), POSSESSOR(e,y), POSSESSED(e,x)]))) +P(x))+Q(x))>] -> FeatPosPron[SEM=?pp] 
+Det[NUM=sg,SEM=<\R P Q.(((R(\y.(DRS([e],[possession(e), POSSESSOR(e,y)]))) + DRS([x],[POSSESSED(e,x)]))+P(x))+Q(x))(?pp)>] -> FeatPosPron[SEM=?pp] 
 
 FeatPosPron[NUM=?n,GEN=?g,SEM=<?p{?n,?g}>] -> PosPron[NUM=?n,GEN=?g,SEM=?p]
 
-FeatPosPron[NUM=?n,GEN=?g,SEM=<?p{?n,?g}>] -> PossessiveNP[NUM=?n,GEN=?g,SEM=?p]
+FeatPosPron[NUM=?n,GEN=?g,SEM=<?pos(?np)>] -> NP[NUM=?n,GEN=?g,SEM=?np] PosMarker[SEM=?pos]
 
-PossessiveNP[NUM=?n,GEN=?g,SEM=<?pos(?p)>] -> PropN[NUM=?n,GEN=?g,SEM=?p] PosMarker[SEM=?pos]
+NP[NUM=?n,GEN=?g,SEM=<(\R P Q.( R(\y.(DRS([e],[relation(e), RELATING(e,y)]))) + P(\z.((DRS([],[RELATED(e,z)]) +Q(z)))) )(?np))(?r)>] -> Related[NUM=?n,GEN=?g,SEM=?r] NP[SEM=?np]
+
+Related[NUM=?n,GEN=?g,SEM=<?rel(?np)>] -> NP[NUM=?n,GEN=?g,SEM=?np] RelMarker[SEM=?rel]
 
 #############################
 # Lexical Rules
@@ -45,6 +47,8 @@ Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'every' | 'Ever
 PosPron[NUM=sg,GEN=m,SEM=<\P.(DRS([y],[POSPRO(y)])+P(y))>] -> 'his' | 'His'
 
 PosMarker[SEM=<\P.P>] -> 's'
+
+RelMarker[SEM=<\P.P>] -> 'of'
 
 N[NUM=sg,GEN=m,SEM=<\x.DRS([],[man(x)])>] -> 'man'
 N[NUM=sg,GEN=n,SEM=<\x.DRS([],[car(x)])>] -> 'car'

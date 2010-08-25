@@ -30,9 +30,11 @@ def parse(parser, text, show_interim = True):
 
 def test(parser, logic_parser, cases):
     for number, sentence, expected, error in cases:
-        expected_drs = logic_parser.parse(expected)
+#TODO: remove this if
+        if expected:
+            expected_drs = logic_parser.parse(expected)
         try:
-            unresolved_drs = parse(parser, sentence, False)
+            unresolved_drs = parse(parser, sentence, True)
             drs = unresolved_drs.resolve()
             if error:
                 print("%s. !error: expected %s" % (number, str(error)))
@@ -48,4 +50,4 @@ def test(parser, logic_parser, cases):
                 else:
                     print("%s. !comparison failed %s != %s)" % (number, unresolved_drs, expected_drs))
             else:
-                print("%s. !unexpected error: %s)" % (number, e))
+                print("%s. !unexpected error: %s" % (number, e))
