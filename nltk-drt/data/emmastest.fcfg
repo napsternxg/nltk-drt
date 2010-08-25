@@ -28,8 +28,13 @@ Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'every' | 
 Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'all' | 'All'
 Det[SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'some' | 'Some'
 Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
-Det[NUM=sg,SEM=<\P Q.((DRS([x],[PRESUPP(x,z1)])+P(z1))+Q(x))>] -> 'the' | 'The'
 Det[NUM=sg,SEM=<\P Q.(DRS([],[not((DRS([x],[])+P(x))+Q(x))]))>] -> 'no' 
+
+
+# This does not work: see presupp_demo.py, The boy loves the girl. --mk
+# I never call replace() explicitly, though. Do I need to do that? --mk
+Det[NUM=sg,SEM=<\P Q.((DRS([x],[PRESUPP(x,z)])+P(z))+Q(x))>] -> 'the' | 'The'
+
 
 N[NUM=sg,SEM=<\x.DRS([],[boy(x)])>] -> 'boy' 
 N[NUM=sg,SEM=<\x.DRS([],[girl(x)])>] -> 'girl'
