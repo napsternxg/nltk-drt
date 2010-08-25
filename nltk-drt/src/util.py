@@ -1,3 +1,11 @@
+class ReverseIterator:
+    def __init__(self, sequence):
+        self.sequence = sequence
+    def __iter__(self):
+        i = len(self.sequence)
+        while i > 0:
+            i = i - 1
+            yield self.sequence[i]
 
 def parse(parser, text, show_interim = True):
     sentences = text.split('.')
@@ -30,11 +38,9 @@ def parse(parser, text, show_interim = True):
 
 def test(parser, logic_parser, cases):
     for number, sentence, expected, error in cases:
-#TODO: remove this if
-        if expected:
-            expected_drs = logic_parser.parse(expected)
+        expected_drs = logic_parser.parse(expected)
         try:
-            unresolved_drs = parse(parser, sentence, True)
+            unresolved_drs = parse(parser, sentence, False)
             drs = unresolved_drs.resolve()
             if error:
                 print("%s. !error: expected %s" % (number, str(error)))

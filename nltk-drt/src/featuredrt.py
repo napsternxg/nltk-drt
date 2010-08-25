@@ -125,12 +125,13 @@ class FeatureDRS(DRS):
     def simplify(self):
         return FeatureDRS(self.refs, [cond.simplify() for cond in self.conds], self.features)
     
-    def resolve(self, trail=[]):
-        r_conds = []
+    def resolve(self, trail=[], output=[]):
+        drs = self.__class__(list(self.refs), [], self.features)
         for cond in self.conds:
-            r_cond = cond.resolve(trail + [self])            
-            r_conds.append(r_cond)
-        return self.__class__(self.refs, r_conds, self.features)
+            r_cond = cond.resolve(trail + [self], output + [drs])
+            if r_cond:
+                drs.conds.append(r_cond)
+        return drs
 
     def str(self, syntax=DrtTokens.NLTK):
         if syntax == DrtTokens.PROVER9:
@@ -319,7 +320,7 @@ class DrtRoleApplicationExpression(DrtApplicationExpression):
         return self.function.argument
 
 class DrtPronounApplicationExpression(DrtApplicationExpression):
-    def resolve(self, trail=[]):
+    def resolve(self, trail=[], output=[]):
         possible_antecedents = PossibleEventAntecedents()
         pronouns = []
         pro_var = self.argument.variable
