@@ -65,7 +65,7 @@ class FeatureExpression(DrtConstantExpression):
             raise NotImplementedError()
 
 class FeatureDRS(DRS):
-    """An event based Discourse Representation Structure with features."""
+    """Discourse Representation Structure where referents can have features."""
     def __init__(self, refs, conds, features={}):
         """
         @param refs: C{list} of C{DrtIndividualVariableExpression} for the 
@@ -208,6 +208,47 @@ class FeatureDrtParser(DrtParser):
                 #we reached the end of input, this constant has no features
                 pass
         return var
+
+    def handle_DRS(self, tok, context):
+        # a DRS
+        self.assertNextToken(DrtTokens.OPEN_BRACKET)
+        refs = []
+        features = {}
+        while self.inRange(0) and self.token(0) != DrtTokens.CLOSE_BRACKET:
+            # Support expressions like: DRS([x y],C) == DRS([x,y],C)
+            if refs and self.token(0) == DrtTokens.COMMA:
+                self.token() # swallow the comma
+            ref = self.get_next_token_variable('quantified')
+            if self.token(0) == FeatureDrtTokens.OPEN_BRACE:
+                self.token() # swallow the OPEN_BRACE
+                ref_features = []
+                while self.token(0) != FeatureDrtTokens.CLOSE_BRACE:
+                    ref_features.append(Variable(self.token()))
+                    
+                    if self.token(0) == DrtTokens.COMMA:
+                        self.token() # swallow the comma
+                self.token() # swallow the CLOSE_BRACE
+                features[ref] = ref_features
+            refs.append(ref)
+        self.assertNextToken(DrtTokens.CLOSE_BRACKET)
+        
+        if self.inRange(0) and self.token(0) == DrtTokens.COMMA: #if there is a comma (it's optional)
+            self.token() # swallow the comma
+            
+        self.assertNextToken(DrtTokens.OPEN_BRACKET)
+        conds = []
+        while self.inRange(0) and self.token(0) != DrtTokens.CLOSE_BRACKET:
+            # Support expressions like: DRS([x y],C) == DRS([x, y],C)
+            if conds and self.token(0) == DrtTokens.COMMA:
+                self.token() # swallow the comma
+            conds.append(self.parse_Expression(context))
+        self.assertNextToken(DrtTokens.CLOSE_BRACKET)
+        self.assertNextToken(DrtTokens.CLOSE)
+        
+        if features:
+            return FeatureDRS(refs, conds, features)
+        else:
+            return DRS(refs, conds)
 
     def make_ApplicationExpression(self, function, argument):
         """ Is self of the form "PRO(x)"? """

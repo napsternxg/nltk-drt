@@ -5,9 +5,8 @@ def parse(parser, text, show_interim = True):
     for sentence in sentences:
         sentence = sentence.lstrip()
         if sentence:
-            words = sentence.split()
             new_words = []
-            for word in words:
+            for word in sentence.split():
                 if "'" in word:
                     parts = word.split("'")
                     new_words.append(parts[0])
@@ -27,4 +26,25 @@ def parse(parser, text, show_interim = True):
 
     if show_interim:
         print drs
-    return drs.resolve()
+    return drs
+
+def test(parser, logic_parser, cases):
+    for number, sentence, expected_drs, error in cases:
+        try:
+            unresolved_drs = parse(parser, sentence, False)
+            drs = unresolved_drs.resolve()
+            if error:
+                print("%s. !error: expected %s" % (number, str(error)))
+            else:
+                if unresolved_drs == logic_parser.parse(expected_drs):
+                    print("%s. %s (%s)" % (number, sentence, drs))
+                else:
+                    print("%s. !comparison failed %s != %s)" % (number, drs, expected_drs))
+        except Exception, e:
+            if error and isinstance(e, error):
+                if unresolved_drs == logic_parser.parse(expected_drs):
+                    print("%s. *%s (%s)" % (number, sentence, e))
+                else:
+                    print("%s. !comparison failed %s != %s)" % (number, drs, expected_drs))
+            else:
+                print("%s. !unexpected error: %s)" % (number, e))
