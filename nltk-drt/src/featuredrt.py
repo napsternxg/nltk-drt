@@ -49,7 +49,7 @@ class FeatureExpression(DrtConstantExpression):
             features_map = {expression.term.second.argument.variable: features}
             if isinstance(expression.term.first, FeatureDRS):
                 features_map.update(expression.term.first.features)
-            return DrtLambdaExpression(expression.variable, ConcatenationEventDRS(FeatureDRS(expression.term.first.refs, expression.term.first.conds, features_map), expression.term.second))
+            return DrtLambdaExpression(expression.variable, ConcatenationFeatureDRS(FeatureDRS(expression.term.first.refs, expression.term.first.conds, features_map), expression.term.second))
         elif isinstance(expression, DrtLambdaExpression) and\
         isinstance(expression.term, DRS) and\
         len(expression.term.conds) == 1 and\
@@ -61,7 +61,7 @@ class FeatureExpression(DrtConstantExpression):
             return DrtLambdaExpression(expression.variable, FeatureDRS(expression.term.refs, [DrtImpExpression(FeatureDRS(expression.term.conds[0].first.refs, expression.term.conds[0].first.conds, features_map), expression.term.conds[0].second)]))
 
         else:
-            #print "expression:", expression, type(expression), type(expression.term), type(expression.term.first)
+            print "expression:", expression, type(expression), type(expression.term), type(expression.term.first)
             raise NotImplementedError()
 
 class FeatureDRS(DRS):
@@ -77,7 +77,7 @@ class FeatureDRS(DRS):
         self.features = features
 
     def __add__(self, other):
-        return ConcatenationEventDRS(self, other)
+        return ConcatenationFeatureDRS(self, other)
     
     def _replace_features(self, var, new_var):
         try:
@@ -166,7 +166,7 @@ class FeatureDRS(DRS):
                 return self.conds == converted_other.conds and self._compare_features(converted_other)
         return False
 
-class ConcatenationEventDRS(ConcatenationDRS):
+class ConcatenationFeatureDRS(ConcatenationDRS):
     def simplify(self):
         #print "ConcatenationEventDRS.simplify(%s)" % (self)
         first = self.first.simplify()
@@ -303,7 +303,7 @@ class FeatureDrtParser(DrtParser):
         """This method serves as a hook for other logic parsers that
         have different boolean operators"""
         if tok == DrtTokens.DRS_CONC:
-            return ConcatenationEventDRS
+            return ConcatenationFeatureDRS
         else:
             return DrtParser.get_BooleanExpression_factory(self, tok)
 
