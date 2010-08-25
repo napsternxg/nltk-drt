@@ -33,6 +33,7 @@ def test():
             print("%s. *%s (Unexpected Error: %s)" % (number+1, sentence, e))
 
     print(parse(parser, "Bill's car walks"))
+    print(parse(parser, "His car walks"))
 
 if __name__ == '__main__':
     test()
