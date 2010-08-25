@@ -42,7 +42,6 @@ class FeatureExpression(DrtConstantExpression):
         return self._make_DrtLambdaExpression(expression, features)
 
     def _make_DrtLambdaExpression(self, expression, features):
-        #print "expression:", expression
         if isinstance(expression, DrtLambdaExpression) and\
         isinstance(expression.term, ConcatenationDRS) and\
         isinstance(expression.term.first, DRS) and\
@@ -62,6 +61,7 @@ class FeatureExpression(DrtConstantExpression):
             return DrtLambdaExpression(expression.variable, EventDRS(expression.term.refs, [DrtImpExpression(EventDRS(expression.term.conds[0].first.refs, expression.term.conds[0].first.conds, features_map), expression.term.conds[0].second)]))
 
         else:
+            #print "expression:", expression, type(expression), type(expression.term), type(expression.term.first)
             raise NotImplementedError()
 
 class EventDRS(DRS):
