@@ -20,9 +20,9 @@ VP[NUM=?n,SEM=<app(?v,?obj)>] -> TV[NUM=?n,SEM=?v] NP[SEM=?obj]
 PropN[NUM=sg,SEM=<\P.(DRS([x],[Angus(x)])+P(x))>] -> 'Angus'
 PropN[NUM=sg,SEM=<\P.(DRS([x],[Mary(x)])+P(x))>] -> 'Mary'
 
-PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he'
-PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'she'
-PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it'
+PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he' | 'He'
+PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'she' | 'She'
+PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it' | 'It'
 
 Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'every' | 'Every' 
 Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'all' | 'All'
