@@ -18,6 +18,7 @@ from nltk.sem.logic import EqualityExpression
 from nltk.sem.logic import IndividualVariableExpression
 from nltk.sem.logic import _counter, is_eventvar, is_funcvar
 from nltk.sem.logic import BasicType
+from nltk.sem.logic import Expression
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
 
 import nltk.sem.drt as drt
@@ -355,9 +356,40 @@ class DrtNegatedExpression(AbstractDrs, drt.DrtNegatedExpression):
             return self.__class__(lifted_condition)
 
 class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
+    def alpha_convert(self, newvar):
+        """Rename all occurrences of the variable introduced by this variable
+        binder in the expression to @C{newvar}.
+        @param newvar: C{Variable}, for the new variable
+        """
+        return self.__class__(newvar, self.term.replace(self.variable, 
+                          DrtVariableExpression(newvar), True))
+
+    def replace(self, variable, expression, replace_bound=False):
+        """@see: Expression.replace()"""
+        assert isinstance(variable, Variable), "%s is not a Variable" % variable
+        assert isinstance(expression, Expression), "%s is not an Expression" % expression
+        #if the bound variable is the thing being replaced
+        if self.variable == variable:
+            if replace_bound: 
+                assert isinstance(expression, DrtAbstractVariableExpression), \
+                       "%s is not a AbstractVariableExpression" % expression
+                return self.__class__(expression.variable,
+                                      self.term.replace(variable, expression, True))
+            else: 
+                return self
+        else:
+            # if the bound variable appears in the expression, then it must
+            # be alpha converted to avoid a conflict
+            if self.variable in expression.free():
+                self = self.alpha_convert(unique_variable(pattern=self.variable))
+                
+            #replace in the term
+            return self.__class__(self.variable,
+                                  self.term.replace(variable, expression, replace_bound))
+
     def resolve(self, trail=[]):
         return self.__class__(self.variable, self.term.resolve(trail + [self]))
-    
+
     def lift_proper_names(self, trail=[]):
         """added"""
         """Not implemented error"""
