@@ -3,7 +3,7 @@ from nltk.sem.logic import ParseException
 from nltk.sem.logic import Variable
 from temporaldrt import unique_variable, DrtImpExpression, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
 
-class EventDrtTokens(DrtTokens):
+class FeatureDrtTokens(DrtTokens):
     REFLEXIVE_PRONOUN = 'REFPRO'
     POSSESSIVE_PRONOUN = 'POSPRO'
     OPEN_BRACE = '{'
@@ -47,9 +47,9 @@ class FeatureExpression(DrtConstantExpression):
         isinstance(expression.term.first, DRS) and\
         expression.term.second.argument.variable in expression.term.first.refs:
             features_map = {expression.term.second.argument.variable: features}
-            if isinstance(expression.term.first, EventDRS):
+            if isinstance(expression.term.first, FeatureDRS):
                 features_map.update(expression.term.first.features)
-            return DrtLambdaExpression(expression.variable, ConcatenationEventDRS(EventDRS(expression.term.first.refs, expression.term.first.conds, features_map), expression.term.second))
+            return DrtLambdaExpression(expression.variable, ConcatenationEventDRS(FeatureDRS(expression.term.first.refs, expression.term.first.conds, features_map), expression.term.second))
         elif isinstance(expression, DrtLambdaExpression) and\
         isinstance(expression.term, DRS) and\
         len(expression.term.conds) == 1 and\
@@ -58,13 +58,13 @@ class FeatureExpression(DrtConstantExpression):
         expression.term.conds[0].second.argument.variable in expression.term.conds[0].first.refs:
             #print type(expression.term.conds[0])
             features_map = {expression.term.conds[0].second.argument.variable: features}
-            return DrtLambdaExpression(expression.variable, EventDRS(expression.term.refs, [DrtImpExpression(EventDRS(expression.term.conds[0].first.refs, expression.term.conds[0].first.conds, features_map), expression.term.conds[0].second)]))
+            return DrtLambdaExpression(expression.variable, FeatureDRS(expression.term.refs, [DrtImpExpression(FeatureDRS(expression.term.conds[0].first.refs, expression.term.conds[0].first.conds, features_map), expression.term.conds[0].second)]))
 
         else:
             #print "expression:", expression, type(expression), type(expression.term), type(expression.term.first)
             raise NotImplementedError()
 
-class EventDRS(DRS):
+class FeatureDRS(DRS):
     """An event based Discourse Representation Structure with features."""
     def __init__(self, refs, conds, features={}):
         """
@@ -100,7 +100,7 @@ class EventDRS(DRS):
             if not replace_bound:
                 return self
             else:
-                return EventDRS(self.refs[:i] + [expression.variable] + self.refs[i + 1:],
+                return FeatureDRS(self.refs[:i] + [expression.variable] + self.refs[i + 1:],
                            [cond.replace(variable, expression, True) for cond in self.conds],
                            self._replace_features(variable, expression.variable))
         except ValueError:
@@ -112,18 +112,18 @@ class EventDRS(DRS):
                 newvar = unique_variable(ref) 
                 newvarex = DrtVariableExpression(newvar)
                 i = self.refs.index(ref)
-                self = EventDRS(self.refs[:i] + [newvar] + self.refs[i + 1:],
+                self = FeatureDRS(self.refs[:i] + [newvar] + self.refs[i + 1:],
                            [cond.replace(ref, newvarex, True) for cond in self.conds],
                             self._replace_features(ref, newvar))
 
             #replace in the conditions
-            return EventDRS(self.refs,
+            return FeatureDRS(self.refs,
                        [cond.replace(variable, expression, replace_bound) 
                         for cond in self.conds],
                         self.features)
 
     def simplify(self):
-        return EventDRS(self.refs, [cond.simplify() for cond in self.conds], self.features)
+        return FeatureDRS(self.refs, [cond.simplify() for cond in self.conds], self.features)
     
     def resolve(self, trail=[]):
         r_conds = []
@@ -159,7 +159,7 @@ class ConcatenationEventDRS(ConcatenationDRS):
                 second = second.replace(ref, newvar, True)
             return second
 
-        if isinstance(first, EventDRS) and isinstance(second, EventDRS):
+        if isinstance(first, FeatureDRS) and isinstance(second, FeatureDRS):
             second = _alpha_covert_second(first, second)
             features = dict(first.features)
             for idx,ref in enumerate(first.refs):
@@ -167,37 +167,37 @@ class ConcatenationEventDRS(ConcatenationDRS):
                     features[ref] = second.features[idx]
 
             features.update(second.features)
-            return EventDRS(first.refs + second.refs, first.conds + second.conds, features)
+            return FeatureDRS(first.refs + second.refs, first.conds + second.conds, features)
 
-        elif isinstance(first, EventDRS) and isinstance(second, DRS):
+        elif isinstance(first, FeatureDRS) and isinstance(second, DRS):
             second = _alpha_covert_second(first, second)
-            return EventDRS(first.refs + second.refs, first.conds + second.conds, first.features)
+            return FeatureDRS(first.refs + second.refs, first.conds + second.conds, first.features)
 
-        elif isinstance(first, DRS) and isinstance(second, EventDRS):
+        elif isinstance(first, DRS) and isinstance(second, FeatureDRS):
             second = _alpha_covert_second(first, second)
-            return EventDRS(first.refs + second.refs, first.conds + second.conds, second.features)
+            return FeatureDRS(first.refs + second.refs, first.conds + second.conds, second.features)
 
         else:
             return ConcatenationDRS.simplify(self)
 
-class EventDrtParser(DrtParser):
+class FeatureDrtParser(DrtParser):
     """A lambda calculus expression parser."""
 
     def get_all_symbols(self):
-        return EventDrtTokens.SYMBOLS
+        return FeatureDrtTokens.SYMBOLS
 
     def isvariable(self, tok):
-        return tok not in EventDrtTokens.TOKENS
+        return tok not in FeatureDrtTokens.TOKENS
 
     def handle_variable(self, tok, context):
         var = DrtParser.handle_variable(self, tok, context)
         if isinstance(var, DrtConstantExpression): #or isinstance(var, DrtApplicationExpression):
             # handle the feature structure of the variable
             try:
-                if self.token(0) == EventDrtTokens.OPEN_BRACE:
+                if self.token(0) == FeatureDrtTokens.OPEN_BRACE:
                     self.token() # swallow the OPEN_BRACE
                     features = []
-                    while self.token(0) != EventDrtTokens.CLOSE_BRACE:
+                    while self.token(0) != FeatureDrtTokens.CLOSE_BRACE:
                         features.append(Variable(self.token()))
                         
                         if self.token(0) == DrtTokens.COMMA:
@@ -212,19 +212,19 @@ class EventDrtParser(DrtParser):
     def make_ApplicationExpression(self, function, argument):
         """ Is self of the form "PRO(x)"? """
         if isinstance(function, DrtAbstractVariableExpression) and \
-               function.variable.name == EventDrtTokens.PRONOUN and \
+               function.variable.name == FeatureDrtTokens.PRONOUN and \
                isinstance(argument, DrtIndividualVariableExpression):
             return DrtPronounApplicationExpression(function, argument)
 
         """ Is self of the form "REFPRO(x)"? """
         if isinstance(function, DrtAbstractVariableExpression) and \
-               function.variable.name == EventDrtTokens.REFLEXIVE_PRONOUN and \
+               function.variable.name == FeatureDrtTokens.REFLEXIVE_PRONOUN and \
                isinstance(argument, DrtIndividualVariableExpression):
             return DrtReflexivePronounApplicationExpression(function, argument)
 
         """ Is self of the form "POSPRO(x)"? """
         if isinstance(function, DrtAbstractVariableExpression) and \
-               function.variable.name == EventDrtTokens.POSSESSIVE_PRONOUN and \
+               function.variable.name == FeatureDrtTokens.POSSESSIVE_PRONOUN and \
                isinstance(argument, DrtIndividualVariableExpression):
             return DrtPossessivePronounApplicationExpression(function, argument)
 
@@ -269,7 +269,7 @@ class DrtPronounApplicationExpression(DrtApplicationExpression):
         features = {}
         refs = []
         for ancestor in trail:
-            if isinstance(ancestor, EventDRS):
+            if isinstance(ancestor, FeatureDRS):
                 features.update(ancestor.features)
                 refs.extend(ancestor.refs)
                 if pro_var in features:
@@ -377,7 +377,7 @@ class PossibleEventAntecedents(PossibleAntecedents):
 
 def test():
 
-    parser = load_parser('file:../data/eventdrt.fcfg', logic_parser=EventDrtParser())
+    parser = load_parser('file:../data/eventdrt.fcfg', logic_parser=FeatureDrtParser())
 
     trees = parser.nbest_parse('Jeff likes a car'.split())
     drs1 = trees[0].node['SEM'].simplify()
