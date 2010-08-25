@@ -145,6 +145,27 @@ class FeatureDRS(DRS):
             return '([%s],[%s])' % (','.join(refs),
                                     ', '.join([c.str(syntax) for c in self.conds]))
 
+    def _compare_features(self, other):
+        if len(self.features) != len(other.features):
+            return False
+        for var, features in self.features.iteritems():
+            if features != other.features[var]:
+                return False
+
+        return True
+
+    def __eq__(self, other):
+        r"""Defines equality modulo alphabetic variance.
+        If we are comparing \x.M  and \y.N, then check equality of M and N[x/y]."""
+        if isinstance(other, DRS):
+            if len(self.refs) == len(other.refs):
+                converted_other = other
+                for (r1, r2) in zip(self.refs, converted_other.refs):
+                    varex = self.make_VariableExpression(r1)
+                    converted_other = converted_other.replace(r2, varex, True)
+                return self.conds == converted_other.conds and self._compare_features(converted_other)
+        return False
+
 class ConcatenationEventDRS(ConcatenationDRS):
     def simplify(self):
         #print "ConcatenationEventDRS.simplify(%s)" % (self)
@@ -223,7 +244,7 @@ class FeatureDrtParser(DrtParser):
                 self.token() # swallow the OPEN_BRACE
                 ref_features = []
                 while self.token(0) != FeatureDrtTokens.CLOSE_BRACE:
-                    ref_features.append(Variable(self.token()))
+                    ref_features.append(self.token())
                     
                     if self.token(0) == DrtTokens.COMMA:
                         self.token() # swallow the comma
@@ -415,28 +436,3 @@ class PossibleEventAntecedents(PossibleAntecedents):
             
     def str(self, syntax=DrtTokens.NLTK):
         return '[' +  ','.join([str(item[0]) + "(" + str(item[1]) + ")" for item in self]) + ']'
-
-def test():
-
-    parser = load_parser('file:../data/eventdrt.fcfg', logic_parser=FeatureDrtParser())
-
-    trees = parser.nbest_parse('Jeff likes a car'.split())
-    drs1 = trees[0].node['SEM'].simplify()
-    print(drs1)
-    trees = parser.nbest_parse('He kills it'.split())
-    drs2 = trees[0].node['SEM'].simplify()
-    print(drs2)
-    drs = drs1 + drs2
-    drs = drs.simplify()
-    print(drs)
-    drs = drs.resolve()
-    print(drs)
-
-    #import nltkfix
-
-    #drs.draw()
-
-if __name__ == '__main__':
-    test()
-
-
