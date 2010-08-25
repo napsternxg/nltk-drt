@@ -1,10 +1,10 @@
 from nltk import load_parser
-from eventdrt import EventDrtParser, AnaphoraResolutionException
+from eventdrt import FeatureDrtParser, AnaphoraResolutionException
 from util import parse
 import nltkfixtemporal
 
 def test():
-    parser = load_parser('file:../data/eventdrt_test.fcfg', logic_parser=EventDrtParser())
+    parser = load_parser('file:../data/eventdrt_test.fcfg', logic_parser=FeatureDrtParser())
     sentences = [
     ("He wants a car. Jones needs it.", False),
     ("He invites Jones.", False),
