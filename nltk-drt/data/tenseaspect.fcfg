@@ -40,31 +40,43 @@ VP[NUM=?n,FIN=?fin,SEM=<app(?v,?obj)>] -> V[SUBCAT=tv,FIN=?fin,NUM=?n,SEM=?v] NP
 # Lexical Rules
 #############################
 
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Angus(x)])+P(x))>] -> 'Angus'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Irene(x)])+P(x))>] -> 'Irene'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[John(x)])+P(x))>] -> 'John'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Mary(x)])+P(x))>] -> 'Mary'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Suzie(x)])+P(x))>] -> 'Suzie'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Vincent(x)])+P(x))>] -> 'Vincent'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Mia(x)])+P(x))>] -> 'Mia'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Marsellus(x)])+P(x))>] -> 'Marsellus'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[Fido(x)])+P(x))>] -> 'Fido'
-PropN[+LOC,NUM=sg,SEM=<\P.(DRS([x],[Noosa(x)])+P(x))>] -> 'Noosa'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he' | 'He'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'she'
-PropN[-LOC,NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it'
+# Proper Names:
+
+PropN[NUM=sg,SEM=<\P.(DRS([x],[Angus(x)])+P(x))>] -> 'Angus'
+PropN[NUM=sg,SEM=<\P.(DRS([x],[John(x)])+P(x))>] -> 'John'
+PropN[NUM=sg,SEM=<\P.(DRS([x],[Mary(x)])+P(x))>] -> 'Mary'
+PropN[NUM=sg,SEM=<\P.(DRS([x],[Vincent(x)])+P(x))>] -> 'Vincent'
+PropN[NUM=sg,SEM=<\P.(DRS([x],[Mia(x)])+P(x))>] -> 'Mia'
+
+# Personal Pronouns:
+
+PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he' | 'He'
+PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'she' | 'She'
+PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it' | 'it'
+
+# Determiners:
 
 Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'every' | 'Every' 
 Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'all' | 'All'
+
 Det[SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'some' | 'Some'
 Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
+
 Det[NUM=sg,SEM=<\P Q.(DRS([], [not ((DRS([x],[])+P(x))+Q(x))]))>] -> 'no' | 'No'
 
-# relative pronoun substitutes Subj NP
+
+
+# Relative Pronoun: (substitutes for SubjNP of the relative clause)
 
 Rpro[SEM=<\P Q x.(P(x)+Q(x))>] -> 'that'
 
+
+# Adjectives:
+
 ADJ[SEM=<\P x.(DRS([],[red(x)])+P(x))>] -> 'red'
+
+
+# Common Nouns:
 
 N[NUM=sg,SEM=<\x.DRS([],[boy(x)])>] -> 'boy'
 N[NUM=pl,SEM=<\x.DRS([],[boy(x)])>] -> 'boys' 
@@ -74,16 +86,10 @@ N[NUM=sg,SEM=<\x.DRS([],[dog(x)])>] -> 'dog'
 N[NUM=pl,SEM=<\x.DRS([],[dog(x)])>] -> 'dogs'
 N[NUM=sg,SEM=<\x.DRS([],[student(x)])>] -> 'student'
 N[NUM=pl,SEM=<\x.DRS([],[student(x)])>] -> 'students'
-N[NUM=sg,SEM=<\x.DRS([],[person(x)])>] -> 'person'
-N[NUM=pl,SEM=<\x.DRS([],[person(x)])>] -> 'persons'
-N[NUM=sg,SEM=<\x.DRS([],[boxerdog(x)])>] -> 'boxer'
-N[NUM=pl,SEM=<\x.DRS([],[boxerdog(x)])>] -> 'boxers'
-N[NUM=sg,SEM=<\x.DRS([],[boxer(x)])>] -> 'boxer'
-N[NUM=pl,SEM=<\x.DRS([],[boxer(x)])>] -> 'boxers'
 N[NUM=sg,SEM=<\x.DRS([],[garden(x)])>] -> 'garden'
 N[NUM=sg,SEM=<\x.DRS([],[kitchen(x)])>] -> 'kitchen'
 
-# Auxiliaries
+# Auxiliary Verbs and Negation:
 
 I[NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),eq(t,n)])+Y(X))>] -> 'does'
 I[NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),earlier(n,t)])+Y(X))>] -> 'will'
@@ -92,40 +98,66 @@ I[NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+Y(X))>] 
 #I[NUM=sg,SEM=<\P x.DRS([t],[loc_time(t),-P(x)])>] -> 'doesnt'
 Neg[SEM=<\Q P.Q(\x.DRS([],[-P(x)]))>] -> 'not'
 
-# Bare infinitives
 
-V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([s,t],[own(s,x,y),state(s),overlap(s,t),LOCPRO(t)]))>,tns=pres] -> 'own'
-V[SUBCAT=iv,-FIN,SEM=<\x.DRS([s,t],[walk(s,x),state(s),overlap(s,t),LOCPR0(t)])>,tns=pres] -> 'walk'
+# Bare Infinitives:
 
+## Intransitives:
 
-V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\x.DRS([],[bark(x)])>,tns=pres] -> 'barks'
-V[SUBCAT=iv,+FIN,NUM=pl,SEM=<\x.DRS([],[bark(x)])>,tns=pres] -> 'bark'
+### Events: Accomplishments / Achievements / Activities 
 
-# Tensed forms with rich tense features
+V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e,t],[die(e,x),achiev(e),include(t,e),LOCPRO(t)])>] -> 'die'
+V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e,t],[walk(e,x),activity(e),include(t,e),LOCPR0(t)])>] -> 'walk'
+V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e,t],[dance(e,x),activity(e),include(t,e),LOCPR0(t)])>] -> 'dance'
 
-V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),eq(t,n)])+X(\x.DRS([s],[include(s,t),walk(s,x),state(s)])))>,tns=pres] -> 'walks'
-V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+X(\x.DRS([s],[overlap(s,t),walk(s,x),state(s)])))>,tns=past] -> 'walked'
+### States:
 
-V[SUBCAT=iv,+FIN,NUM=pl,SEM=<\x.DRS([],[walk(x)])>,tns=pres] -> 'walk'
-V[SUBCAT=iv,+FIN,NUM=pl,SEM=<\x.DRS([],[dance(x)])>,tns=pres] -> 'dance'
-V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\x.DRS([],[dance(x)])>,tns=pres] -> 'dances'
-
-V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[own(x,y)]))>,tns=pres] -> 'owns'
-V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[own(x,y)]))>,tns=pres] -> 'own'
-
-# Tensed forms with rich tense features
-
-V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[eq(n,t)])+Y(\x.(X(\y.DRS([e],[(x=y),overlap(e,t)])))))>,tns=pres] -> 'is'
+V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e,t],[live(e,x),state(e),overlap(t,e),LOCPR0(t)])>] -> 'live'
 
 
-V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[])+Y(\x.(X(\y.DRS([],[bite(x,y)])))))>,tns=pres] -> 'bites'
-V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[bite(x,y)]))>,tns=pres] -> 'bite'
+## Transitives:
 
-V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[chase(x,y)]))>,tns=pres] -> 'chases'
-V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[chase(x,y)]))>,tns=pres] -> 'chase'
-V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[marry(x,y)]))>,tns=pres] -> 'marries'
-V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[marry(x,y)]))>,tns=pres] -> 'marry'
-V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[know(x,y)]))>,tns=pres] -> 'knows'
-V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[know(x,y)]))>,tns=pres] -> 'know'
-V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X x.X(\y.DRS([],[see(x,y)]))>,tns=pres] -> 'sees'
-V[SUBCAT=tv,+FIN,NUM=pl,SEM=<\X x.X(\y.DRS([],[see(x,y)]))>,tns=pres] -> 'see'
+### Events: Accomplishments / Achievements / Activities 
+
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e,t],[kiss(e,x,y),accompl(e),include(t,e),LOCPRO(t)]))>,tns=pres] -> 'kiss'
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e,t],[write(e,x,y),accompl(e),include(t,e),LOCPRO(t)]))>,tns=pres] -> 'write'
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e,t],[bite(e,x,y),achiev(e),include(t,e),LOCPRO(t)]))>,tns=pres] -> 'bite'
+
+### States:
+
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e,t],[own(e,x,y),state(e),overlap(t,e),LOCPRO(t)]))>,tns=pres] -> 'own'
+
+
+
+
+# Tensed Forms with rich tense features:
+
+## Intransitives:
+
+### Events: Accomplishments / Achievements / Activities (no tens=pres)
+
+V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+X(\x.DRS([e],[walk(e,x),activity(e),include(t,e)])))>,tns=past] -> 'walked'
+V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+X(\x.DRS([e],[dance(e,x),activity(e),include(t,e)])))>,tns=past] -> 'danced'
+V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+X(\x.DRS([e],[die(e,x),achiev(e),include(t,e)])))>,tns=past] -> 'died'
+
+### States:
+
+V[SUBCAT=iv,+FIN,NUM=sg,SEM=<\X.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+X(\x.DRS([e],[live(e,x),state(e),overlap(t,e)])))>,tns=past] -> 'lived'
+
+
+## Transitives:
+
+### Events: Accomplishments / Achievements / Activities (no tens=pres)
+
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+Y(\x.(X(\y.DRS([e],[bite(e,x,y),achiev(e),include(t,e)])))))>,tns=past] -> 'bit'
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+Y(\x.(X(\y.DRS([e],[write(e,x,y),accompl(e),include(t,e)])))))>,tns=past] -> 'wrote'
+
+### States:
+
+V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),earlier(t,n)])+Y(\x.(X(\y.DRS([e],[own(e,x,y),state(e),overlap(t,e)])))))>,tns=past] -> 'owned'
+
+## Ditransitives:
+
+
+## Copula:
+
+# V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([n,t],[loc_time(t),utter_time(n),eq(n,t)])+Y(\x.(X(\y.DRS([e],[(x=y),state(e),overlap(e,t)])))))>,tns=pres] -> 'is'
