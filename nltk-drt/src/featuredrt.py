@@ -66,25 +66,76 @@ class DrtParser(drt.DrtParser):
     def isvariable(self, tok):
         return tok not in DrtTokens.TOKENS
 
+#    def handle_variable(self, tok, context):
+#        var = drt.DrtParser.handle_variable(self, tok, context)
+#        if isinstance(var, drt.DrtConstantExpression): #or isinstance(var, DrtApplicationExpression):
+#            # handle the feature structure of the variable
+#            try:
+#                if self.token(0) == DrtTokens.OPEN_BRACE:
+#                    self.token() # swallow the OPEN_BRACE
+#                    features = []
+#                    while self.token(0) != DrtTokens.CLOSE_BRACE:
+#                        features.append(Variable(self.token()))
+#                        
+#                        if self.token(0) == drt.DrtTokens.COMMA:
+#                            self.token() # swallow the comma
+#                    self.token() # swallow the CLOSE_BRACE
+#                    return DrtFeatureConstantSubstitutionExpression(var, features)
+#            except ParseException:
+#                #we reached the end of input, this constant has no features
+#                pass
+#        return var
+    
+    
     def handle_variable(self, tok, context):
-        var = drt.DrtParser.handle_variable(self, tok, context)
-        if isinstance(var, drt.DrtConstantExpression): #or isinstance(var, DrtApplicationExpression):
-            # handle the feature structure of the variable
-            try:
-                if self.token(0) == DrtTokens.OPEN_BRACE:
-                    self.token() # swallow the OPEN_BRACE
-                    features = []
-                    while self.token(0) != DrtTokens.CLOSE_BRACE:
-                        features.append(Variable(self.token()))
-                        
-                        if self.token(0) == drt.DrtTokens.COMMA:
-                            self.token() # swallow the comma
-                    self.token() # swallow the CLOSE_BRACE
-                    return DrtFeatureConstantSubstitutionExpression(var, features)
-            except ParseException:
-                #we reached the end of input, this constant has no features
-                pass
-        return var
+        #It's either: 1) a predicate expression: sees(x,y)
+        #             2) an application expression: P(x)
+        #             3) a solo variable: john OR x
+        accum = self.make_VariableExpression(tok)
+        # handle the feature structure of the variable
+        try:
+            if self.token(0) == DrtTokens.OPEN_BRACE:
+                is_substitution = False
+                features = []
+                self.token() # swallow the OPEN_BRACE
+                while self.token(0) != DrtTokens.CLOSE_BRACE:
+                    token = self.token()
+                    if token.startswith("?"):
+                        is_substitution = True
+                        features.append(Variable(token))
+                    else:
+                        features.append(token)
+                    
+                    if self.token(0) == drt.DrtTokens.COMMA:
+                        self.token() # swallow the comma
+                self.token() # swallow the CLOSE_BRACE
+                if features:
+                    if is_substitution:
+                        accum = DrtFeatureConstantSubstitutionExpression(accum.variable, features)
+                    else:
+                        accum = DrtFeatureConstantExpression(accum.variable, features)
+        except ParseException:
+            print "Exception"
+            #we reached the end of input, this constant has no features
+            pass
+        if self.inRange(0) and self.token(0) == DrtTokens.OPEN:
+            #The predicate has arguments
+            if isinstance(accum, drt.DrtIndividualVariableExpression):
+                raise ParseException(self._currentIndex, 
+                                     '\'%s\' is an illegal predicate name.  '
+                                     'Individual variables may not be used as '
+                                     'predicates.' % tok)
+            self.token() #swallow the Open Paren
+            
+            #curry the arguments
+            accum = self.make_ApplicationExpression(accum, 
+                                                    self.parse_Expression('APP'))
+            while self.inRange(0) and self.token(0) == DrtTokens.COMMA:
+                self.token() #swallow the comma
+                accum = self.make_ApplicationExpression(accum, 
+                                                        self.parse_Expression('APP'))
+            self.assertNextToken(DrtTokens.CLOSE)
+        return accum
 
     def make_ApplicationExpression(self, function, argument):
         """ Is self of the form "PRO(x)"? """
@@ -105,74 +156,84 @@ class DrtParser(drt.DrtParser):
                isinstance(argument, drt.DrtIndividualVariableExpression):
             return DrtPossessivePronounApplicationExpression(function, argument)
 
-        elif isinstance(argument, drt.DrtEventVariableExpression):
-            return DrtEventApplicationExpression(function, argument)
-
-        elif isinstance(function, DrtEventApplicationExpression):
-            return DrtRoleApplicationExpression(function, argument)
+#        elif isinstance(argument, drt.DrtEventVariableExpression):
+#            return DrtEventApplicationExpression(function, argument)
+#
+#        elif isinstance(function, DrtEventApplicationExpression):
+#            return DrtRoleApplicationExpression(function, argument)
 
         else:
             return drt.DrtParser.make_ApplicationExpression(self, function, argument)
 
-class DrtEventApplicationExpression(drt.DrtApplicationExpression):
-    pass
-
-class DrtRoleApplicationExpression(drt.DrtApplicationExpression):
-    def get_role(self):
-        return self.function.function
-    def get_variable(self):
-        return self.argument
-    def get_event(self):
-        return self.function.argument
+#class DrtEventApplicationExpression(drt.DrtApplicationExpression):
+#    pass
+#
+#class DrtRoleApplicationExpression(drt.DrtApplicationExpression):
+#    def get_role(self):
+#        return self.function.function
+#    def get_variable(self):
+#        return self.argument.variable
+#    def get_event(self):
+#        return self.function.argument
 
 class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
     def resolve(self, trail=[], output=[]):
-        possible_antecedents = PossibleEventAntecedents()
-        pronouns = []
-        pro_var = self.argument
+        possible_antecedents = RankedPossibleAntecedents()
+        #pronouns = []
+        pro_var = self.argument.variable
+        pro_features = None
+        if isinstance(self.function, DrtFeatureConstantExpression):
+            pro_features = self.function.features
         roles = {}
         events = {}
-        pro_role = None
-        pro_event = None
+        pro_roles = set()
+        pro_events = set()
         refs = []
         for ancestor in trail:
             if isinstance(ancestor, drt.DRS):
                 refs.extend(ancestor.refs)
                 for cond in ancestor.conds:
                     #look for role assigning expressions:
-                    if isinstance(cond, drt.DrtApplicationExpression) and\
-                        not isinstance(cond, DrtEventApplicationExpression) and \
-                        isinstance(cond.argument, drt.DrtIndividualVariableExpression):
-                        var = cond.get_variable()
-                        #filter out the variable itself
-                        #filter out the variables with non-matching features
-                        #allow only backward resolution
-                        if not var.variable == pro_var.variable:
-                            if var.features == pro_var.features and refs.index(var.variable) <  refs.index(pro_var.variable):
-                                possible_antecedents.append((self.make_VariableExpression(var.variable), 0))
-                                roles[var.variable] = cond.get_role()
-                                events[var.variable] = cond.get_event()
-                        else:
-                            pro_role = cond.get_role()
-                            pro_event = cond.get_event()
+#                    if isinstance(cond, DrtRoleApplicationExpression):
+#                        var = cond.get_variable()
+#                        if var == pro_var:
+#                            pro_roles.add(cond.get_role())
+#                            pro_events.add(cond.get_event())
+#                        else:
+#                            roles.setdefault(var,set()).add(cond.get_role())
+#                            events.setdefault(var,set()).add(cond.get_event())
 
-                    elif cond.is_pronoun_function():
-                        pronouns.append(cond.argument)
+                    #exclude pronouns from resolution
+                    if isinstance(cond, DrtPronounApplicationExpression) and\
+                        not self.resolve_to_pronouns:
+                        continue
 
-        #exclude pronouns from resolution
-        #possible_antecedents = possible_antecedents.exclude(pronouns)
+                    elif isinstance(cond, drt.DrtApplicationExpression) and\
+                        isinstance(cond.argument, drt.DrtIndividualVariableExpression) and\
+                        not isinstance(cond.argument, drt.DrtEventVariableExpression):
+                        var = cond.argument.variable
+                        if isinstance(cond.function, drt.DrtConstantExpression):
+                            #filter out the variable itself
+                            #filter out the variables with non-matching features
+                            #allow only backward resolution
+                            if not var == pro_var and\
+                                    (not isinstance(cond.function, DrtFeatureConstantExpression) or\
+                                     cond.function.features == pro_features) and\
+                                    refs.index(var) <  refs.index(pro_var):
+                                possible_antecedents.append((self.make_VariableExpression(var), 0))
+                        if isinstance(cond.function, drt.DrtApplicationExpression) and\
+                            isinstance(cond.function.argument, drt.DrtIndividualVariableExpression):
+                            if var == pro_var:
+                                pro_roles.add(cond.function.function)
+                                pro_events.add(cond.function.argument)
+                            else:
+                                roles.setdefault(var,set()).add(cond.function.function)
+                                events.setdefault(var,set()).add(cond.function.argument)
 
-        #non reflexive pronouns can not resolve to variables having a role in the same event
-        antecedents = PossibleEventAntecedents()
-        
-        is_reflexive = isinstance(self, DrtReflexivePronounApplicationExpression)
-        is_possessive = isinstance(self, DrtPossessivePronounApplicationExpression)
-        if not is_reflexive:
-            possible_antecedents = possible_antecedents.exclude(pronouns)
-        for index, (var, rank) in enumerate(possible_antecedents):
-            if not is_reflexive and not events[var.variable] == pro_event:
-                antecedents.append((var, rank))
-            elif (is_reflexive or is_possessive) and events[var.variable] == pro_event:
+        antecedents = RankedPossibleAntecedents()
+        #filter by events
+        for var, rank in possible_antecedents:
+            if self.is_possible_antecedent(pro_events, events[var.variable]):
                 antecedents.append((var, rank))
 
         #ranking system
@@ -181,8 +242,7 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
             idx_map = {}
             for index, (var, rank) in enumerate(antecedents):
                 idx_map[refs.index(var.variable)] = var
-                if roles[var.variable] == pro_role:
-                    antecedents[index] = (var, rank+1)
+                antecedents[index] = (var, rank + len(roles[var.variable].intersection(pro_roles)))
 
             #rank by proximity
 
@@ -200,13 +260,26 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
 
         return self.make_EqualityExpression(self.argument, resolution)
 
+    def is_possible_antecedent(self, pro_events, var_events):
+        #non reflexive pronouns can not resolve to variables having a role in the same event
+        return var_events.isdisjoint(pro_events)
+    
+    def resolve_to_pronouns(self):
+        return False
+
 class DrtReflexivePronounApplicationExpression(DrtPronounApplicationExpression):
-    pass
+    def is_possible_antecedent(self, pro_events, var_events):
+        return not var_events.isdisjoint(pro_events)
+    def resolve_to_pronouns(self):
+        return True
 
 class DrtPossessivePronounApplicationExpression(DrtPronounApplicationExpression):
-    pass
+    def is_possible_antecedent(self, pro_events, var_events):
+        return True
+    def resolve_to_pronouns(self):
+        return True
 
-class PossibleEventAntecedents(drt.PossibleAntecedents):
+class RankedPossibleAntecedents(drt.PossibleAntecedents):
 
     def free(self, indvar_only=True):
         """Set of free variables."""
@@ -215,18 +288,11 @@ class PossibleEventAntecedents(drt.PossibleAntecedents):
     def replace(self, variable, expression, replace_bound=False):
         """Replace all instances of variable v with expression E in self,
         where v is free in self."""
-        result = PossibleEventAntecedents()
+        result = RankedPossibleAntecedents()
         for item in self:
             if item[0] == variable:
                 result.append(expression, item[1])
             else:
-                result.append(item)
-        return result
-            
-    def exclude(self, vars):
-        result = PossibleEventAntecedents()
-        for item in self:
-            if item[0] not in vars:
                 result.append(item)
         return result
         
