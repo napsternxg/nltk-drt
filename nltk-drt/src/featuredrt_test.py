@@ -31,8 +31,8 @@ def main():
     #print(parse(parser, "His car walks"))
 
     parser = load_parser('file:../data/test.fcfg', logic_parser=DrtParser())
-    drs = parse(parser, "Bill likes Jones's picture of Charlotte", False)
-    print drs
+    drs = parse(parser, "Jones loves Charlotte but Bill loves her and he asks himself.", False)
+    #print drs.resolve()
     drs.draw()
 
 if __name__ == '__main__':
