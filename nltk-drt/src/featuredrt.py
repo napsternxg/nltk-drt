@@ -51,7 +51,7 @@ class DrtFeatureConstantSubstitutionExpression(DrtFeatureConstantExpression):
         return drt.DrtLambdaExpression(expression.variable, term)
 
     def _make_conds(self, conds, features):
-        assert len(conds) == 1
+        assert len(conds) == 1, conds
         cond = conds[0]
         assert isinstance(cond, drt.DrtApplicationExpression)
         assert isinstance(cond.function, drt.DrtConstantExpression)
@@ -140,7 +140,9 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
                 refs.extend(ancestor.refs)
                 for cond in ancestor.conds:
                     #look for role assigning expressions:
-                    if isinstance(cond, DrtRoleApplicationExpression):
+                    if isinstance(cond, drt.DrtApplicationExpression) and\
+                        not isinstance(cond, DrtEventApplicationExpression) and \
+                        isinstance(cond.argument, drt.DrtIndividualVariableExpression):
                         var = cond.get_variable()
                         #filter out the variable itself
                         #filter out the variables with non-matching features

@@ -9,17 +9,17 @@ S[SEM=<?and(?s1)(?s2)>] -> S[SEM=?s1] AND[SEM=?and] S[SEM=?s2]
 
 NP[NUM=?n,GEN=?g,SEM=<?np{?n,?g}>] -> PropN[NUM=?n,GEN=?g,SEM=?np]
 
-PropN[NUM=?n,GEN=?g,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  N[NUM=?n,GEN=?g,SEM=?nom]
+NP[NUM=?n,GEN=?g,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  FeatN[NUM=?n,GEN=?g,SEM=?nom]
 
 VP[NUM=?n,SEM=<?v(?obj)>] -> TV[NUM=?n,SEM=?v] NP[NUM=?n,GEN=?g,SEM=?obj]
 
 VP[NUM=?n,SEM=?v] -> IV[NUM=?n,SEM=?v] 
 
-NP[NUM=?n,GEN=?g,SEM=<?pos(?np)>] -> PosNP[SEM=?pos] N[NUM=?n,GEN=?g,SEM=?np]
+NP[NUM=?n,GEN=?g,SEM=<?pos(?np)>] -> PosNP[SEM=?pos] FeatN[NUM=?n,GEN=?g,SEM=?np]
 
 PosNP[SEM=<?p(?np)>] -> NP[SEM=?np] PosMarker[SEM=?p]
 
-N[NUM=?n,GEN=?g,SEM=<?pp(?np)>] -> FeatN[NUM=?n,GEN=?g,SEM=?np] PP[SEM=?pp]
+FeatN[NUM=?n,GEN=?g,SEM=<?pp(?np)>] -> FeatN[NUM=?n,GEN=?g,SEM=?np] PP[SEM=?pp]
 
 FeatN[NUM=?n,GEN=?g,SEM=<?np{?n,?g}>] -> N[NUM=?n,GEN=?g,SEM=?np]
 

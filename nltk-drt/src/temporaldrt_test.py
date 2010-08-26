@@ -28,7 +28,7 @@ def main():
     ]
 
     #test(parser, DrtParser(), cases)
-    expr = parse(parser, "Angus owned a car", False).resolve()
+    expr = parse(parser, "Some students will not bite Angus", False).resolve()
     print expr
     expr.draw()
     
