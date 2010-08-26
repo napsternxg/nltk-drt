@@ -51,7 +51,7 @@ def test(parser, logic_parser, cases, compare_resolved = True):
                     print("%s. !comparison failed %s != %s)" % (number, resolved_drs, expected_drs))
         except Exception, e:
             if error and isinstance(e, error):
-                if (compare_resolved and resolved_drs == expected_drs) or (not compare_resolved and unresolved_drs == expected_drs):
+                if unresolved_drs == expected_drs:
                     print("%s. *%s (%s)" % (number, sentence, e))
                 else:
                     print("%s. !comparison failed %s != %s)" % (number, resolved_drs, expected_drs))
