@@ -26,7 +26,7 @@ def parse(parser, text, show_interim = True):
             trees = parser.nbest_parse(new_words)
             new_drs = trees[0].node['SEM'].simplify()
             if show_interim:
-               print(new_drs)
+                print(new_drs)
             if drs:
                 drs = (drs + new_drs).simplify()
             else:
@@ -36,24 +36,24 @@ def parse(parser, text, show_interim = True):
         print drs
     return drs
 
-def test(parser, logic_parser, cases):
+def test(parser, logic_parser, cases, compare_resolved = True):
     for number, sentence, expected, error in cases:
         expected_drs = logic_parser.parse(expected)
         try:
             unresolved_drs = parse(parser, sentence, False)
-            drs = unresolved_drs.resolve()
+            resolved_drs = unresolved_drs.resolve()
             if error:
                 print("%s. !error: expected %s" % (number, str(error)))
             else:
-                if drs == expected_drs:
-                    print("%s. %s (%s)" % (number, sentence, drs))
+                if (compare_resolved and resolved_drs == expected_drs) or (not compare_resolved and unresolved_drs == expected_drs):
+                    print("%s. %s (%s)" % (number, sentence, resolved_drs))
                 else:
-                    print("%s. !comparison failed %s != %s)" % (number, drs, expected_drs))
+                    print("%s. !comparison failed %s != %s)" % (number, resolved_drs, expected_drs))
         except Exception, e:
             if error and isinstance(e, error):
-                if drs == expected_drs:
+                if (compare_resolved and resolved_drs == expected_drs) or (not compare_resolved and unresolved_drs == expected_drs):
                     print("%s. *%s (%s)" % (number, sentence, e))
                 else:
-                    print("%s. !comparison failed %s != %s)" % (number, drs, expected_drs))
+                    print("%s. !comparison failed %s != %s)" % (number, resolved_drs, expected_drs))
             else:
                 print("%s. !unexpected error: %s" % (number, e))
