@@ -27,10 +27,10 @@ def main():
     (8,"No dog bit Angus","([n,t,z2],[loc_time(t), utter_time(n), earlier(t,n), Angus(z2), -([x,e],[dog(x), bite(e,x,z2), achiev(e), include(t,e)])])",None)
     ]
 
-    test(parser, DrtParser(), cases)
-    #expr = parse(parser, "Angus does not own a car", False).resolve()
-    #print expr
-    #expr.draw()
+    #test(parser, DrtParser(), cases)
+    expr = parse(parser, "Angus owned a car", False).resolve()
+    print expr
+    expr.draw()
     
 
 if __name__ == '__main__':

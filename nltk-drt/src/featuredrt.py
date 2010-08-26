@@ -1,29 +1,27 @@
-from nltk import load_parser
 from nltk.sem.logic import ParseException
 from nltk.sem.logic import Variable
-from temporaldrt import unique_variable, DrtImpExpression, DrtAbstractVariableExpression, DrtIndividualVariableExpression, DrtLambdaExpression, DrtEventVariableExpression, DrtConstantExpression, DRS, DrtTokens, DrtParser, DrtApplicationExpression, DrtVariableExpression, ConcatenationDRS, PossibleAntecedents, AnaphoraResolutionException
+import temporaldrt as drt
+from temporaldrt import AnaphoraResolutionException
 
-class FeatureDrtTokens(DrtTokens):
+class DrtTokens(drt.DrtTokens):
     REFLEXIVE_PRONOUN = 'REFPRO'
     POSSESSIVE_PRONOUN = 'POSPRO'
     OPEN_BRACE = '{'
     CLOSE_BRACE = '}'
     PUNCT = [OPEN_BRACE, CLOSE_BRACE]
-    SYMBOLS = DrtTokens.SYMBOLS + PUNCT
-    TOKENS = DrtTokens.TOKENS + PUNCT
+    SYMBOLS = drt.DrtTokens.SYMBOLS + PUNCT
+    TOKENS = drt.DrtTokens.TOKENS + PUNCT
 
-def get_refs(self, recursive=False):
-    return []
-
-from nltk.sem.drt import AbstractDrs
-
-AbstractDrs.get_refs = get_refs
-
-class FeatureExpression(DrtConstantExpression):
+class DrtFeatureConstantExpression(drt.DrtConstantExpression):
     """An expression with syntactic features attached"""
     def __init__(self, expression, features):
         self.variable = expression
         self.features = features
+        
+    def str(self, syntax=DrtTokens.NLTK):
+        return str(self.variable) + "{" + ",".join([str(feature) for feature in self.features]) + "}"
+
+class DrtFeatureConstantSubstitutionExpression(DrtFeatureConstantExpression):
 
     def substitute_bindings(self, bindings):
         #print "FeatureConstantExpression.substitute_bindings(%s)" % (bindings)
@@ -42,321 +40,122 @@ class FeatureExpression(DrtConstantExpression):
         return self._make_DrtLambdaExpression(expression, features)
 
     def _make_DrtLambdaExpression(self, expression, features):
-        if isinstance(expression, DrtLambdaExpression) and\
-        isinstance(expression.term, ConcatenationDRS) and\
-        isinstance(expression.term.first, DRS) and\
-        expression.term.second.argument.variable in expression.term.first.refs:
-            features_map = {expression.term.second.argument.variable: features}
-            if isinstance(expression.term.first, FeatureDRS):
-                features_map.update(expression.term.first.features)
-            return DrtLambdaExpression(expression.variable, ConcatenationFeatureDRS(FeatureDRS(expression.term.first.refs, expression.term.first.conds, features_map), expression.term.second))
-        elif isinstance(expression, DrtLambdaExpression) and\
-        isinstance(expression.term, DRS) and\
-        len(expression.term.conds) == 1 and\
-        isinstance(expression.term.conds[0], DrtImpExpression) and\
-        isinstance(expression.term.conds[0].first, DRS) and\
-        expression.term.conds[0].second.argument.variable in expression.term.conds[0].first.refs:
-            #print type(expression.term.conds[0])
-            features_map = {expression.term.conds[0].second.argument.variable: features}
-            return DrtLambdaExpression(expression.variable, FeatureDRS(expression.term.refs, [DrtImpExpression(FeatureDRS(expression.term.conds[0].first.refs, expression.term.conds[0].first.conds, features_map), expression.term.conds[0].second)]))
-
+        assert isinstance(expression, drt.DrtLambdaExpression)
+        if isinstance(expression.term, drt.ConcatenationDRS):
+            term = drt.ConcatenationDRS(drt.DRS(expression.term.first.refs, self._make_conds(expression.term.first.conds, features)), expression.term.second)
+        elif isinstance(expression.term, drt.DRS):
+            term = drt.DRS(expression.term.refs, self._make_conds(expression.term.conds, features))
         else:
-            print "expression:", expression, type(expression), type(expression.term), type(expression.term.first)
+            #print "expression:", expression, type(expression), type(expression.term), type(expression.term.first)
             raise NotImplementedError()
+        return drt.DrtLambdaExpression(expression.variable, term)
 
-class FeatureDRS(DRS):
-    """Discourse Representation Structure where referents can have features."""
-    def __init__(self, refs, conds, features={}):
-        """
-        @param refs: C{list} of C{DrtIndividualVariableExpression} for the 
-        discourse referents
-        @param conds: C{list} of C{Expression} for the conditions
-        """ 
-        self.refs = refs
-        self.conds = conds
-        self.features = features
+    def _make_conds(self, conds, features):
+        assert len(conds) == 1
+        cond = conds[0]
+        assert isinstance(cond, drt.DrtApplicationExpression)
+        assert isinstance(cond.function, drt.DrtConstantExpression)
+        return [cond.__class__(DrtFeatureConstantExpression(cond.function.variable, features), cond.argument)]
 
-    def __add__(self, other):
-        return ConcatenationFeatureDRS(self, other)
-    
-    def _replace_features(self, var, new_var):
-        try:
-            data = self.features[var]
-            features = dict(self.features)
-            del features[var]
-            features[new_var] = data
-        except KeyError:
-            features = self.features
-        return features
-
-    def replace(self, variable, expression, replace_bound=False):
-
-        """Replace all instances of variable v with expression E in self,
-        where v is free in self."""
-
-        try:
-            #if a bound variable is the thing being replaced
-            i = self.refs.index(variable)
-            if not replace_bound:
-                return self
-            else:
-                return FeatureDRS(self.refs[:i] + [expression.variable] + self.refs[i + 1:],
-                           [cond.replace(variable, expression, True) for cond in self.conds],
-                           self._replace_features(variable, expression.variable))
-        except ValueError:
-            #variable not bound by this DRS
-            
-            # any bound variable that appears in the expression must
-            # be alpha converted to avoid a conflict
-            for ref in (set(self.refs) & expression.free()):
-                newvar = unique_variable(ref) 
-                newvarex = DrtVariableExpression(newvar)
-                i = self.refs.index(ref)
-                self = FeatureDRS(self.refs[:i] + [newvar] + self.refs[i + 1:],
-                           [cond.replace(ref, newvarex, True) for cond in self.conds],
-                            self._replace_features(ref, newvar))
-
-            #replace in the conditions
-            return FeatureDRS(self.refs,
-                       [cond.replace(variable, expression, replace_bound) 
-                        for cond in self.conds],
-                        self.features)
-
-    def simplify(self):
-        return FeatureDRS(self.refs, [cond.simplify() for cond in self.conds], self.features)
-    
-    def resolve(self, trail=[], output=[]):
-        drs = self.__class__(list(self.refs), [], self.features)
-        for cond in self.conds:
-            r_cond = cond.resolve(trail + [self], output + [drs])
-            if r_cond:
-                drs.conds.append(r_cond)
-        return drs
-
-    def str(self, syntax=DrtTokens.NLTK):
-        if syntax == DrtTokens.PROVER9:
-            return self.fol().str(syntax)
-        else:
-            refs = []
-            for ref in self.refs:
-                features = ""
-                if ref in self.features:
-                    features = '{' + ','.join(self.features[ref]) +'}'
-                refs.append(str(ref) + features)
-            return '([%s],[%s])' % (','.join(refs),
-                                    ', '.join([c.str(syntax) for c in self.conds]))
-
-    def _compare_features(self, other):
-        if len(self.features) != len(other.features):
-            return False
-        for var, features in self.features.iteritems():
-            if features != other.features[var]:
-                return False
-
-        return True
-
-    def __eq__(self, other):
-        r"""Defines equality modulo alphabetic variance.
-        If we are comparing \x.M  and \y.N, then check equality of M and N[x/y]."""
-        if isinstance(other, DRS):
-            if len(self.refs) == len(other.refs):
-                converted_other = other
-                for (r1, r2) in zip(self.refs, converted_other.refs):
-                    varex = self.make_VariableExpression(r1)
-                    converted_other = converted_other.replace(r2, varex, True)
-                return self.conds == converted_other.conds and self._compare_features(converted_other)
-        return False
-
-class ConcatenationFeatureDRS(ConcatenationDRS):
-    def simplify(self):
-        #print "ConcatenationEventDRS.simplify(%s)" % (self)
-        first = self.first.simplify()
-        second = self.second.simplify()
-        
-        def _alpha_covert_second(first, second):
-            # For any ref that is in both 'first' and 'second'
-            for ref in (set(first.get_refs(True)) & set(second.get_refs(True))):
-                # alpha convert the ref in 'second' to prevent collision
-                newvar = DrtVariableExpression(unique_variable(ref))
-                second = second.replace(ref, newvar, True)
-            return second
-
-        if isinstance(first, FeatureDRS) and isinstance(second, FeatureDRS):
-            second = _alpha_covert_second(first, second)
-            features = dict(first.features)
-            for idx,ref in enumerate(first.refs):
-                if ref not in first.features and idx in second.features:
-                    features[ref] = second.features[idx]
-
-            features.update(second.features)
-            return FeatureDRS(first.refs + second.refs, first.conds + second.conds, features)
-
-        elif isinstance(first, FeatureDRS) and isinstance(second, DRS):
-            second = _alpha_covert_second(first, second)
-            return FeatureDRS(first.refs + second.refs, first.conds + second.conds, first.features)
-
-        elif isinstance(first, DRS) and isinstance(second, FeatureDRS):
-            second = _alpha_covert_second(first, second)
-            return FeatureDRS(first.refs + second.refs, first.conds + second.conds, second.features)
-
-        else:
-            return ConcatenationDRS.simplify(self)
-
-class FeatureDrtParser(DrtParser):
+class DrtParser(drt.DrtParser):
     """A lambda calculus expression parser."""
 
     def get_all_symbols(self):
-        return FeatureDrtTokens.SYMBOLS
+        return DrtTokens.SYMBOLS
 
     def isvariable(self, tok):
-        return tok not in FeatureDrtTokens.TOKENS
+        return tok not in DrtTokens.TOKENS
 
     def handle_variable(self, tok, context):
-        var = DrtParser.handle_variable(self, tok, context)
-        if isinstance(var, DrtConstantExpression): #or isinstance(var, DrtApplicationExpression):
+        var = drt.DrtParser.handle_variable(self, tok, context)
+        if isinstance(var, drt.DrtConstantExpression): #or isinstance(var, DrtApplicationExpression):
             # handle the feature structure of the variable
             try:
-                if self.token(0) == FeatureDrtTokens.OPEN_BRACE:
+                if self.token(0) == DrtTokens.OPEN_BRACE:
                     self.token() # swallow the OPEN_BRACE
                     features = []
-                    while self.token(0) != FeatureDrtTokens.CLOSE_BRACE:
+                    while self.token(0) != DrtTokens.CLOSE_BRACE:
                         features.append(Variable(self.token()))
                         
-                        if self.token(0) == DrtTokens.COMMA:
+                        if self.token(0) == drt.DrtTokens.COMMA:
                             self.token() # swallow the comma
                     self.token() # swallow the CLOSE_BRACE
-                    return FeatureExpression(var, features)
+                    return DrtFeatureConstantSubstitutionExpression(var, features)
             except ParseException:
                 #we reached the end of input, this constant has no features
                 pass
         return var
 
-    def handle_DRS(self, tok, context):
-        # a DRS
-        self.assertNextToken(DrtTokens.OPEN_BRACKET)
-        refs = []
-        features = {}
-        while self.inRange(0) and self.token(0) != DrtTokens.CLOSE_BRACKET:
-            # Support expressions like: DRS([x y],C) == DRS([x,y],C)
-            if refs and self.token(0) == DrtTokens.COMMA:
-                self.token() # swallow the comma
-            ref = self.get_next_token_variable('quantified')
-            if self.token(0) == FeatureDrtTokens.OPEN_BRACE:
-                self.token() # swallow the OPEN_BRACE
-                ref_features = []
-                while self.token(0) != FeatureDrtTokens.CLOSE_BRACE:
-                    ref_features.append(self.token())
-                    
-                    if self.token(0) == DrtTokens.COMMA:
-                        self.token() # swallow the comma
-                self.token() # swallow the CLOSE_BRACE
-                features[ref] = ref_features
-            refs.append(ref)
-        self.assertNextToken(DrtTokens.CLOSE_BRACKET)
-        
-        if self.inRange(0) and self.token(0) == DrtTokens.COMMA: #if there is a comma (it's optional)
-            self.token() # swallow the comma
-            
-        self.assertNextToken(DrtTokens.OPEN_BRACKET)
-        conds = []
-        while self.inRange(0) and self.token(0) != DrtTokens.CLOSE_BRACKET:
-            # Support expressions like: DRS([x y],C) == DRS([x, y],C)
-            if conds and self.token(0) == DrtTokens.COMMA:
-                self.token() # swallow the comma
-            conds.append(self.parse_Expression(context))
-        self.assertNextToken(DrtTokens.CLOSE_BRACKET)
-        self.assertNextToken(DrtTokens.CLOSE)
-        
-        if features:
-            return FeatureDRS(refs, conds, features)
-        else:
-            return DRS(refs, conds)
-
     def make_ApplicationExpression(self, function, argument):
         """ Is self of the form "PRO(x)"? """
-        if isinstance(function, DrtAbstractVariableExpression) and \
-               function.variable.name == FeatureDrtTokens.PRONOUN and \
-               isinstance(argument, DrtIndividualVariableExpression):
+        if isinstance(function, drt.DrtAbstractVariableExpression) and \
+               function.variable.name == DrtTokens.PRONOUN and \
+               isinstance(argument, drt.DrtIndividualVariableExpression):
             return DrtPronounApplicationExpression(function, argument)
 
         """ Is self of the form "REFPRO(x)"? """
-        if isinstance(function, DrtAbstractVariableExpression) and \
-               function.variable.name == FeatureDrtTokens.REFLEXIVE_PRONOUN and \
-               isinstance(argument, DrtIndividualVariableExpression):
+        if isinstance(function, drt.DrtAbstractVariableExpression) and \
+               function.variable.name == DrtTokens.REFLEXIVE_PRONOUN and \
+               isinstance(argument, drt.DrtIndividualVariableExpression):
             return DrtReflexivePronounApplicationExpression(function, argument)
 
         """ Is self of the form "POSPRO(x)"? """
-        if isinstance(function, DrtAbstractVariableExpression) and \
-               function.variable.name == FeatureDrtTokens.POSSESSIVE_PRONOUN and \
-               isinstance(argument, DrtIndividualVariableExpression):
+        if isinstance(function, drt.DrtAbstractVariableExpression) and \
+               function.variable.name == DrtTokens.POSSESSIVE_PRONOUN and \
+               isinstance(argument, drt.DrtIndividualVariableExpression):
             return DrtPossessivePronounApplicationExpression(function, argument)
 
-        elif isinstance(argument, DrtEventVariableExpression):
+        elif isinstance(argument, drt.DrtEventVariableExpression):
             return DrtEventApplicationExpression(function, argument)
 
         elif isinstance(function, DrtEventApplicationExpression):
             return DrtRoleApplicationExpression(function, argument)
 
         else:
-            return DrtParser.make_ApplicationExpression(self, function, argument)
+            return drt.DrtParser.make_ApplicationExpression(self, function, argument)
 
-    def get_BooleanExpression_factory(self, tok):
-        """This method serves as a hook for other logic parsers that
-        have different boolean operators"""
-        if tok == DrtTokens.DRS_CONC:
-            return ConcatenationFeatureDRS
-        else:
-            return DrtParser.get_BooleanExpression_factory(self, tok)
-
-class DrtEventApplicationExpression(DrtApplicationExpression):
+class DrtEventApplicationExpression(drt.DrtApplicationExpression):
     pass
 
-class DrtRoleApplicationExpression(DrtApplicationExpression):
+class DrtRoleApplicationExpression(drt.DrtApplicationExpression):
     def get_role(self):
         return self.function.function
     def get_variable(self):
-        return self.argument.variable
+        return self.argument
     def get_event(self):
         return self.function.argument
 
-class DrtPronounApplicationExpression(DrtApplicationExpression):
+class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
     def resolve(self, trail=[], output=[]):
         possible_antecedents = PossibleEventAntecedents()
         pronouns = []
-        pro_var = self.argument.variable
+        pro_var = self.argument
         roles = {}
         events = {}
         pro_role = None
         pro_event = None
-        pro_features = None
-        features = {}
         refs = []
         for ancestor in trail:
-            if isinstance(ancestor, FeatureDRS):
-                features.update(ancestor.features)
+            if isinstance(ancestor, drt.DRS):
                 refs.extend(ancestor.refs)
-                if pro_var in features:
-                    #print features
-                    if not pro_features:
-                        pro_features = features[pro_var]
-                    for cond in ancestor.conds:
-                        #look for role assigning expressions:
-                        if isinstance(cond, DrtRoleApplicationExpression):
-                            var = cond.get_variable()
-                            #filter out the variable itself
-                            #filter out the variables with non-matching features
-                            #allow only backward resolution
-                            if not var == pro_var:
-                                if features[var] == pro_features and refs.index(var) <  refs.index(pro_var):
-                                    possible_antecedents.append((self.make_VariableExpression(var), 0))
-                                    roles[var] = cond.get_role()
-                                    events[var] = cond.get_event()
-                            else:
-                                pro_role = cond.get_role()
-                                pro_event = cond.get_event()
-    
-                        elif cond.is_pronoun_function():
-                            pronouns.append(cond.argument)
+                for cond in ancestor.conds:
+                    #look for role assigning expressions:
+                    if isinstance(cond, DrtRoleApplicationExpression):
+                        var = cond.get_variable()
+                        #filter out the variable itself
+                        #filter out the variables with non-matching features
+                        #allow only backward resolution
+                        if not var.variable == pro_var.variable:
+                            if var.features == pro_var.features and refs.index(var.variable) <  refs.index(pro_var.variable):
+                                possible_antecedents.append((self.make_VariableExpression(var.variable), 0))
+                                roles[var.variable] = cond.get_role()
+                                events[var.variable] = cond.get_event()
+                        else:
+                            pro_role = cond.get_role()
+                            pro_event = cond.get_event()
+
+                    elif cond.is_pronoun_function():
+                        pronouns.append(cond.argument)
 
         #exclude pronouns from resolution
         #possible_antecedents = possible_antecedents.exclude(pronouns)
@@ -390,7 +189,7 @@ class DrtPronounApplicationExpression(DrtApplicationExpression):
                 antecedents[j] = (antecedents[j][0], antecedents[j][1]+i)
 
         if len(antecedents) == 0:
-            raise AnaphoraResolutionException("Variable '%s' does not "
+            raise drt.AnaphoraResolutionException("Variable '%s' does not "
                                 "resolve to anything." % self.argument)
         elif len(antecedents) == 1:
             resolution = antecedents[0][0]
@@ -405,7 +204,7 @@ class DrtReflexivePronounApplicationExpression(DrtPronounApplicationExpression):
 class DrtPossessivePronounApplicationExpression(DrtPronounApplicationExpression):
     pass
 
-class PossibleEventAntecedents(PossibleAntecedents):
+class PossibleEventAntecedents(drt.PossibleAntecedents):
 
     def free(self, indvar_only=True):
         """Set of free variables."""

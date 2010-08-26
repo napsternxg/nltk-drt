@@ -1,10 +1,17 @@
 from nltk import load_parser
-from featuredrt import FeatureDrtParser, AnaphoraResolutionException
+from featuredrt import DrtParser, AnaphoraResolutionException
 from util import parse, test
 import nltkfixtemporal
 
+def get_refs(self, recursive=False):
+    return []
+
+from nltk.sem.drt import AbstractDrs
+
+AbstractDrs.get_refs = get_refs
+
 def main():
-    parser = load_parser('file:../data/featuredrt_test.fcfg', logic_parser=FeatureDrtParser())
+    #parser = load_parser('file:../data/test.fcfg', logic_parser=FeatureDrtParser())
     cases = [
     (1, "He wants a car. Jones needs it.", "DRS([x{sg,m},z2{sg,n},e,z5{sg,m},z4{sg,n},e06],[PRO(x), car(z2), want(e), AGENT(e,x), THEME(e,z2), Jones(z5), PRO(z4), need(e06), AGENT(e06,z5), THEME(e06,z4)])", AnaphoraResolutionException),
     (2, "He invites Jones.", "DRS([x{sg,m},z8{sg,m},e],[PRO(x), Jones(z8), invite(e), AGENT(e,x), THEME(e,z8)])", AnaphoraResolutionException),
@@ -18,10 +25,15 @@ def main():
     (10, "Bill's car walks", "DRS([x{sg,m},e,z51{sg,n},e052],[Bill(x), possession(e), POSSESSOR(e,x), POSSESSED(e,z51), car(z51), walk(e052), AGENT(e052,z51)])", None)
     ]
 
-    test(parser, FeatureDrtParser(), cases)
+    #test(parser, FeatureDrtParser(), cases, False)
 
     #print(parse(parser, "Bill's car walks"))
     #print(parse(parser, "His car walks"))
+
+    parser = load_parser('file:../data/test.fcfg', logic_parser=DrtParser())
+    drs = parse(parser, "Bill likes Jones's picture of Charlotte", False)
+    print drs
+    drs.draw()
 
 if __name__ == '__main__':
     main()
