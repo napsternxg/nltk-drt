@@ -172,9 +172,6 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
     def resolve(self, trail=[], output=[]):
         possible_antecedents = RankedPossibleAntecedents()
         pro_variable = self.argument.variable
-        pro_features = None
-        if isinstance(self.function, DrtFeatureConstantExpression):
-            pro_features = self.function.features
         roles = {}
         events = {}
         refs = []
@@ -182,33 +179,23 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
             if isinstance(ancestor, drt.DRS):
                 refs.extend(ancestor.refs)
                 for cond in ancestor.conds:
-                    #look for role assigning expressions:
-#                    if isinstance(cond, DrtRoleApplicationExpression):
-#                        var = cond.get_variable()
-#                        if var == pro_variable:
-#                            pro_roles.add(cond.get_role())
-#                            pro_events.add(cond.get_event())
-#                        else:
-#                            roles.setdefault(var,set()).add(cond.get_role())
-#                            events.setdefault(var,set()).add(cond.get_event())
-
                     #exclude pronouns from resolution
                     if isinstance(cond, DrtPronounApplicationExpression) and\
                         not self.resolve_to_pronouns:
                         continue
 
                     elif isinstance(cond, drt.DrtApplicationExpression) and\
-                        isinstance(cond.argument, drt.DrtIndividualVariableExpression):
+                        cond.argument.__class__ is drt.DrtIndividualVariableExpression:
                         var = cond.argument.variable
                         # nouns/proper names
-                        if not isinstance(cond.argument, drt.DrtEventVariableExpression) and\
-                                isinstance(cond.function, drt.DrtConstantExpression):
+                        if isinstance(cond.function, drt.DrtConstantExpression):
                             #filter out the variable itself
                             #filter out the variables with non-matching features
                             #allow only backward resolution
                             if not var == pro_variable and\
-                                    (not isinstance(cond.function, DrtFeatureConstantExpression) or\
-                                     cond.function.features == pro_features) and\
+                                    (not isinstance(cond.function, DrtFeatureConstantExpression or\
+                                     not isinstance(self.function, DrtFeatureConstantExpression)) or\
+                                     cond.function.features == self.function.features) and\
                                     refs.index(var) <  refs.index(pro_variable):
                                 possible_antecedents.append((self.make_VariableExpression(var), 0))
                         # role application
