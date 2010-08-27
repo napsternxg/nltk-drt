@@ -9,21 +9,21 @@ S[SEM=<?and(?s1)(?s2)>] -> S[SEM=?s1] AND[SEM=?and] S[SEM=?s2]
 
 NP[NUM=?n,GEN=?g,SEM=<?np{?n,?g}>] -> PropN[NUM=?n,GEN=?g,SEM=?np]
 
-PropN[NUM=?n,GEN=?g,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  N[NUM=?n,GEN=?g,SEM=?nom]
+NP[NUM=?n,GEN=?g,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  FeatN[NUM=?n,GEN=?g,SEM=?nom]
 
 VP[NUM=?n,SEM=<?v(?obj)>] -> TV[NUM=?n,SEM=?v] NP[NUM=?n,GEN=?g,SEM=?obj]
 
 VP[NUM=?n,SEM=?v] -> IV[NUM=?n,SEM=?v] 
 
-Det[NUM=sg,SEM=<\R P Q.(((R(\y.(DRS([e],[possession(e), POSSESSOR(e,y)]))) + DRS([x],[POSSESSED(e,x)]))+P(x))+Q(x))(?pp)>] -> FeatPosPron[SEM=?pp] 
+NP[NUM=?n,GEN=?g,SEM=<?pos(?np)>] -> PosNP[SEM=?pos] FeatN[NUM=?n,GEN=?g,SEM=?np]
 
-FeatPosPron[NUM=?n,GEN=?g,SEM=<?p{?n,?g}>] -> PosPron[NUM=?n,GEN=?g,SEM=?p]
+PosNP[SEM=<?p(?np)>] -> NP[SEM=?np] PosMarker[SEM=?p]
 
-FeatPosPron[NUM=?n,GEN=?g,SEM=<?pos(?np)>] -> NP[NUM=?n,GEN=?g,SEM=?np] PosMarker[SEM=?pos]
+FeatN[NUM=?n,GEN=?g,SEM=<?pp(?np)>] -> FeatN[NUM=?n,GEN=?g,SEM=?np] PP[SEM=?pp]
 
-NP[NUM=?n,GEN=?g,SEM=<(\R P Q.( R(\y.(DRS([e],[relation(e), RELATING(e,y)]))) + P(\z.((DRS([],[RELATED(e,z)]) +Q(z)))) )(?np))(?r)>] -> Related[NUM=?n,GEN=?g,SEM=?r] NP[SEM=?np]
+FeatN[NUM=?n,GEN=?g,SEM=<?np{?n,?g}>] -> N[NUM=?n,GEN=?g,SEM=?np]
 
-Related[NUM=?n,GEN=?g,SEM=<?rel(?np)>] -> NP[NUM=?n,GEN=?g,SEM=?np] RelMarker[SEM=?rel]
+PP[SEM=<?p(?np)>] -> RelMarker[SEM=?p] NP[SEM=?np]
 
 #############################
 # Lexical Rules
@@ -46,9 +46,9 @@ Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'every' | 'Ever
 
 PosPron[NUM=sg,GEN=m,SEM=<\P.(DRS([y],[POSPRO(y)])+P(y))>] -> 'his' | 'His'
 
-PosMarker[SEM=<\P.P>] -> 's'
+PosMarker[SEM=<\Q Y X.((Q(\y.DRS([z],[POSSESSOR(z,y)]))+Y(z))+X(z))>] -> 's'
 
-RelMarker[SEM=<\P.P>] -> 'of'
+RelMarker[SEM=<\Q P z.(Q(\y.DRS([],[THEME(z,y)]))+P(z))>] -> 'of'
 
 N[NUM=sg,GEN=m,SEM=<\x.DRS([],[man(x)])>] -> 'man'
 N[NUM=sg,GEN=n,SEM=<\x.DRS([],[car(x)])>] -> 'car'
@@ -61,4 +61,3 @@ TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[love(e), AGENT(e,x), THEME(e,y)]))>] -> 'loves
 TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[like(e), AGENT(e,x), THEME(e,y)]))>] -> 'likes'
 TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[ask(e), AGENT(e,x), THEME(e,y)]))>] -> 'asks'
 IV[NUM=sg,SEM=<\x.DRS([e],[walk(e), AGENT(e,x)])>] -> 'walks'
-
