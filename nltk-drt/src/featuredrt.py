@@ -2,6 +2,7 @@ from nltk.sem.logic import ParseException
 from nltk.sem.logic import Variable
 import temporaldrt as drt
 from temporaldrt import AnaphoraResolutionException
+from temporaldrt import DrtEqualityExpression
 
 class DrtTokens(drt.DrtTokens):
     REFLEXIVE_PRONOUN = 'REFPRO'
@@ -103,8 +104,7 @@ class DrtParser(drt.DrtParser):
                         self.token() # swallow the comma
                 self.token() # swallow the CLOSE_BRACE
         except ParseException:
-            print "Exception"
-            #we reached the end of input, this constant has no features
+            #we've reached the end of input, this constant has no features
             pass
         if self.inRange(0) and self.token(0) == DrtTokens.OPEN:
             if features:
@@ -171,15 +171,12 @@ class DrtParser(drt.DrtParser):
 class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
     def resolve(self, trail=[], output=[]):
         possible_antecedents = RankedPossibleAntecedents()
-        #pronouns = []
-        pro_var = self.argument.variable
+        pro_variable = self.argument.variable
         pro_features = None
         if isinstance(self.function, DrtFeatureConstantExpression):
             pro_features = self.function.features
         roles = {}
         events = {}
-        pro_roles = set()
-        pro_events = set()
         refs = []
         for ancestor in trail:
             if isinstance(ancestor, drt.DRS):
@@ -188,7 +185,7 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
                     #look for role assigning expressions:
 #                    if isinstance(cond, DrtRoleApplicationExpression):
 #                        var = cond.get_variable()
-#                        if var == pro_var:
+#                        if var == pro_variable:
 #                            pro_roles.add(cond.get_role())
 #                            pro_events.add(cond.get_event())
 #                        else:
@@ -201,31 +198,45 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
                         continue
 
                     elif isinstance(cond, drt.DrtApplicationExpression) and\
-                        isinstance(cond.argument, drt.DrtIndividualVariableExpression) and\
-                        not isinstance(cond.argument, drt.DrtEventVariableExpression):
+                        isinstance(cond.argument, drt.DrtIndividualVariableExpression):
                         var = cond.argument.variable
-                        if isinstance(cond.function, drt.DrtConstantExpression):
+                        # nouns/proper names
+                        if not isinstance(cond.argument, drt.DrtEventVariableExpression) and\
+                                isinstance(cond.function, drt.DrtConstantExpression):
                             #filter out the variable itself
                             #filter out the variables with non-matching features
                             #allow only backward resolution
-                            if not var == pro_var and\
+                            if not var == pro_variable and\
                                     (not isinstance(cond.function, DrtFeatureConstantExpression) or\
                                      cond.function.features == pro_features) and\
-                                    refs.index(var) <  refs.index(pro_var):
+                                    refs.index(var) <  refs.index(pro_variable):
                                 possible_antecedents.append((self.make_VariableExpression(var), 0))
+                        # role application
                         if isinstance(cond.function, drt.DrtApplicationExpression) and\
                             isinstance(cond.function.argument, drt.DrtIndividualVariableExpression):
-                            if var == pro_var:
-                                pro_roles.add(cond.function.function)
-                                pro_events.add(cond.function.argument)
-                            else:
                                 roles.setdefault(var,set()).add(cond.function.function)
                                 events.setdefault(var,set()).add(cond.function.argument)
 
         antecedents = RankedPossibleAntecedents()
         #filter by events
+        #in case pronoun participates in only one event, which has no other participants,
+        #try to extend it with interlinked events
+        #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
+        #will be extended to participate in e, but only if z5 has only one participant
+        if len(events[pro_variable]) == 1:
+            for e in events[pro_variable]:
+                event = e
+            participant_count = 0
+            for event_set in events.itervalues():
+                if event in event_set:
+                    participant_count+=1
+            if participant_count == 1:
+                try:
+                    events[pro_variable] = events[pro_variable].union(events[event.variable])
+                except KeyError:
+                    pass
         for var, rank in possible_antecedents:
-            if self.is_possible_antecedent(pro_events, events[var.variable]):
+            if self.is_possible_antecedent(var.variable, events):
                 antecedents.append((var, rank))
 
         #ranking system
@@ -234,7 +245,7 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
             idx_map = {}
             for index, (var, rank) in enumerate(antecedents):
                 idx_map[refs.index(var.variable)] = var
-                antecedents[index] = (var, rank + len(roles[var.variable].intersection(pro_roles)))
+                antecedents[index] = (var, rank + len(roles[var.variable].intersection(roles[pro_variable])))
 
             #rank by proximity
 
@@ -246,30 +257,32 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
             raise AnaphoraResolutionException("Variable '%s' does not "
                                 "resolve to anything." % self.argument)
         elif len(antecedents) == 1:
-            resolution = antecedents[0][0]
+            return self.make_EqualityExpression(self.argument, antecedents[0][0])
         else:
-            resolution = antecedents
+            return DrtPossibleAntecedentsEqualityExpression(self.argument, antecedents)
 
-        return self.make_EqualityExpression(self.argument, resolution)
-
-    def is_possible_antecedent(self, pro_events, var_events):
+    def is_possible_antecedent(self, variable, events):
         #non reflexive pronouns can not resolve to variables having a role in the same event
-        return var_events.isdisjoint(pro_events)
+        return events[variable].isdisjoint(events[self.argument.variable])
     
     def resolve_to_pronouns(self):
         return False
 
 class DrtReflexivePronounApplicationExpression(DrtPronounApplicationExpression):
-    def is_possible_antecedent(self, pro_events, var_events):
-        return not var_events.isdisjoint(pro_events)
+    def is_possible_antecedent(self, variable, events):
+        return not events[variable].isdisjoint(events[self.argument.variable])
     def resolve_to_pronouns(self):
         return True
 
 class DrtPossessivePronounApplicationExpression(DrtPronounApplicationExpression):
-    def is_possible_antecedent(self, pro_events, var_events):
+    def is_possible_antecedent(self, variable, events):
         return True
     def resolve_to_pronouns(self):
         return True
+
+class DrtPossibleAntecedentsEqualityExpression(DrtEqualityExpression):
+    def resolve(self, trail=[], output=[]):
+        return self.__class__(self.first, self.second.resolve(trail, output))
 
 class RankedPossibleAntecedents(drt.PossibleAntecedents):
 
@@ -293,6 +306,21 @@ class RankedPossibleAntecedents(drt.PossibleAntecedents):
             if item[0] == variable:
                 return i
         raise ValueError, type(variable)
+    
+    def resolve(self, trail=[], output=[]):
+        max_rank = -1
+        vars = []
+        for var, rank in self:
+            if rank == max_rank:
+                vars.append(var)
+            elif rank > max_rank:
+                max_rank = rank
+                vars = [var]
+
+        if len(vars) == 1:
+            return vars[0]
+        else:
+            raise AnaphoraResolutionException("Can't resolve based on ranking")
             
     def str(self, syntax=DrtTokens.NLTK):
         return '[' +  ','.join([str(item[0]) + "(" + str(item[1]) + ")" for item in self]) + ']'
