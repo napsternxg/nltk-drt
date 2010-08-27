@@ -36,24 +36,26 @@ def parse(parser, text, show_interim = True):
         print drs
     return drs
 
-def test(parser, logic_parser, cases, compare_resolved = True):
+def test(parser, logic_parser, cases):
     for number, sentence, expected, error in cases:
         expected_drs = logic_parser.parse(expected)
+        drs_list = []
         try:
-            unresolved_drs = parse(parser, sentence, False)
-            resolved_drs = unresolved_drs.resolve()
+            drs_list.append(parse(parser, sentence, False))
+            drs_list.append(drs_list[-1].resolve())
+            drs_list.append(drs_list[-1].resolve())
             if error:
                 print("%s. !error: expected %s" % (number, str(error)))
             else:
-                if (compare_resolved and resolved_drs == expected_drs) or (not compare_resolved and unresolved_drs == expected_drs):
-                    print("%s. %s (%s)" % (number, sentence, resolved_drs))
+                if drs_list[-1] == expected_drs:
+                    print("%s. %s %s" % (number, sentence, drs_list[-1]))
                 else:
-                    print("%s. !comparison failed %s != %s)" % (number, resolved_drs, expected_drs))
+                    print("%s. !comparison failed %s != %s" % (number, drs_list[-1], expected_drs))
         except Exception, e:
             if error and isinstance(e, error):
-                if unresolved_drs == expected_drs:
-                    print("%s. *%s (%s)" % (number, sentence, e))
+                if drs_list[-1] == expected_drs:
+                    print("%s. *%s %s (%s)" % (number, sentence, drs_list[-1],  e))
                 else:
-                    print("%s. !comparison failed %s != %s)" % (number, resolved_drs, expected_drs))
+                    print("%s. !comparison failed %s != %s" % (number, drs_list[-1], expected_drs))
             else:
                 print("%s. !unexpected error: %s" % (number, e))

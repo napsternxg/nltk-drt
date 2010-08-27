@@ -7,17 +7,29 @@ S[SEM = <?subj(?vp)>] -> NP[NUM=?n,GEN=?g,SEM=?subj] VP[NUM=?n,SEM=?vp]
 
 S[SEM=<?and(?s1)(?s2)>] -> S[SEM=?s1] AND[SEM=?and] S[SEM=?s2]
 
+S[SEM=<?too(?s)>] -> S[SEM=?s] TOO[SEM=?too]
+
+S[SEM = <?or(?s1,?s2)>] -> S[SEM=?s1] OR[SEM=?or] S[SEM=?s2]
+
 NP[NUM=?n,GEN=?g,SEM=<?np{?n,?g}>] -> PropN[NUM=?n,GEN=?g,SEM=?np]
 
 NP[NUM=?n,GEN=?g,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  FeatN[NUM=?n,GEN=?g,SEM=?nom]
 
-VP[NUM=?n,SEM=<?v(?obj)>] -> TV[NUM=?n,SEM=?v] NP[NUM=?n,GEN=?g,SEM=?obj]
+VP[NUM=?n,SEM=<?adv(?v)>] -> VP[NUM=?n,SEM=?v]  Adverb[SEM=?adv]
 
-VP[NUM=?n,SEM=?v] -> IV[NUM=?n,SEM=?v] 
+VP[NUM=?n,SEM=?v] -> IV[NUM=?n,SEM=?v]
 
-NP[NUM=?n,GEN=?g,SEM=<?pos(?np)>] -> PosNP[SEM=?pos] FeatN[NUM=?n,GEN=?g,SEM=?np]
+VP[SEM=<?v(?obj)>] -> TV[NUM=?n,SEM=?v] NP[SEM=?obj]
 
-PosNP[SEM=<?p(?np)>] -> NP[SEM=?np] PosMarker[SEM=?p]
+VP[NUM=?n,SEM=<(?v(?obj2))(?obj1)>] -> DV[NUM=?n,SEM=?v] NP[SEM=?obj1] NP[SEM=?obj2]
+
+VP[NUM=?n,SEM=?v] -> DV[NUM=?n,SEM=?v] NP[NUM=?n,GEN=?g,SEM=?obj]
+
+Det[SEM=<?p(?np)>] -> NP[SEM=?np] PosMarker[SEM=?p]
+
+Det[SEM=<(\Q Y X.((Q(\y.DRS([z],[POSSESSOR(z,y)]))+Y(z))+X(z)))(?pp)>] -> FeatPosPron[SEM=?pp]
+
+FeatPosPron[SEM=<?pp{?n,?g}>] -> PosPron[NUM=?n,GEN=?g,SEM=?pp]
 
 FeatN[NUM=?n,GEN=?g,SEM=<?pp(?np)>] -> FeatN[NUM=?n,GEN=?g,SEM=?np] PP[SEM=?pp]
 
@@ -30,10 +42,15 @@ PP[SEM=<?p(?np)>] -> RelMarker[SEM=?p] NP[SEM=?np]
 #############################
 
 AND[SEM=<\X Y.(X + Y)>] -> 'and' | 'but'
+OR[SEM=<\X Y.DRS([],[(X or Y)])>] -> 'or'
+
+TOO[SEM=<\P.P>] -> 'too'
+Adverb[SEM=<\P.P>] -> 'why'
 
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[Jones(x)])+P(x))>] -> 'Jones'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[Bill(x)])+P(x))>] -> 'Bill'
 PropN[NUM=sg,GEN=f,SEM=<\P.(DRS([x],[Charlotte(x)])+P(x))>] -> 'Charlotte'
+PropN[NUM=sg,GEN=f,SEM=<\P.(DRS([x],[Brown(x)])+P(x))>] -> 'Brown'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he' | 'He'
 PropN[NUM=sg,GEN=f,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'she' | 'She'
 PropN[NUM=sg,GEN=m,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'him' | 'Him'
@@ -53,11 +70,16 @@ RelMarker[SEM=<\Q P z.(Q(\y.DRS([],[THEME(z,y)]))+P(z))>] -> 'of'
 N[NUM=sg,GEN=m,SEM=<\x.DRS([],[man(x)])>] -> 'man'
 N[NUM=sg,GEN=n,SEM=<\x.DRS([],[car(x)])>] -> 'car'
 N[NUM=sg,GEN=n,SEM=<\x.DRS([],[picture(x)])>] -> 'picture'
+N[NUM=sg,GEN=n,SEM=<\x.DRS([],[room(x)])>] -> 'room'
+N[NUM=sg,GEN=n,SEM=<\x.DRS([],[Porsche(x)])>] -> 'Porsche'
+
+DV[NUM=sg,SEM=<\X Y z.Y(\u.(DRS([e],[show(e), AGENT(e,z), PATIENT(e,u)]) + X(\w.DRS([],[THEME(e,w)]))))>] -> 'shows'
 
 TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[invite(e), AGENT(e,x), THEME(e,y)]))>] -> 'invites'
 TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[want(e), AGENT(e,x), THEME(e,y)]))>] -> 'wants'
 TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[need(e), AGENT(e,x), THEME(e,y)]))>] -> 'needs'
 TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[love(e), AGENT(e,x), THEME(e,y)]))>] -> 'loves'
 TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[like(e), AGENT(e,x), THEME(e,y)]))>] -> 'likes'
+TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[own(e), AGENT(e,x), THEME(e,y)]))>] -> 'owns'
 TV[NUM=sg,SEM=<\X x.X(\y.DRS([e],[ask(e), AGENT(e,x), THEME(e,y)]))>] -> 'asks'
-IV[NUM=sg,SEM=<\x.DRS([e],[walk(e), AGENT(e,x)])>] -> 'walks'
+IV[NUM=sg,SEM=<\x.DRS([e],[commute(e), AGENT(e,x)])>] -> 'commutes'
