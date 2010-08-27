@@ -93,32 +93,22 @@ class DrtParser(drt.DrtParser):
         #             3) a solo variable: john OR x
         accum = self.make_VariableExpression(tok)
         # handle the feature structure of the variable
+        features = []
         try:
             if self.token(0) == DrtTokens.OPEN_BRACE:
-                is_substitution = False
-                features = []
                 self.token() # swallow the OPEN_BRACE
                 while self.token(0) != DrtTokens.CLOSE_BRACE:
-                    token = self.token()
-                    if token.startswith("?"):
-                        is_substitution = True
-                        features.append(Variable(token))
-                    else:
-                        features.append(token)
-                    
+                    features.append(self.token())
                     if self.token(0) == drt.DrtTokens.COMMA:
                         self.token() # swallow the comma
                 self.token() # swallow the CLOSE_BRACE
-                if features:
-                    if is_substitution:
-                        accum = DrtFeatureConstantSubstitutionExpression(accum.variable, features)
-                    else:
-                        accum = DrtFeatureConstantExpression(accum.variable, features)
         except ParseException:
             print "Exception"
             #we reached the end of input, this constant has no features
             pass
         if self.inRange(0) and self.token(0) == DrtTokens.OPEN:
+            if features:
+                accum = DrtFeatureConstantExpression(accum.variable, features)
             #The predicate has arguments
             if isinstance(accum, drt.DrtIndividualVariableExpression):
                 raise ParseException(self._currentIndex, 
@@ -135,6 +125,8 @@ class DrtParser(drt.DrtParser):
                 accum = self.make_ApplicationExpression(accum, 
                                                         self.parse_Expression('APP'))
             self.assertNextToken(DrtTokens.CLOSE)
+        elif features:
+            accum = DrtFeatureConstantSubstitutionExpression(accum.variable, map(Variable,features))
         return accum
 
     def make_ApplicationExpression(self, function, argument):
