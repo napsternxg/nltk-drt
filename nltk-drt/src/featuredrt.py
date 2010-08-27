@@ -243,7 +243,7 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
                 antecedents[j] = (antecedents[j][0], antecedents[j][1]+i)
 
         if len(antecedents) == 0:
-            raise drt.AnaphoraResolutionException("Variable '%s' does not "
+            raise AnaphoraResolutionException("Variable '%s' does not "
                                 "resolve to anything." % self.argument)
         elif len(antecedents) == 1:
             resolution = antecedents[0][0]
