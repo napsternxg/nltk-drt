@@ -169,7 +169,7 @@ class DrtParser(drt.DrtParser):
 #        return self.function.argument
 
 class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
-    def resolve(self, trail=[], output=[]):
+    def resolve(self, trail=[]):
         possible_antecedents = RankedPossibleAntecedents()
         pro_variable = self.argument.variable
         roles = {}
@@ -268,8 +268,8 @@ class DrtPossessivePronounApplicationExpression(DrtPronounApplicationExpression)
         return True
 
 class DrtPossibleAntecedentsEqualityExpression(DrtEqualityExpression):
-    def resolve(self, trail=[], output=[]):
-        return self.__class__(self.first, self.second.resolve(trail, output))
+    def resolve(self, trail=[]):
+        return self.__class__(self.first, self.second.resolve(trail))
 
 class RankedPossibleAntecedents(drt.PossibleAntecedents):
 
@@ -294,7 +294,7 @@ class RankedPossibleAntecedents(drt.PossibleAntecedents):
                 return i
         raise ValueError, type(variable)
     
-    def resolve(self, trail=[], output=[]):
+    def resolve(self, trail=[]):
         max_rank = -1
         vars = []
         for var, rank in self:
