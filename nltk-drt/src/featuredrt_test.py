@@ -35,7 +35,7 @@ def main():
     #print(parse(parser, "His car walks"))
     #Jones shows Bill his room. He likes it.
     parser = load_parser('file:../data/featuredrt_test.fcfg', logic_parser=DrtParser())
-    drs = parse(parser, "Bill likes Jones's picture of himself.", True)
+    drs = parse(parser, "Jones owns a car or he commutes.", True)
     drs = drs.resolve()
     print drs
     drs.draw()
