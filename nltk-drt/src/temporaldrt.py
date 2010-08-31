@@ -177,6 +177,9 @@ class AbstractDrs(drt.AbstractDrs):
         LOCPRO(t), for which purpose the PossibleAntecedents class is not used.
         """
         raise NotImplementedError()
+    
+    def readings(self, trail=[]):
+        raise NotImplementedError()
 
 class DRS(AbstractDrs, drt.DRS):
     """A Temporal Discourse Representation Structure."""
@@ -212,20 +215,15 @@ class DRS(AbstractDrs, drt.DRS):
 
     def simplify(self):
         return self.__class__(self.refs, [cond.simplify() for cond in self.conds])
-   
-    
+
     def resolve(self, trail=[]):
-        drs = self.__class__(list(self.refs), list(self.conds))
-        none_indexes = []
-        for index in range(len(drs.conds)):
-            cond = drs.conds[index].resolve(trail + [drs])
-            if cond is None:
-                none_indexes.append(index)
-            drs.conds[index] = cond
-        for index in none_indexes:
-            drs.conds = drs.conds[:index]+ drs.conds[index+1:]
- 
-        return drs
+        return self.__class__(self.refs, [cond.resolve(trail + [self]) for cond in self.conds])
+    
+    def readings(self, trail=[]):
+        readings = []
+        for cond in self.conds:
+            readings.extend(cond.readings(trail + [self]))
+        return readings
 
 def DrtVariableExpression(variable):
     """
@@ -252,6 +250,9 @@ def DrtVariableExpression(variable):
 class DrtAbstractVariableExpression(AbstractDrs, drt.DrtAbstractVariableExpression):
     def resolve(self, trail=[]):
         return self
+    
+    def readings(self, trail=[]):
+        return []
 
 class DrtIndividualVariableExpression(DrtAbstractVariableExpression, drt.DrtIndividualVariableExpression):
     pass
@@ -305,14 +306,19 @@ class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
             return self.__class__(self.variable,
                                   self.term.replace(variable, expression, replace_bound))
 
-    def resolve(self, trail=[], output=[]):
-        return self.__class__(self.variable, self.term.resolve(trail + [self], output))
+    def resolve(self, trail=[]):
+        return self.__class__(self.variable, self.term.resolve(trail + [self]))
 
+    def readings(self, trail=[]):
+        return self.term.readings(trail + [self])
 
 class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.first.resolve(trail + [self]), 
                               self.second.resolve(trail + [self]))
+        
+    def readings(self, trail=[]):
+        return self.first.readings(trail + [self]) + self.second.readings(trail + [self])
 
 class DrtOrExpression(DrtBooleanExpression, drt.DrtOrExpression):
     pass
@@ -321,6 +327,10 @@ class DrtImpExpression(DrtBooleanExpression, drt.DrtImpExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.first.resolve(trail + [self]),
                               self.second.resolve(trail + [self, self.first]))
+        
+    def readings(self, trail=[]):
+        return self.first.readings(trail + [self]) + self.second.readings(trail + [self, self.first])
+
 
 class DrtIffExpression(DrtBooleanExpression, drt.DrtIffExpression):
     pass
@@ -328,6 +338,9 @@ class DrtIffExpression(DrtBooleanExpression, drt.DrtIffExpression):
 class DrtEqualityExpression(AbstractDrs, drt.DrtEqualityExpression):
     def resolve(self, trail=[]):
         return self
+    
+    def readings(self, trail=[]):
+        return []
 
 class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
     """DRS of the form '(DRS + DRS)'"""
@@ -386,6 +399,9 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.function.resolve(trail + [self]),
                               self.argument.resolve(trail + [self]))
+        
+    def readings(self, trail=[]):
+        return self.function.readings(trail + [self]) + self.argument.readings(trail + [self])
 
 class PossibleAntecedents(AbstractDrs, drt.PossibleAntecedents):
     pass
@@ -429,8 +445,32 @@ class DrtProperNameApplicationExpression(DrtApplicationExpression):
         else:
             return self
 
+    def readings(self, trail=[]):
+        for ancestor in trail:
+            if isinstance(ancestor, DRS):
+                outer_drs = ancestor
+                break
+        for ancestor in ReverseIterator(trail):
+                inner_drs = ancestor
+                break
+
+        if inner_drs is not outer_drs:
+            def function1(drs):
+                drs.refs.remove(self.get_variable())
+                drs.conds.remove(self)
+            def function2(drs):
+                drs.refs.append(self.get_variable())
+                drs.conds.append(self)
+            return [Reading({inner_drs:function1, outer_drs:function2})]
+        else:
+            return []
+
     def get_variable(self):
         return self.argument.variable
+
+class Reading(object):
+    def __init__(self, substitutions):
+        self.substitutions = substitutions
 
 class LocationTimeResolutionException(Exception):
     pass
@@ -454,6 +494,9 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
         
         raise LocationTimeResolutionException("Variable '%s' does not "
                             "resolve to anything." % self.argument)
+        
+    def readings(self, trail=[]):
+        return []
         
 class DrtPresuppositionApplicationExpression(DrtApplicationExpression):
     
@@ -510,6 +553,9 @@ class DrtPresuppositionApplicationExpression(DrtApplicationExpression):
                 if preceeding_drs: preceeding_drs.conds.append(prcon)
                 if outermost_drs: outermost_drs.conds.append(prcon)
         return self
+
+    def readings(self, trail=[]):
+        return []
 
     def get_variable(self):
         return self.argument.variable

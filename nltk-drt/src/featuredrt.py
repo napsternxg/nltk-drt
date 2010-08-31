@@ -3,7 +3,9 @@ from nltk.sem.logic import Variable
 import temporaldrt as drt
 from temporaldrt import AnaphoraResolutionException
 from temporaldrt import DrtEqualityExpression
-
+from temporaldrt import is_propername
+from temporaldrt import DrtProperNameApplicationExpression
+from temporaldrt import DrtConstantExpression
 class DrtTokens(drt.DrtTokens):
     REFLEXIVE_PRONOUN = 'REFPRO'
     POSSESSIVE_PRONOUN = 'POSPRO'
@@ -13,12 +15,12 @@ class DrtTokens(drt.DrtTokens):
     SYMBOLS = drt.DrtTokens.SYMBOLS + PUNCT
     TOKENS = drt.DrtTokens.TOKENS + PUNCT
 
-class DrtFeatureConstantExpression(drt.DrtConstantExpression):
+class DrtFeatureConstantExpression(DrtConstantExpression):
     """An expression with syntactic features attached"""
     def __init__(self, expression, features):
         self.variable = expression
         self.features = features
-        
+
     def str(self, syntax=DrtTokens.NLTK):
         return str(self.variable) + "{" + ",".join([str(feature) for feature in self.features]) + "}"
 
@@ -147,6 +149,10 @@ class DrtParser(drt.DrtParser):
                function.variable.name == DrtTokens.POSSESSIVE_PRONOUN and \
                isinstance(argument, drt.DrtIndividualVariableExpression):
             return DrtPossessivePronounApplicationExpression(function, argument)
+        
+        elif isinstance(function, DrtConstantExpression) and\
+               is_propername(function.variable.name):
+            return DrtProperNameApplicationExpression(function, argument)
 
 #        elif isinstance(argument, drt.DrtEventVariableExpression):
 #            return DrtEventApplicationExpression(function, argument)
@@ -188,7 +194,7 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
                         cond.argument.__class__ is drt.DrtIndividualVariableExpression:
                         var = cond.argument.variable
                         # nouns/proper names
-                        if isinstance(cond.function, drt.DrtConstantExpression):
+                        if isinstance(cond.function, DrtConstantExpression):
                             #filter out the variable itself
                             #filter out the variables with non-matching features
                             #allow only backward resolution

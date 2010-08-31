@@ -29,7 +29,7 @@ def main():
 
     ]
 
-    #test(parser, DrtParser(), cases)
+    test(parser, DrtParser(), cases)
 
     #print(parse(parser, "Bill's car walks"))
     #print(parse(parser, "His car walks"))
