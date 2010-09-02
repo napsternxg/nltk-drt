@@ -6,7 +6,10 @@
 S[SEM = <app(?subj,?vp)>] -> NP[NUM=?n,SEM=?subj] VP[NUM=?n,SEM=?vp]
 
 NP[NUM=?n,SEM=<app(?det,?nom)> ] -> Det[NUM=?n,SEM=?det]  Nom[NUM=?n,SEM=?nom]
+Det[NUM=?n,SEM=?det] -> PosPron [NUM=?n,SEM=?det]
+Det[SEM=<?possmark(?np)>] -> NP[SEM=?np] PosMarkerNP[SEM=?possmark]
 NP[LOC=?l,NUM=?n,SEM=?np] -> PropN[LOC=?l,NUM=?n,SEM=?np]
+NP[LOC=?l,NUM=?n,SEM=?np] -> Pron[LOC=?l,NUM=?n,SEM=?np]
 
 Nom[NUM=?n,SEM=?nom] -> N[NUM=?n,SEM=?nom]
 Nom[NUM=?n,SEM=<app(?pp,?nom)>] -> N[NUM=?n,SEM=?nom] PP[SEM=?pp]
@@ -17,12 +20,6 @@ VP[NUM=?n,SEM=<app(?v,?obj)>] -> TV[NUM=?n,SEM=?v] NP[SEM=?obj]
 #############################
 # Lexical Rules
 #############################
-PropN[NUM=sg,SEM=<\P.(DRS([x],[Angus(x)])+P(x))>] -> 'Angus'
-PropN[NUM=sg,SEM=<\P.(DRS([x],[Mary(x)])+P(x))>] -> 'Mary'
-
-PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'he' | 'He'
-PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'she' | 'She'
-PropN[NUM=sg,SEM=<\P.(DRS([x],[PRO(x)])+P(x))>] -> 'it' | 'It'
 
 Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'every' | 'Every' 
 Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'all' | 'All'
@@ -31,10 +28,55 @@ Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
 Det[NUM=sg,SEM=<\P Q.(DRS([],[not((DRS([x],[])+P(x))+Q(x))]))>] -> 'no' 
 
 
-# This does not work: see presupp_demo.py, The boy loves the girl. --mk
-# I never call replace() explicitly, though. Do I need to do that? --mk
-Det[NUM=sg,SEM=<\P Q.((DRS([x],[PRESUPP(x,z)])+P(z))+Q(x))>] -> 'the' | 'The'
+############## outdated
+# Just a test to see whether a Drs with 3 lists will work. OK, seems to work
+#Det[NUM=sg,SEM=<\P Q.(DRS([z][DRS([x][])+ P(x)]) + Q(z))>] -> 'ghm' | 'Ghm'
+#
+# The special Drs for presuppositions, with 3 lists
+#Det[NUM=sg,SEM=<\P Q.((DRS([z][PRDRS([x][][x z]) + P(x)]) + Q(z))>] -> 'the' | 'The'
+##############
 
+
+######## old
+#Proper name
+#\P.(DRS([z],[PRDRS([x],[John(x)],[x=z])])+P(z))
+PropN[NUM=sg,SEM=<\P(DRS([z],[PROPERNAME([x],[John(x)],[x=z])])+P(z))>] -> 'John'
+#Pronoun
+#\P.(DRS([z],[PRDRS([x],[],[x=z])])+P(z))
+Pron[NUM=sg,SEM=<\P.(DRS([z],[PERSPRON([x],[],[x=z])])+P(z))>] -> 'he' | 'He'
+Pron[NUM=sg,SEM=<\P.(DRS([z],[PERSPRON([x],[],[x=z])])+P(z))>] -> 'she' | 'She'
+#Definite article
+#\P.\Q.(DRS([z],[(PRDRS([x],[],[x=z])+P(x))])+Q(z))
+Det[NUM=sg,SEM=<\P.\Q.(DRS([z],[(PRSPEX([x],[],[x=z])+P(x))])+Q(z))>] -> 'the' | 'The'
+#Possessive pronoun
+PosPron[NUM=sg,GEN=m,SEM=<\P.\Q.(DRS([z],[(POSS([x,y],[poss(y,x), PRSPEX([w],[],[w=y])],[x=z])+P(x))])+Q(z))>] -> 'his' | 'His'
+PosPron[NUM=sg,GEN=m,SEM=<\P.\Q.(DRS([z],[(POSS([x,y],[poss(y,x), PRSPEX([w],[],[w=y])],[x=z])+P(x))])+Q(z))>] -> 'her' | 'Her'
+#Possessive marker s
+PosMarker[SEM=<\O.\P.\Q.(DRS([z],[(POSS([y,v],[poss(v,y),O(\x.(PRSPEX([],[],[x=v])))],[y=z])+P(y))])+Q(z))>] -> 's'
+######## end of old
+
+
+PosPron[NUM=sg,GEN=m,SEM=<\P.(DRS([y],[POSPRO(y)])+P(y))>] -> 'his' | 'His'
+
+PosMarker[SEM=<\Q Y X.((Q(\y.DRS([z],[POSSESSOR(z,y)]))+Y(z))+X(z))>] -> 's'
+
+################### new - TODO possessive pron and 's 
+# We want a DRS to think that the referents of the embedded 
+# presuppositional DRS are its own referents.
+# The embedded presuppositional DRS should see the referents of the DRS above as
+# possible antecedents of its referents. 
+#
+# Proper name
+#\P.(DRS([],[PRDRS([x],[John(x)])])+P(x))
+# Pronoun
+#\P.(DRS([],[PRDRS([x],[])])+P(z))
+# Definite article
+#\P Q.(DRS([],[(PRDRS([x],[])+P(x))])+Q(x))
+# Possessive pronoun
+#\P Q.(DRS([],[(PRDRS([x],[poss(y,x), PRDRS([y],[])])+P(x))])+Q(x)) # todo
+#Possessive marker 's
+#\O P Q.(DRS([],[(PRDRS([y,v],[poss(v,y),O(\x.(PRDRS([],[])))])+P(x))])+Q(x)) # todo
+################### end new
 
 N[NUM=sg,SEM=<\x.DRS([],[boy(x)])>] -> 'boy' 
 N[NUM=sg,SEM=<\x.DRS([],[girl(x)])>] -> 'girl'
