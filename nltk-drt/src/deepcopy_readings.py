@@ -127,6 +127,22 @@ class DRS(temporaldrt.DRS):
                 f(tempdrs) # Do accomodation or binding.
                 #operations.remove f or put a (None, None) tuple there?
             # TODO: Copy the conditions
+    
+#TODO: check this out: this would be my idea of deepcopy
+#TODO: maybe we should make operations a dict()?
+    def deepcopy1(self, operations=None):
+        function = None
+        for ref, f in operations:
+            if ref is self:
+                function = f
+                operations.remove((ref, f))
+                break
+        new_drs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
+        if function:
+            return function(new_drs)
+        else:
+            return new_drs
+     
 
 #===================================================================
 if __name__ == '__main__':
