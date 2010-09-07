@@ -437,14 +437,32 @@ class DrtParser(drt.DrtParser):
     
     def handle_DRS(self, tok, context):
         drs = drt.DrtParser.handle_DRS(self, tok, context)
+        location_time = None
+        
+        for cond in drs.conds:
+            if isinstance(cond, DrtLocationTimeApplicationExpression):
+                location_time = cond.argument
+                break
         
         for ref in drs.refs:
-            """Change DRS: introduce REFER(s/e) condition and given some trigger from
-            DrtTokens.TENSE put UTTER(.) condition and, for PAST and FUT, earlier(.,.)
-            condition w.r.t. to some new discourse referent bound to utterance time."""
+            """Change DRS: introduce REFER(s/e) condition, add INCLUDE/OVERLAP
+            conditions to the semantics of infinitives (triggered by LOCPRO)
+            and given some trigger from DrtTokens.TENSE put UTTER(.) condition and,
+            for PAST and FUT, earlier(.,.) condition w.r.t. to some new discourse
+            referent bound to utterance time."""
         
-            if is_statevar(ref.name) or drt.is_eventvar(ref.name):
-                """Adds REFER(s/e) condition."""
+            if is_statevar(ref.name):
+                """Adds REFER(s) condition."""
+                if location_time:
+                    """Relates location time and eventuality"""
+                    drs.conds.append(DrtTimeApplicationExpression(DrtTimeApplicationExpression(DrtTokens.OVERLAP, location_time), DrtStateVariableExpression(ref)))
+                drs.conds.append(DrtFindRefPointApplicationExpression(DrtTokens.REFER, DrtVariableExpression(ref)))
+                
+            if drt.is_eventvar(ref.name):
+                """Adds REFER(e) condition."""
+                if location_time:
+                    """Relates location time and eventuality"""
+                    drs.conds.append(DrtTimeApplicationExpression(DrtTimeApplicationExpression(DrtTokens.INCLUDE, location_time), DrtStateVariableExpression(ref)))
                 drs.conds.append(DrtFindRefPointApplicationExpression(DrtTokens.REFER, DrtVariableExpression(ref)))
             
             if drt.is_timevar(ref.name) and not is_uttervar(ref.name):
@@ -520,11 +538,11 @@ class DrtParser(drt.DrtParser):
                 for cond in first.conds:
                     """Find location time condition"""
                     
-                    if utter_time is None and \
+                    if not utter_time and \
                         isinstance(cond, DrtFindUtterTimeApplicationExpression):
                         utter_time = cond.argument
                     
-                    if location_time_cond is None and \
+                    if not location_time_cond and \
                         isinstance(cond, DrtTimeApplicationExpression) and \
                         isinstance(cond.function, DrtTimeApplicationExpression):
                         """all conds are of the form earlier(.,.)"""
@@ -533,7 +551,7 @@ class DrtParser(drt.DrtParser):
                 
 
 
-                if location_time_cond is None:
+                if not location_time_cond:
                     """In case we are in present-tense discourse and
                     location time is now"""
                     location_time = utter_time
@@ -631,7 +649,7 @@ def test_4():
     
     from nltk import load_parser
     parser = load_parser('file:../data/tenseaspect.fcfg', logic_parser=DrtParser())
-    trees = parser.nbest_parse("Angus bit a dog".split())
+    trees = parser.nbest_parse("Angus did not own a car".split())
     trees_2 = parser.nbest_parse("He died".split())
     parser_obj = DrtParser()
     drs = parser_obj.parse('DRS([n],[])')
