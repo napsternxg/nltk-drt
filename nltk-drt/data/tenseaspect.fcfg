@@ -53,21 +53,21 @@ ADJ[SEM=<(\Q P x.(DRS([],[Q(x)])+P(x)))(?ladj)>] -> LexADJ[SEM=?ladj]
 # Infinitives: Intransitive Events / States
 ###########################################
 
-V[SUBCAT=iv,-FIN,SEM=<(\Q x.DRS([e,t],[Q(e,x),ACH(e),include(t,e),LOCPRO(t)]))(?lv)>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv]
+V[SUBCAT=iv,-FIN,SEM=<(\Q x.DRS([e,t],[Q(e,x),ACH(e),LOCPRO(t)]))(?lv)>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv]
 
-V[SUBCAT=iv,-FIN,SEM=<(\Q x.DRS([e,t],[Q(e,x),ACT(e),include(t,e),LOCPRO(t)]))(?lv)>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=act,SEM=?lv]
+V[SUBCAT=iv,-FIN,SEM=<(\Q x.DRS([e,t],[Q(e,x),ACT(e),LOCPRO(t)]))(?lv)>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=act,SEM=?lv]
 
-V[SUBCAT=iv,-FIN,SEM=<(\Q x.DRS([s,t],[Q(s,x),overlap(t,s),LOCPRO(t)]))(?lv)>] -> LexV[SUBCAT=iv,-FIN,TYPE=s,SEM=?lv]
+V[SUBCAT=iv,-FIN,SEM=<(\Q x.DRS([s,t],[Q(s,x),LOCPRO(t)]))(?lv)>] -> LexV[SUBCAT=iv,-FIN,TYPE=s,SEM=?lv]
 
 
 # Infinitives: Transitive Events / States
 #########################################
 
-V[SUBCAT=tv,-FIN,SEM=<(\Q X x.X(\y.DRS([e,t],[Q(e,x,y),ACC(e),include(t,e),LOCPRO(t)])))(?lv)>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=acc,SEM=?lv]
+V[SUBCAT=tv,-FIN,SEM=<(\Q X x.X(\y.DRS([e,t],[Q(e,x,y),ACC(e),LOCPRO(t)])))(?lv)>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=acc,SEM=?lv]
 
-V[SUBCAT=tv,-FIN,SEM=<(\Q X x.X(\y.DRS([e,t],[Q(e,x,y),ACH(e),include(t,e),LOCPRO(t)])))(?lv)>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv]
+V[SUBCAT=tv,-FIN,SEM=<(\Q X x.X(\y.DRS([e,t],[Q(e,x,y),ACH(e),LOCPRO(t)])))(?lv)>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv]
 
-V[SUBCAT=tv,-FIN,SEM=<(\Q X x.X(\y.DRS([s,t],[Q(s,x,y),overlap(t,e),LOCPRO(t)])))(?lv)>] -> LexV[SUBCAT=tv,-FIN,TYPE=s,SEM=?lv]
+V[SUBCAT=tv,-FIN,SEM=<(\Q X x.X(\y.DRS([s,t],[Q(s,x,y),LOCPRO(t)])))(?lv)>] -> LexV[SUBCAT=tv,-FIN,TYPE=s,SEM=?lv]
 
 
 # Tensed Verb Forms: Intransitive Events / States
@@ -85,9 +85,9 @@ V[SUBCAT=iv,+FIN,SEM=<(\Q X.(DRS([t],[PAST(t)])+X(\x.DRS([s],[Q(s,x)]))))(?lv)>]
 # Tensed Verb Forms: Transitive Events / States
 ###############################################
 
-V[SUBCAT=tv,+FIN,SEM=<(\Q X Y.(DRS([t],[PAST(t)])+Y(\x.(X(\y.DRS([e],[Q(e,x,y),ACC(e),include(t,e)]))))))(?lv)>] -> LexV[SUBCAT=tv,+FIN,TYPE=e,SUBTYPE=acc,SEM=?lv]
+V[SUBCAT=tv,+FIN,SEM=<(\Q X Y.(DRS([t],[PAST(t)])+Y(\x.(X(\y.DRS([e],[Q(e,x,y),ACC(e)]))))))(?lv)>] -> LexV[SUBCAT=tv,+FIN,TYPE=e,SUBTYPE=acc,SEM=?lv]
 
-V[SUBCAT=tv,+FIN,SEM=<(\Q X Y.(DRS([t],[PAST(t)])+Y(\x.(X(\y.DRS([e],[Q(e,x,y),ACH(e),include(t,e)]))))))(?lv)>] -> LexV[SUBCAT=tv,+FIN,TYPE=e,SUBTYPE=ach,SEM=?lv]
+V[SUBCAT=tv,+FIN,SEM=<(\Q X Y.(DRS([t],[PAST(t)])+Y(\x.(X(\y.DRS([e],[Q(e,x,y),ACH(e)]))))))(?lv)>] -> LexV[SUBCAT=tv,+FIN,TYPE=e,SUBTYPE=ach,SEM=?lv]
 
 V[SUBCAT=tv,+FIN,NUM=sg,SEM=<(\Q X Y.(DRS([t],[PRES(t)])+Y(\x.(X(\y.DRS([s],[Q(s,x,y)]))))))(?lv)>] -> LexV[SUBCAT=tv,+FIN,TYPE=s,SEM=?lv,tns=pres,NUM=sg] 
 
