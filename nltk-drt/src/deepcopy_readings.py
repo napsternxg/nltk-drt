@@ -20,6 +20,8 @@
 # are its referents
 
 import temporaldrt
+import nltk.sem.logic as logic
+import nltk.sem.drt as drt
 
 from operator import __and__ as AND
 def isListOfTuples(x):
@@ -67,7 +69,7 @@ class Readings:
             r = drs.readings()
             if isListOfTuples(r):
                 old_readings.append(drs)
-                new_readings += drs.deepcopy(operations = r)
+                new_readings += self.get_drs_deepcopies(drs, operations=r)
         # If there has been no new readings, we are done.
         if not new_readings: return
         # Else, remove the old readings, add the new ones 
@@ -76,73 +78,87 @@ class Readings:
         self.readings += new_readings
         self.collect_readings()
         
-#    def get_drs_deepcopies(self, drs, operations):
-#        """Return a list of DRSs that are new readings to replace the older
-#        one (the argument drs).
-#        @param drs: a C{DRS} object (the outermost DRS)
-#        @param operations: C{list} of tuples (DRS, function)
-#        The argument DRS gets copied as many times as there are tuples on 
-#        the operations list, and for each copy, one of the operations is performed."""
-#        for o in operations:
-#
-#            newdrs = self.__class__([], [])
+    def get_drs_deepcopies(self, drs, operations):
+        """Return a list of DRSs that are new readings to replace the older
+        one (the argument drs).
+        @param drs: a C{DRS} object (the outermost DRS)
+        @param operations: C{list} of tuples (DRS, function)
+        The argument DRS gets copied as many times as there are tuples on 
+        the operations list, and for each copy, one of the operations is performed."""
+        for o in operations:
+            # Get a deep copy of the drs with one substitution
+            drs.deepcopy(operation=o)
         
                     
 class DRS(temporaldrt.DRS):
+    
     def __deepcopy__(self):
         """A deep copy constructs a new compound object and then, 
         recursively, inserts copies into it of the objects found 
         in the original."""
-        return self.deepcopy(operations=None)[0]
+        return self.deepcopy(operation=None)[0]
     
-    def deepcopy(self, operations=None, output=[]):
+    def deepcopy(self, operation=None):
         """This method returns a deep copy of the DRS.
-        Optionally, it can take a list of n tuples (DRS, function) 
-        as an argument and generate n readings by performing 
-        substitutions in the DRS as specified by the function.
-        @param operations: C{list} of tuples (DRS, function), 
+        Optionally, it can take a tuple (DRS, function) 
+        as an argument and generate a reading by performing 
+        a substitution in the DRS as specified by the function.
+        @param operation: a tuple (DRS, function), 
         where the DRS is an argument to pass to that function.
         """
-        functions = []
-        for o in operations:
-            if not output:
-                # If this is the outermost drs
-                tempdrs = self.__class__([], [])
-                # The second element in the tuple is whether an operation has already been applied to this
-                # TODO: how is this 'no operations so far' best implemented? 
-                output.append((tempdrs,False))
-            if self == o[0]:
-                functions.append(o[1])
-        
-        for tempdrs in output:
-            # Copy the referents
-            for ref in self.refs:
-                # No need to pass operations or output to referents 
-                tempdrs.refs.append(ref.deepcopy())
-                # TODO: define deepcopy for referents
-            # Apply the function(s) to this drs
-            if functions:
-                f = functions.pop()
-                # TODO: make sure that no operations have been applied to this branch of readings
-                f(tempdrs) # Do accomodation or binding.
-                #operations.remove f or put a (None, None) tuple there?
-            # TODO: Copy the conditions
-    
-#TODO: check this out: this would be my idea of deepcopy
-#TODO: maybe we should make operations a dict()?
-    def deepcopy1(self, operations=None):
         function = None
-        for ref, f in operations:
-            if ref is self:
-                function = f
-                operations.remove((ref, f))
-                break
-        new_drs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
+        if operation and self == operation[0]:
+            function = operation[1]
+            operation = None
+        new_drs = self.__class__(list(self.refs), \
+                                 [cond.deepcopy(operation) for cond in self.conds])
         if function:
             return function(new_drs)
         else:
             return new_drs
-     
+
+class AbstractVariableExpression(logic.AbstractVariableExpression):
+    def deepcopy(self):
+        variable = self.variable
+        return self.__class__(variable=variable)
+
+class HasTerm():
+    """An abstract class for DrtNegatedExpression and DrtLambdaExpression"""
+    def deepcopy(self):
+        term = self.term
+        return self.__class__(term=term.deepcopy())
+
+class HasFirstAndSecond():
+    """An abstract class for DrtBooleanExpression (and its subclasses DrtOrExpression, 
+    DrtImpExpression, DrtIffExpression, ConcatenationDRS) and DrtEqualityExpression"""
+    def deepcopy(self):
+        first = self.first
+        second = self.second
+        return self.__class__(first=first.deepcopy(), second=second.deepcopy())
+    
+class DrtNegatedExpression(temporaldrt.DrtNegatedExpression, HasTerm):
+    pass
+
+class DrtLambdaExpression(temporaldrt.DrtLambdaExpression, HasTerm):
+    pass
+
+class DrtBooleanExpression(temporaldrt.DrtBooleanExpression, HasFirstAndSecond):
+    pass
+
+class DrtOrExpression(DrtBooleanExpression, temporaldrt.DrtOrExpression):
+    pass
+
+class DrtImpExpression(DrtBooleanExpression, temporaldrt.DrtImpExpression):
+    pass
+
+class DrtIffExpression(DrtBooleanExpression, temporaldrt.DrtIffExpression):
+    pass
+
+class DrtEqualityExpression(temporaldrt.DrtEqualityExpression, HasFirstAndSecond):
+    pass
+
+class ConcatenationDRS(DrtBooleanExpression, temporaldrt.ConcatenationDRS):
+    pass
 
 #===================================================================
 if __name__ == '__main__':
