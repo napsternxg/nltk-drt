@@ -138,6 +138,9 @@ class AbstractDrs(drt.AbstractDrs):
     def __add__(self, other):
         return ConcatenationDRS(self, other)
     
+    def __deepcopy__(self, memo):
+        return self.deepcopy()
+    
     def make_EqualityExpression(self, first, second):
         return DrtEqualityExpression(first, second)
 
@@ -187,15 +190,19 @@ class DRS(AbstractDrs, drt.DRS):
     def replace(self, variable, expression, replace_bound=False):
         """Replace all instances of variable v with expression E in self,
         where v is free in self."""
-        try:
+        if variable in self.refs + reduce(operator.add, [c.refs for c in self.conds if isinstance(c, PresuppositionDRS)], []):
             #if a bound variable is the thing being replaced
-            i = self.refs.index(variable)
             if not replace_bound:
                 return self
-            else: 
-                return self.__class__(self.refs[:i]+[expression.variable]+self.refs[i+1:],
+            else:
+                if variable in self.refs:
+                    i = self.refs.index(variable)
+                    refs = self.refs[:i]+[expression.variable]+self.refs[i+1:]
+                else:
+                    refs = self.refs
+                return self.__class__(refs,
                            [cond.replace(variable, expression, True) for cond in self.conds])
-        except ValueError:
+        else:
             #variable not bound by this DRS
             
             # any bound variable that appears in the expression must
@@ -204,7 +211,7 @@ class DRS(AbstractDrs, drt.DRS):
                 newvar = unique_variable(ref) 
                 newvarex = DrtVariableExpression(newvar)
                 i = self.refs.index(ref)
-                self = DRS(self.refs[:i]+[newvar]+self.refs[i+1:],
+                self = self.__class__(self.refs[:i]+[newvar]+self.refs[i+1:],
                            [cond.replace(ref, newvarex, True) 
                             for cond in self.conds])
                 
@@ -212,6 +219,33 @@ class DRS(AbstractDrs, drt.DRS):
             return self.__class__(self.refs,
                        [cond.replace(variable, expression, replace_bound) 
                         for cond in self.conds])
+            
+    def free(self, indvar_only=True):
+        """@see: Expression.free()"""
+        conds_free = reduce(operator.or_, 
+                            [c.free(indvar_only) for c in self.conds], set()) 
+        return conds_free - (set(self.refs) | reduce(operator.or_, [set(c.refs) for c in self.conds if isinstance(c, PresuppositionDRS)], set()))
+
+    def get_refs(self, recursive=False):
+        """@see: AbstractExpression.get_refs()"""
+        if recursive:
+            cond_refs = reduce(operator.add, 
+                               [c.get_refs(True) for c in self.conds], [])
+            return self.refs + cond_refs
+        else:
+            return self.refs + reduce(operator.add, [c.refs for c in self.conds if isinstance(c, PresuppositionDRS)], [])
+
+    def deepcopy(self, operation=None):
+        """This method returns a deep copy of the DRS.
+        Optionally, it can take a tuple (DRS, function) 
+        as an argument and generate a reading by performing 
+        a substitution in the DRS as specified by the function.
+        @param operation: a tuple (DRS, function), 
+        where the DRS is an argument to pass to that function.
+        """
+
+        return ((operation and self == operation and operation[1]) or (lambda x: x))(self.__class__(list(self.refs), \
+                                 [cond.deepcopy(operation) for cond in self.conds]))
 
     def simplify(self):
         return self.__class__(self.refs, [cond.simplify() for cond in self.conds])
@@ -224,6 +258,12 @@ class DRS(AbstractDrs, drt.DRS):
         for cond in self.conds:
             readings.extend(cond.readings(trail + [self]))
         return readings
+    
+class PresuppositionDRS(DRS):
+    """A Discourse Representation Structure for presuppositions.
+    Presuppositions triggered by a possessive pronoun/marker, the definite article, a proper name
+    will be resolved in different ways. They are represented by subclasses of PresuppositionalDRS."""
+    pass
 
 def DrtVariableExpression(variable):
     """
@@ -253,6 +293,9 @@ class DrtAbstractVariableExpression(AbstractDrs, drt.DrtAbstractVariableExpressi
     
     def readings(self, trail=[]):
         return []
+    
+    def deepcopy(self, operation=None):
+        return self.__class__(self.variable)
 
 class DrtIndividualVariableExpression(DrtAbstractVariableExpression, drt.DrtIndividualVariableExpression):
     pass
@@ -273,6 +316,8 @@ class DrtProperNameExpression(DrtConstantExpression):
 class DrtNegatedExpression(AbstractDrs, drt.DrtNegatedExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.term.resolve(trail + [self]))
+    def deepcopy(self, operation=None):
+        return self.__class__(self.term.deepcopy(operation))
 
 class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
     def alpha_convert(self, newvar):
@@ -311,6 +356,9 @@ class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
 
     def readings(self, trail=[]):
         return self.term.readings(trail + [self])
+    
+    def deepcopy(self, operation=None):
+        return self.__class__(self.variable, self.term.deepcopy(operation))
 
 class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
     def resolve(self, trail=[]):
@@ -319,6 +367,9 @@ class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
         
     def readings(self, trail=[]):
         return self.first.readings(trail + [self]) + self.second.readings(trail + [self])
+    
+    def deepcopy(self, operation=None):
+        return self.__class__(self.first.deepcopy(operation), self.second.deepcopy(operation))
 
 class DrtOrExpression(DrtBooleanExpression, drt.DrtOrExpression):
     pass
@@ -341,6 +392,9 @@ class DrtEqualityExpression(AbstractDrs, drt.DrtEqualityExpression):
     
     def readings(self, trail=[]):
         return []
+    
+    def deepcopy(self, operation=None):
+        return self.__class__(self.first.deepcopy(operation), self.second.deepcopy(operation))
 
 class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
     """DRS of the form '(DRS + DRS)'"""
@@ -402,6 +456,9 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
         
     def readings(self, trail=[]):
         return self.function.readings(trail + [self]) + self.argument.readings(trail + [self])
+    
+    def deepcopy(self, operation=None):
+        return self.__class__(self.function.deepcopy(operation), self.argument.deepcopy(operation))
 
 class PossibleAntecedents(AbstractDrs, drt.PossibleAntecedents):
     pass

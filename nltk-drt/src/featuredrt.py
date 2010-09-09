@@ -23,6 +23,9 @@ class DrtFeatureConstantExpression(DrtConstantExpression):
 
     def str(self, syntax=DrtTokens.NLTK):
         return str(self.variable) + "{" + ",".join([str(feature) for feature in self.features]) + "}"
+    
+    def deepcopy(self, operation=None):
+        return self.__class__(self.variable, self.features)
 
 class DrtFeatureConstantSubstitutionExpression(DrtFeatureConstantExpression):
 
@@ -187,7 +190,7 @@ class DrtPronounApplicationExpression(drt.DrtApplicationExpression):
                 for cond in ancestor.conds:
                     #exclude pronouns from resolution
                     if isinstance(cond, DrtPronounApplicationExpression) and\
-                        not self.resolve_to_pronouns:
+                        not self.resolve_to_pronouns():
                         continue
 
                     elif isinstance(cond, drt.DrtApplicationExpression) and\
