@@ -5,9 +5,8 @@
 
 S[SEM = <app(?subj,?vp)>] -> NP[NUM=?n,SEM=?subj] VP[NUM=?n,SEM=?vp]
 
-NP[NUM=?n,SEM=<app(?det,?nom)> ] -> Det[NUM=?n,SEM=?det]  Nom[NUM=?n,SEM=?nom]
-Det[NUM=?n,SEM=?det] -> PosPron [NUM=?n,SEM=?det]
-Det[SEM=<?possmark(?np)>] -> NP[SEM=?np] PosMarkerNP[SEM=?possmark]
+NP[NUM=?n,SEM=<?det(?nom)> ] -> Det[NUM=?n,SEM=?det]  Nom[NUM=?n,SEM=?nom]
+Det[SEM=<?possmark(?np)>] -> NP[SEM=?np] PosMarker[SEM=?possmark]
 NP[LOC=?l,NUM=?n,SEM=?np] -> PropN[LOC=?l,NUM=?n,SEM=?np]
 NP[LOC=?l,NUM=?n,SEM=?np] -> Pron[LOC=?l,NUM=?n,SEM=?np]
 
@@ -28,58 +27,26 @@ Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
 Det[NUM=sg,SEM=<\P Q.(DRS([],[not((DRS([x],[])+P(x))+Q(x))]))>] -> 'no' 
 
 
-############## outdated
-# Just a test to see whether a Drs with 3 lists will work. OK, seems to work
-#Det[NUM=sg,SEM=<\P Q.(DRS([z][DRS([x][])+ P(x)]) + Q(z))>] -> 'ghm' | 'Ghm'
-#
-# The special Drs for presuppositions, with 3 lists
-#Det[NUM=sg,SEM=<\P Q.((DRS([z][PRDRS([x][][x z]) + P(x)]) + Q(z))>] -> 'the' | 'The'
-##############
-
-
-######## old
-#Proper name
-#\P.(DRS([z],[PRDRS([x],[John(x)],[x=z])])+P(z))
-PropN[NUM=sg,SEM=<\P(DRS([z],[PROPERNAME([x],[John(x)],[x=z])])+P(z))>] -> 'John'
-#Pronoun
-#\P.(DRS([z],[PRDRS([x],[],[x=z])])+P(z))
-Pron[NUM=sg,SEM=<\P.(DRS([z],[PERSPRON([x],[],[x=z])])+P(z))>] -> 'he' | 'He'
-Pron[NUM=sg,SEM=<\P.(DRS([z],[PERSPRON([x],[],[x=z])])+P(z))>] -> 'she' | 'She'
-#Definite article
-#\P.\Q.(DRS([z],[(PRDRS([x],[],[x=z])+P(x))])+Q(z))
-Det[NUM=sg,SEM=<\P.\Q.(DRS([z],[(PRSPEX([x],[],[x=z])+P(x))])+Q(z))>] -> 'the' | 'The'
-#Possessive pronoun
-PosPron[NUM=sg,GEN=m,SEM=<\P.\Q.(DRS([z],[(POSS([x,y],[poss(y,x), PRSPEX([w],[],[w=y])],[x=z])+P(x))])+Q(z))>] -> 'his' | 'His'
-PosPron[NUM=sg,GEN=m,SEM=<\P.\Q.(DRS([z],[(POSS([x,y],[poss(y,x), PRSPEX([w],[],[w=y])],[x=z])+P(x))])+Q(z))>] -> 'her' | 'Her'
-#Possessive marker s
-PosMarker[SEM=<\O.\P.\Q.(DRS([z],[(POSS([y,v],[poss(v,y),O(\x.(PRSPEX([],[],[x=v])))],[y=z])+P(y))])+Q(z))>] -> 's'
-######## end of old
-
-
-PosPron[NUM=sg,GEN=m,SEM=<\P.(DRS([y],[POSPRO(y)])+P(y))>] -> 'his' | 'His'
-
-PosMarker[SEM=<\Q Y X.((Q(\y.DRS([z],[POSSESSOR(z,y)]))+Y(z))+X(z))>] -> 's'
-
-################### new - TODO possessive pron and 's 
-# We want a DRS to think that the referents of the embedded 
-# presuppositional DRS are its own referents.
-# The embedded presuppositional DRS should see the referents of the DRS above as
-# possible antecedents of its referents. 
-#
 # Proper name
-#\P.(DRS([],[PRDRS([x],[John(x)])])+P(x))
+#\P.(DRS([],[PROPERNAME([x],[John(x)])])+P(x))
+PropN[NUM=sg,SEM=<\P.(DRS([],[PROPERNAME([x],[John(x)])])+P(x))>] -> 'John'
 # Pronoun
-#\P.(DRS([],[PRDRS([x],[])])+P(z))
+#\P.(DRS([],[PERSPRON([x],[])])+P(x))
+Pron[NUM=sg, GEN=m, SEM=<\P.(DRS([],[PERSPRON([x],[])])+P(x))>] -> 'he' | 'He'
+Pron[NUM=sg, GEN=f, SEM=<\P.(DRS([],[PERSPRON([x],[])])+P(x))>] -> 'she' | 'She'
 # Definite article
 #\P Q.(DRS([],[(PRDRS([x],[])+P(x))])+Q(x))
+Det[NUM=sg,SEM=<\P Q.(DRS([],[(PRSPEX([x],[])+P(x))])+Q(x))>] -> 'the' | 'The'
 # Possessive pronoun
-#\P Q.(DRS([],[(PRDRS([x],[poss(y,x), PRDRS([y],[])])+P(x))])+Q(x)) # todo
+#\P Q.(DRS([],[(PRDRS([x],[poss(y,x), PRDRS([y],[])])+P(x))])+Q(x))
+Det[NUM=sg,GEN=m,SEM=<\P Q.(DRS([],[(POSSDRS([x],[poss(y,x), PRSPEX([y],[])])+P(x))])+Q(x))>] -> 'his' | 'His'
+Det[NUM=sg,GEN=f,SEM=<\P Q.(DRS([],[(POSSDRS([x],[poss(y,x), PRSPEX([y],[])])+P(x))])+Q(x))>] -> 'her' | 'Her'
 #Possessive marker 's
-#\O P Q.(DRS([],[(PRDRS([y,v],[poss(v,y),O(\x.(PRDRS([],[])))])+P(x))])+Q(x)) # todo
-################### end new
+PosMarker[SEM=<\O P Q.(DRS([],[(O(\x.(POSSDRS([y],[poss(x,y)])))+P(y))])+Q(y))>] -> 's'
 
 N[NUM=sg,SEM=<\x.DRS([],[boy(x)])>] -> 'boy' 
 N[NUM=sg,SEM=<\x.DRS([],[girl(x)])>] -> 'girl'
+N[NUM=sg,SEM=<\x.DRS([],[father(x)])>] -> 'father'
 
 
 IV[NUM=sg,SEM=<\x.DRS([],[walk(x)])>,tns=pres] -> 'walks'
