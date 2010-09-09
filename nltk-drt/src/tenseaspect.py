@@ -113,11 +113,15 @@ def unique_variable(pattern=None, ignore=None):
 class DrtTokens(drt.DrtTokens):
     UTTER_TIME = 'UTTER'
     REFER_TIME = 'REFER'
+    PERF = 'PERF'
     UTTER = drt.DrtConstantExpression(Variable("UTTER"))
+    PERFECT = drt.DrtConstantExpression(Variable("PERF"))
     REFER = drt.DrtConstantExpression(Variable("REFER"))
     OVERLAP = drt.DrtConstantExpression(Variable("overlap"))
     EARLIER = drt.DrtConstantExpression(Variable("earlier"))
     INCLUDE = drt.DrtConstantExpression(Variable("include"))
+    ABUT = drt.DrtConstantExpression(Variable("abut"))
+    END = drt.DrtConstantExpression(Variable("end"))
     TEMP_CONDS = [OVERLAP, EARLIER, INCLUDE]
     
     PAST = drt.DrtConstantExpression(Variable("PAST"))
@@ -126,8 +130,7 @@ class DrtTokens(drt.DrtTokens):
     
     TENSE = [PAST, PRES, FUT]
     
-    TIME_CONDITION = 'CONDITION'
-    
+    EVENT = Variable("e")
 ################ a?    
 
 class AbstractDrs(drt.AbstractDrs):
@@ -346,22 +349,6 @@ class DrtStateApplicationExpression(DrtApplicationExpression):
     pass
 
 
-
-class DrtTimeConditionExpression(DrtApplicationExpression):
-    def resolve(self, trail=[], output=[]):
-        location_time = self.function.argument 
-        for ancestor in trail[::-1]:          
-            if isinstance(ancestor, DRS) and location_time.variable in ancestor.refs:
-                for cond in ancestor.conds:
-                    if isinstance(cond, DrtTimeApplicationExpression) and \
-                        isinstance(cond.function, DrtTimeApplicationExpression) and \
-                        cond.function.function in DrtTokens.TEMP_CONDS:
-                        print cond
-                        
-                        """to be continued"""
-                
-        return self
-
 class DrtUtterVariableExpression(DrtTimeVariableExpression):
     """Type of utterance time referent"""
     pass
@@ -396,29 +383,56 @@ class DrtFindRefPointApplicationExpression(DrtApplicationExpression):
     def resolve(self, trail=[], output=[]):
         state_reference_point = None
         """state reference point in case there are no previous events"""
-        for ancestor in trail[::-1]:          
-            for ref in ancestor.get_refs()[::-1]:
-                """search for the most recent reference"""
-                refex = DrtVariableExpression(ref)
+        for ancestor in trail[::-1]:                               
+            
+            search_list = ancestor.get_refs()
+            
+            if self.argument.variable in search_list:
+                """Described eventuality in the object's referents?
+                Take refs' list up to described eventuality"""
+                search_list = search_list[:search_list.index(self.argument.variable)]
                 
-                if isinstance(refex, DrtEventVariableExpression) and \
+                for ref in search_list[::-1]:
+                    """search for the most recent reference"""
+                    refex = DrtVariableExpression(ref)
+                
+                    if isinstance(refex, DrtEventVariableExpression) and \
+                    not (refex == self.argument) and not self.function.variable.name == DrtTokens.PERF:
+                        
+                        if isinstance(self.argument,DrtEventVariableExpression):
+                            """In case given eventuality is an event, return earlier"""                 
+                            return DrtStateApplicationExpression(DrtStateApplicationExpression(DrtTokens.EARLIER,refex),self.argument)
+                        
+                        elif isinstance(self.argument, DrtStateVariableExpression):
+                            """In case given eventuality is a state, return include"""
+                            return DrtStateApplicationExpression(DrtStateApplicationExpression(DrtTokens.INCLUDE,self.argument),refex)    
+                    
+                    elif not state_reference_point and \
+                        isinstance(refex, DrtStateVariableExpression) and \
                         not (refex == self.argument):
-                    
-                    if isinstance(self.argument,DrtEventVariableExpression):
-                        """In case given eventuality is an event, return earlier"""                 
-                        return DrtStateApplicationExpression(DrtStateApplicationExpression(DrtTokens.EARLIER,refex),self.argument)
-                    
-                    elif isinstance(self.argument, DrtStateVariableExpression):
-                        """In case given eventuality is a state, return include"""
-                        return DrtStateApplicationExpression(DrtStateApplicationExpression(DrtTokens.INCLUDE,self.argument),refex)    
-                
-                elif isinstance(refex, DrtStateVariableExpression) and \
-                    not (refex == self.argument) and state_reference_point is None:
-                        """In case no event is found, locate the most recent state"""  
-                        state_reference_point = refex
+                        """In case no event is found, locate the most recent state"""
+                        state_reference_point = refex                            
                        
-        if state_reference_point is not None:
-            if isinstance(self.argument, DrtStateVariableExpression):
+        if state_reference_point:
+            if self.function.variable.name == DrtTokens.PERF:
+                """in case we are dealing with PERF"""
+                if isinstance(self.argument, DrtEventVariableExpression):
+                    """Reference point is a state and described eventuality an event,
+                    return event abuts on state"""
+                    return DrtStateApplicationExpression(DrtStateApplicationExpression(DrtTokens.ABUT,self.argument),state_reference_point)
+                if isinstance(self.argument, DrtStateVariableExpression):
+                    """Reference point is a state and described eventuality a state,
+                    then add an event referent to the ancestor's refs list and two conditions
+                    that that event is the end of eventuality (function needed!!!) and
+                    that event abuts on ref.state"""
+                    termination_point = DrtEventVariableExpression(unique_variable(DrtTokens.EVENT))
+                    # hackish append
+                    ancestor.refs.append(termination_point)
+                    ancestor.conds.append(drt.DrtEqualityExpression(termination_point,DrtApplicationExpression(DrtTokens.END,self.argument)))
+                    
+                    return DrtStateApplicationExpression(DrtStateApplicationExpression(DrtTokens.ABUT,termination_point),state_reference_point)
+                
+            elif isinstance(self.argument, DrtStateVariableExpression):
                 """Reference point is a state and given eventuality is also a state,
                 return overlap"""
                 return DrtStateApplicationExpression(DrtStateApplicationExpression(DrtTokens.OVERLAP,state_reference_point),self.argument)    
@@ -440,9 +454,14 @@ class DrtParser(drt.DrtParser):
         location_time = None
         
         for cond in drs.conds:
-            if isinstance(cond, DrtLocationTimeApplicationExpression):
+            if isinstance(cond,DrtFindRefPointApplicationExpression):
+                """PERF(.) gives rise to a DrtFindRefPointApplicationExpression;
+                in case it is among the DRS-conditions, the eventuality carried by
+                this DRS does not give rise to a REFER(.) condition"""
+                return DRS(drs.refs, drs.conds)
+           
+            if not location_time and isinstance(cond, DrtLocationTimeApplicationExpression):
                 location_time = cond.argument
-                break
         
         for ref in drs.refs:
             """Change DRS: introduce REFER(s/e) condition, add INCLUDE/OVERLAP
@@ -467,13 +486,15 @@ class DrtParser(drt.DrtParser):
             
             if drt.is_timevar(ref.name) and not is_uttervar(ref.name):
                 """Relates location time with utterance time"""
+
                 tense_cond = [c for c in drs.conds if isinstance(c, DrtApplicationExpression) and \
                                c.function in DrtTokens.TENSE and DrtVariableExpression(ref) == c.argument]
                 if not tense_cond == []:
+
                     if tense_cond[0].function == DrtTokens.PRES:
                         """Put UTTER(t) instead"""
                         drs.conds[drs.conds.index(tense_cond[0])] = DrtFindUtterTimeApplicationExpression(DrtTokens.UTTER, DrtTimeVariableExpression(ref))
-                    
+                        
                     else:
                         """Put new discourse referent and bind it to utterance time
                         by UTTER(.) and also add earlier(.,.) condition"""
@@ -486,8 +507,7 @@ class DrtParser(drt.DrtParser):
                         
                         else:
                             drs.conds.append(DrtTimeApplicationExpression(DrtTimeApplicationExpression(DrtTokens.EARLIER, DrtTimeVariableExpression(utter_time)), DrtTimeVariableExpression(ref)))
-                    
-                
+                        
         return DRS(drs.refs, drs.conds)
 
     
@@ -506,72 +526,14 @@ class DrtParser(drt.DrtParser):
             return drt.DrtIffExpression
         else:
             return None
-        
-#        if tok == DrtTokens.DRS_CONC:
-#            print "I'm a concDRS"
-#            return ConcatenationDRS
-#        else:
-#            return drt.DrtParser.get_BooleanExpression_factory(self, tok)
 
     def make_BooleanExpression(self, factory, first, second):
 
-        if factory == ConcatenationDRS and isinstance(first, DRS) and \
-            isinstance(second, DrtApplicationExpression) and \
-            isinstance(second.argument, DrtLambdaExpression):
-            
-            target_drs = None
-            
-            if isinstance(second.argument.term, DRS):
-                """Intransitive verb"""
-                target_drs = second.argument.term
-                
-            elif isinstance(second.argument.term, DrtApplicationExpression) and \
-                isinstance(second.argument.term.argument, DrtLambdaExpression) and \
-                isinstance(second.argument.term.argument.term, DRS):
-                """transitive verb"""
-                target_drs = second.argument.term.argument.term
-                
-                location_time_cond = None
-                location_time = None
-                utter_time = None
-                
-                for cond in first.conds:
-                    """Find location time condition"""
-                    
-                    if not utter_time and \
-                        isinstance(cond, DrtFindUtterTimeApplicationExpression):
-                        utter_time = cond.argument
-                    
-                    if not location_time_cond and \
-                        isinstance(cond, DrtTimeApplicationExpression) and \
-                        isinstance(cond.function, DrtTimeApplicationExpression):
-                        """all conds are of the form earlier(.,.)"""
-                        #cond.function.function == DrtTokens.EARLIER
-                        location_time_cond = cond
-                
-
-
-                if not location_time_cond:
-                    """In case we are in present-tense discourse and
-                    location time is now"""
-                    location_time = utter_time
-                
-                elif location_time_cond.argument == utter_time:
-                    location_time = location_time_cond.function.argument
-                
-                else:
-                    location_time = location_time_cond.argument
-                                
-                for ref in target_drs.refs:
-                    """Checking eventuality type"""
-                    if is_statevar(ref.name):
-                        
-                        target_drs.conds.append(DrtTimeApplicationExpression(DrtTimeApplicationExpression(DrtTokens.OVERLAP, DrtStateVariableExpression(ref)), location_time))
-                        break
-                    
-                    if is_eventvar(ref.name):
-                        target_drs.conds.append(DrtTimeApplicationExpression(DrtTimeApplicationExpression(DrtTokens.INCLUDE, location_time), DrtStateVariableExpression(ref)))
-                        break  
+        if factory is ConcatenationDRS and \
+            isinstance(first, DRS):
+            """Insert conditions relating location time and eventuality
+            in a tensed verb."""
+            return insert_conds_tensed(first, second)
             
         return factory(first, second)
 
@@ -580,102 +542,109 @@ class DrtParser(drt.DrtParser):
 
     def make_ApplicationExpression(self, function, argument):
         
-        if isinstance(function, DrtTimeApplicationExpression) and \
-            function.function.variable.name == DrtTokens.TIME_CONDITION: 
-            return DrtTimeConditionExpression(function, argument)
-            
-        elif isinstance(function, DrtAbstractVariableExpression) and \
-                function.variable.name == DrtTokens.REFER_TIME  and \
-                (isinstance(argument, DrtStateVariableExpression) or \
-                 isinstance(argument, DrtEventVariableExpression)):
+        if function == DrtTokens.PERFECT:
             return DrtFindRefPointApplicationExpression(function, argument)
-
+        
         elif isinstance(argument, DrtStateVariableExpression):
             return DrtStateApplicationExpression(function, argument)
-        
-        elif isinstance(argument, DrtUtterVariableExpression):
-            """to be deleted"""
-            return DrtTimeApplicationExpression(function, argument)
-        
-        elif isinstance(function, DrtAbstractVariableExpression) and \
-                function.variable.name == DrtTokens.UTTER_TIME  and \
-                isinstance(argument, DrtTimeVariableExpression):
-            return DrtFindUtterTimeApplicationExpression(function, argument)
+               
         else:
             return drt.DrtParser.make_ApplicationExpression(self, function, argument)
         
     def make_LambdaExpression(self, variables, term):
         return DrtLambdaExpression(variables, term)
-    
-    
-    
-def test():
-    p = DrtParser().parse
-    #expr = p('DRS([t,x,t02,y,e, t01],[location(t)]) + DRS([t],[LOCPRO(t)])')
-    #expr = p('DRS([t02,x,t,y,e, t10],[location(t),-DRS([y,t04],[john(y)])]) + DRS([],[-DRS([t, t07],[LOCPRO(t)])])')
-    expr = p('DRS([t01, e, t02, e03, s, x, y, t],[LOCPRO(t), PRO(x), live(s)])')
-    print type(expr.simplify())
-    simplified_expr = expr.simplify().resolve()
-    
-    print simplified_expr, "\n"
-    for cond in simplified_expr.conds:
-        print "%s : type %s" % (cond, cond.__class__)
 
-    print ""
-        
-    for ref in simplified_expr.refs:
-        print "%s : type %s" % (ref, ref.__class__)
-        
-        
-def test_2():
-    p = DrtParser().parse
-    expr = p('DRS([s, x],[live(s)])+DRS([s,y],[own(s)])').simplify()
-    for ref in expr.refs:
-        print ref.name, is_statevar(ref.name)
-    print expr
-        
 
-def test_3():
-    p = DrtParser().parse
-    expr = p('DRS([t1,n, t],[UTTER(t),REFER(t)])').resolve()
-    for ref in expr.refs:
-        print ref.name, ref.__class__, DrtVariableExpression(ref).__class__, issubclass(DrtVariableExpression(ref).__class__, DrtIndividualVariableExpression)
-    for cond in expr.conds:
-        print "%s : type %s" % (cond, cond.__class__)
-    print expr
+def subcat_check(expression):
+    """Check of subcategorisation frame"""
+    if isinstance(expression, DrtApplicationExpression) and \
+        isinstance(expression.argument, DrtLambdaExpression):
+        
+        if isinstance(expression.argument.term, DRS):
+            """Intransitive verb"""
+            return expression.argument.term
+            
+        elif isinstance(expression.argument.term, DrtApplicationExpression) and \
+            isinstance(expression.argument.term.argument, DrtLambdaExpression) and \
+            isinstance(expression.argument.term.argument.term, DRS):
+            """transitive verb"""
+            return expression.argument.term.argument.term
+
+    return None
+
+
+def insert_conds_tensed(first, second):
+            
+    target_drs = subcat_check(second)
     
+    if not target_drs:
+        return ConcatenationDRS(first, second)
+
+    location_time_cond = None
+    location_time = None
+    utter_time = None
+    
+    for cond in first.conds:
+        """Find location time condition"""
+        
+        if not utter_time and \
+            isinstance(cond, DrtFindUtterTimeApplicationExpression):
+            utter_time = cond.argument
+        
+        if not location_time_cond and \
+            isinstance(cond, DrtTimeApplicationExpression) and \
+            isinstance(cond.function, DrtTimeApplicationExpression):
+            """all conds are of the form earlier(.,.)"""
+            #cond.function.function == DrtTokens.EARLIER
+            location_time_cond = cond
+
+
+    if not location_time_cond:
+        """In case we are in present-tense discourse and
+        location time is now"""
+        location_time = utter_time
+    
+    elif location_time_cond.argument == utter_time:
+        location_time = location_time_cond.function.argument
+    
+    else:
+        location_time = location_time_cond.argument
+                    
+    for ref in target_drs.refs:
+        """Checking eventuality type"""
+        if is_statevar(ref.name):
+            target_drs.conds.append(DrtTimeApplicationExpression(DrtTimeApplicationExpression(DrtTokens.OVERLAP, DrtStateVariableExpression(ref)), location_time))
+            break
+        
+        if is_eventvar(ref.name):
+            target_drs.conds.append(DrtTimeApplicationExpression(DrtTimeApplicationExpression(DrtTokens.INCLUDE, location_time), DrtStateVariableExpression(ref)))
+            break 
+    
+    return ConcatenationDRS(first, second)
+    
+##############################
+# Test:
+##############################
+
     
 def test_4():
     
     from nltk import load_parser
     parser = load_parser('file:../data/tenseaspect.fcfg', logic_parser=DrtParser())
-    trees = parser.nbest_parse("Angus did not own a car".split())
-    trees_2 = parser.nbest_parse("He died".split())
+    trees = parser.nbest_parse("Angus died".split())
+    trees_2 = parser.nbest_parse("He had owned a car".split())
     parser_obj = DrtParser()
     drs = parser_obj.parse('DRS([n],[])')
     expr = trees[0].node['SEM']
     expr_2 = trees_2[0].node['SEM']
-    #expr_3 = (drs + expr).simplify()
+    #expr_3 = (drs + expr).simplify().resolve()
     #expr_3 = ((drs + expr).simplify() + expr_2).simplify()
     expr_3 = ((drs + expr).simplify().resolve() + expr_2).simplify().resolve()
     #print expr_3.__class__
-    for cond in expr_3.conds:
-        print cond, cond.__class__
+    #for cond in expr_3.conds:
+    #    print cond, cond.__class__
     print expr_3
     expr_3.draw()
-    
-    #"""Think of integrating infinitives with that system."""
-    
-    
-
-def test_5():
-    #a = drt.DrtConstantExpression()
-    OVERLAP = drt.DrtConstantExpression(Variable("overlap"))
-    a = DrtStateVariableExpression(Variable("s"))
-    b = DrtStateVariableExpression(Variable("s1"))
-    expr = DrtStateApplicationExpression(DrtStateApplicationExpression(OVERLAP, a),b)
-    print expr.__class__, expr.argument.__class__, expr.function.function.__class__
-        
 
 if __name__ == "__main__":
     test_4()
