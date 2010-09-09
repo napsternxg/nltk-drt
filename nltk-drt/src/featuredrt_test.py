@@ -37,7 +37,7 @@ def main():
     parser = load_parser('file:../data/featuredrt_test.fcfg', logic_parser=DrtParser())
     drs = parse(parser, "Jones owns a car or he commutes.", True)
     drs = drs.resolve()
-    print drs
+    print drs.deepcopy()
     drs.draw()
 
 if __name__ == '__main__':
