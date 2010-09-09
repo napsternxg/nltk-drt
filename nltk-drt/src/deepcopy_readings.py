@@ -22,6 +22,9 @@
 import temporaldrt
 import nltk.sem.logic as logic
 import nltk.sem.drt as drt
+from temporaldrt import DrtVariableExpression, unique_variable
+
+import operator
 
 from operator import __and__ as AND
 def isListOfTuples(x):
@@ -91,13 +94,53 @@ class Readings:
         
                     
 class DRS(temporaldrt.DRS):
+
+# buggy code, delete
+#    def __deepcopy__(self):
+#        """A deep copy constructs a new compound object and then, 
+#        recursively, inserts copies into it of the objects found 
+#        in the original."""
+#        return self.deepcopy(operation=None)[0]
     
-    def __deepcopy__(self):
-        """A deep copy constructs a new compound object and then, 
-        recursively, inserts copies into it of the objects found 
-        in the original."""
-        return self.deepcopy(operation=None)[0]
-    
+    def replace(self, variable, expression, replace_bound=False):
+        """Replace all instances of variable v with expression E in self,
+        where v is free in self."""
+        if variable in self.refs + reduce(operator.add, [c.refs for c in self.conds if isinstance(c, PresuppositionDRS)], []):
+            #if a bound variable is the thing being replaced
+            if not replace_bound:
+                return self
+            else:
+                if variable in self.refs:
+                    i = self.refs.index(variable)
+                    refs = self.refs[:i]+[expression.variable]+self.refs[i+1:]
+                else:
+                    refs = self.refs
+                return DRS(refs,
+                           [cond.replace(variable, expression, True) for cond in self.conds])
+        else:
+            #variable not bound by this DRS
+            
+            # any bound variable that appears in the expression must
+            # be alpha converted to avoid a conflict
+            for ref in (set(self.refs) & expression.free()):
+                newvar = unique_variable(ref) 
+                newvarex = DrtVariableExpression(newvar)
+                i = self.refs.index(ref)
+                self = DRS(self.refs[:i]+[newvar]+self.refs[i+1:],
+                           [cond.replace(ref, newvarex, True) 
+                            for cond in self.conds])
+                
+            #replace in the conditions
+            return DRS(self.refs,
+                       [cond.replace(variable, expression, replace_bound) 
+                        for cond in self.conds])
+
+    def free(self, indvar_only=True):
+        """@see: Expression.free()"""
+        conds_free = reduce(operator.or_, 
+                            [c.free(indvar_only) for c in self.conds], set()) 
+        return conds_free - (set(self.refs) | reduce(operator.or_, [set(c.refs) for c in self.conds if isinstance(c, PresuppositionDRS)], set()))
+
     def deepcopy(self, operation=None):
         """This method returns a deep copy of the DRS.
         Optionally, it can take a tuple (DRS, function) 
@@ -117,24 +160,42 @@ class DRS(temporaldrt.DRS):
         else:
             return new_drs
 
+class PresuppositionDRS(DRS):
+    """A Discourse Representation Structure for presuppositions.
+    Presuppositions triggered by a possessive pronoun/marker, the definite article, a proper name
+    will be resolved in different ways. They are represented by subclasses of PresuppositionalDRS."""
+    pass
+
 class AbstractVariableExpression(logic.AbstractVariableExpression):
     def deepcopy(self):
-        variable = self.variable
-        return self.__class__(variable=variable)
+        return self.__class__(self.variable)
+    
+"""
+Maybe here we have to show that such classes as DrtFunctionExpression, etc. are subclasses
+of AbstractVariableExpression. From temporaldrt:
+class DrtIndividualVariableExpression(DrtAbstractVariableExpression, drt.DrtIndividualVariableExpression):
+    pass
+
+class DrtFunctionVariableExpression(DrtAbstractVariableExpression, drt.DrtFunctionVariableExpression):
+    pass
+
+class DrtEventVariableExpression(DrtIndividualVariableExpression, drt.DrtEventVariableExpression):
+    pass
+
+class DrtConstantExpression(DrtAbstractVariableExpression, drt.DrtConstantExpression):
+    pass
+"""
 
 class HasTerm():
     """An abstract class for DrtNegatedExpression and DrtLambdaExpression"""
     def deepcopy(self):
-        term = self.term
-        return self.__class__(term=term.deepcopy())
+        return self.__class__(self.term.deepcopy())
 
 class HasFirstAndSecond():
     """An abstract class for DrtBooleanExpression (and its subclasses DrtOrExpression, 
     DrtImpExpression, DrtIffExpression, ConcatenationDRS) and DrtEqualityExpression"""
     def deepcopy(self):
-        first = self.first
-        second = self.second
-        return self.__class__(first=first.deepcopy(), second=second.deepcopy())
+        return self.__class__(self.first.deepcopy(), self.second.deepcopy())
     
 class DrtNegatedExpression(temporaldrt.DrtNegatedExpression, HasTerm):
     pass
