@@ -513,10 +513,14 @@ class DrtTimeApplicationExpression(DrtApplicationExpression):
     pass
 
 class ReverseIterator:
-    def __init__(self, sequence):
+    def __init__(self, sequence, start=-1):
         self.sequence = sequence
+        self.start = start
     def __iter__(self):
-        i = len(self.sequence)
+        if self.start > 0:
+            i = self.start + 1
+        else: 
+            i = len(self.sequence) + self.start + 1
         while i > 0:
             i = i - 1
             yield self.sequence[i]
@@ -532,7 +536,7 @@ def get_drss(trail=[]):
     if inner_drs is not outer_drs:
         assert isinstance(inner_drs, DRS)
         drss['local'] = inner_drs
-    for ancestor in reversed(trail[:-1]):
+    for ancestor in ReverseIterator(trail,-2):
                 if isinstance(ancestor, DRS):
                     if ancestor is not outer_drs: 
                         drss['intermediate'] = ancestor
