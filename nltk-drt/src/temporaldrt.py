@@ -19,6 +19,7 @@ from nltk.sem.logic import IndividualVariableExpression
 from nltk.sem.logic import _counter, is_eventvar, is_funcvar
 from nltk.sem.logic import BasicType
 from nltk.sem.logic import Expression
+from nltk.sem.logic import ParseException
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
 
 import nltk.sem.drt as drt
@@ -107,9 +108,12 @@ class TimeVariableExpression(IndividualVariableExpression):
     type = TIME_TYPE
 
 class DrtTokens(drt.DrtTokens):
+    OPEN_BRACE = '{'
+    CLOSE_BRACE = '}'
+    PUNCT = [OPEN_BRACE, CLOSE_BRACE]
+    SYMBOLS = drt.DrtTokens.SYMBOLS + PUNCT
+    TOKENS = drt.DrtTokens.TOKENS + PUNCT
     LOCATION_TIME = 'LOCPRO'
-    PRESUPPOSITION = 'PRESUPP'
-    PRESUPP_ACCOMODATION = 'ACCOMOD'
 
 class AbstractDrs(drt.AbstractDrs):
     """
@@ -311,6 +315,26 @@ class DrtEventVariableExpression(DrtIndividualVariableExpression, drt.DrtEventVa
 class DrtConstantExpression(DrtAbstractVariableExpression, drt.DrtConstantExpression):
     pass
 
+class DrtFeatureConstantExpression(DrtConstantExpression):
+    """A constant expression with syntactic features attached"""
+    def __init__(self, variable, features):
+        DrtConstantExpression.__init__(self, variable)
+        self.features = features
+
+    def substitute_bindings(self, bindings):
+        expression = DrtConstantExpression.substitute_bindings(self, bindings)
+#        print type(expression), self.features, bindings
+
+        features = reduce(lambda acc, var: (var in bindings and acc + [bindings[var]]) or acc, self.features, [])
+
+        return self.__class__(expression.variable, features or self.features)
+
+    def str(self, syntax=DrtTokens.NLTK):
+        return str(self.variable) + "{" + ",".join([str(feature) for feature in self.features]) + "}"
+    
+    def deepcopy(self, operation=None):
+        return self.__class__(self.variable, self.features)
+
 class DrtProperNameExpression(DrtConstantExpression):
     """Class for proper names"""
     pass
@@ -472,7 +496,7 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
         if function_readings:
             return function_readings
         else:
-            return self.argument.readings(trail + [self, self.first])
+            return self.argument.readings(trail + [self])
 
     def deepcopy(self, operation=None):
         return self.__class__(self.function.deepcopy(operation), self.argument.deepcopy(operation))
@@ -497,6 +521,51 @@ class ReverseIterator:
         while i > 0:
             i = i - 1
             yield self.sequence[i]
+
+class DrtProperNameApplicationExpression(DrtApplicationExpression):
+    def fol(self):
+        """New condition for proper names added"""
+        return EqualityExpression(self.function.fol(), self.argument.fol())
+    def resolve(self, trail=[]):
+        for ancestor in trail:
+            if isinstance(ancestor, DRS):
+                outer_drs = ancestor
+                break
+        for ancestor in ReverseIterator(trail):
+                inner_drs = ancestor
+                break
+
+        if inner_drs is not outer_drs:
+            inner_drs.refs.remove(self.get_variable())
+            outer_drs.refs.append(self.get_variable())
+            outer_drs.conds.append(self)
+            return None
+        else:
+            return self
+
+    def readings(self, trail=[]):
+        for ancestor in trail:
+            if isinstance(ancestor, DRS):
+                outer_drs = ancestor
+                break
+        for ancestor in ReverseIterator(trail):
+                inner_drs = ancestor
+                break
+
+        if inner_drs is not outer_drs:
+            def function1(drs):
+                drs.refs.remove(self.get_variable())
+                drs.conds.remove(self)
+            def function2(drs):
+                drs.refs.append(self.get_variable())
+                drs.conds.append(self)
+            return [Reading({inner_drs:function1, outer_drs:function2})]
+        else:
+            return []
+
+    def get_variable(self):
+        return self.argument.variable
+
 
 class LocationTimeResolutionException(Exception):
     pass
@@ -526,7 +595,54 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
 
 class DrtParser(drt.DrtParser):
     """DrtParser producing conditions and referents for temporal logic"""
-        
+
+    def get_all_symbols(self):
+        return DrtTokens.SYMBOLS
+
+    def isvariable(self, tok):
+        return tok not in DrtTokens.TOKENS
+
+    def handle_variable(self, tok, context):
+        #It's either: 1) a predicate expression: sees(x,y)
+        #             2) an application expression: P(x)
+        #             3) a solo variable: john OR x
+        accum = self.make_VariableExpression(tok)
+        # handle the feature structure of the variable
+        features = []
+        try:
+            if self.token(0) == DrtTokens.OPEN_BRACE:
+                self.token() # swallow the OPEN_BRACE
+                while self.token(0) != DrtTokens.CLOSE_BRACE:
+                    features.append(self.token())
+                    if self.token(0) == drt.DrtTokens.COMMA:
+                        self.token() # swallow the comma
+                self.token() # swallow the CLOSE_BRACE
+        except ParseException:
+            #we've reached the end of input, this constant has no features
+            pass
+        if self.inRange(0) and self.token(0) == DrtTokens.OPEN:
+            if features:
+                accum = DrtFeatureConstantExpression(accum.variable, features)
+            #The predicate has arguments
+            if isinstance(accum, drt.DrtIndividualVariableExpression):
+                raise ParseException(self._currentIndex, 
+                                     '\'%s\' is an illegal predicate name.  '
+                                     'Individual variables may not be used as '
+                                     'predicates.' % tok)
+            self.token() #swallow the Open Paren
+            
+            #curry the arguments
+            accum = self.make_ApplicationExpression(accum, 
+                                                    self.parse_Expression('APP'))
+            while self.inRange(0) and self.token(0) == DrtTokens.COMMA:
+                self.token() #swallow the comma
+                accum = self.make_ApplicationExpression(accum, 
+                                                        self.parse_Expression('APP'))
+            self.assertNextToken(DrtTokens.CLOSE)
+        elif features:
+            accum = DrtFeatureConstantExpression(accum.variable, map(Variable,features))
+        return accum
+
     def handle_DRS(self, tok, context):
         drs = drt.DrtParser.handle_DRS(self, tok, context)
         return DRS(drs.refs, drs.conds)
@@ -559,6 +675,8 @@ class DrtParser(drt.DrtParser):
             return DrtLocationTimeApplicationExpression(function, argument)
         elif isinstance(argument, DrtTimeVariableExpression):
             return DrtTimeApplicationExpression(function, argument)
+        elif isinstance(function, DrtProperNameExpression):
+            return DrtProperNameApplicationExpression(function, argument)
         else:
             return DrtApplicationExpression(function, argument)
 
