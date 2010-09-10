@@ -228,11 +228,15 @@ class DRS(AbstractDrs, drt.DRS):
             
             # any bound variable that appears in the expression must
             # be alpha converted to avoid a conflict
-            for ref in (set(self.refs) & expression.free()):
+            for ref in (set(self.get_refs()) & expression.free()):
                 newvar = unique_variable(ref) 
                 newvarex = DrtVariableExpression(newvar)
-                i = self.refs.index(ref)
-                self = self.__class__(self.refs[:i]+[newvar]+self.refs[i+1:],
+                if ref in self.refs:
+                    i = self.refs.index(ref)
+                    refs = self.refs[:i]+[newvar]+self.refs[i+1:]
+                else:
+                    refs = self.refs
+                self = self.__class__(refs,
                            [cond.replace(ref, newvarex, True) 
                             for cond in self.conds])
                 
@@ -280,9 +284,7 @@ class DRS(AbstractDrs, drt.DRS):
         for cond in self.conds:
             readings = cond.readings(trail + [self])
             if readings:
-                if readings[1]:
-                    self.conds.remove(cond)
-                return readings[0], False
+                return readings
    
 class PresuppositionDRS(DRS):
     """A Discourse Representation Structure for presuppositions.

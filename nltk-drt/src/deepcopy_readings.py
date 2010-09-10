@@ -25,13 +25,6 @@ from temporaldrt import DrtVariableExpression, unique_variable
 
 import operator
 
-from operator import __and__ as AND
-def isListOfTuples(x):
-    """From http://effbot.org/zone/python-list.htm, list of lists."""
-    if not isinstance(x, list): return False
-    return reduce(AND, map(lambda z: isinstance(z, tuple), x))
-
-
 class Readings:
     """
     When we want to resolve a whole-discourse (i.e. outermost) DRS, 
@@ -43,7 +36,7 @@ class Readings:
     This object takes care of multiple readings. 
     """
     def __init__(self, drt):
-        self.readings = list(drt.__deepcopy__()) # Start with one reading
+        self.readings = [drt] # Start with one reading
         # Next, resolve the DRT and keep the multiple readings.
         self.collect_readings()
     
@@ -56,6 +49,7 @@ class Readings:
     
     def collect_readings(self):
         "This method does the whole job of collecting multiple readings."
+        print "COLLECT READINGS"
         new_readings = []
         old_readings = []
         """We aim to get new readings from the old ones by resolving
@@ -66,11 +60,13 @@ class Readings:
         # Go through the list of readings we already have
         for drs in self.readings:
             # If a presupposition resolution took place, readings() 
-            # returns a list of tuples (DRS, operation). Otherwise
-            # it will return a DRS.
+            # returns a dictionary (DRS, operation). Otherwise
+            # it will return a None.
             r = drs.readings()
-            if isListOfTuples(r):
+            if not r: return
+            if isinstance(r, list):
                 old_readings.append(drs)
+                print 'new_readings', new_readings
                 new_readings += self.get_drs_deepcopies(drs, operations=r)
         # If there has been no new readings, we are done.
         if not new_readings: return
@@ -87,83 +83,11 @@ class Readings:
         @param operations: C{dict} of the form DRS function
         The argument DRS gets copied as many times as there are tuples on 
         the operations list, and for each copy, one of the operations is performed."""
+        new_readings = []
         for o in operations:
-            # Get a deep copy of the drs with one substitution
-            drs.deepcopy(operation=o)
-        
-                    
-class DRS(temporaldrt.DRS):
-
-# buggy code, delete
-#    def __deepcopy__(self):
-#        """A deep copy constructs a new compound object and then, 
-#        recursively, inserts copies into it of the objects found 
-#        in the original."""
-#        return self.deepcopy(operation=None)[0]
-    
-    def replace(self, variable, expression, replace_bound=False):
-        """Replace all instances of variable v with expression E in self,
-        where v is free in self."""
-        if variable in self.refs + reduce(operator.add, [c.refs for c in self.conds if isinstance(c, PresuppositionDRS)], []):
-            #if a bound variable is the thing being replaced
-            if not replace_bound:
-                return self
-            else:
-                if variable in self.refs:
-                    i = self.refs.index(variable)
-                    refs = self.refs[:i]+[expression.variable]+self.refs[i+1:]
-                else:
-                    refs = self.refs
-                return DRS(refs,
-                           [cond.replace(variable, expression, True) for cond in self.conds])
-        else:
-            #variable not bound by this DRS
-            
-            # any bound variable that appears in the expression must
-            # be alpha converted to avoid a conflict
-            for ref in (set(self.refs) & expression.free()):
-                newvar = unique_variable(ref) 
-                newvarex = DrtVariableExpression(newvar)
-                i = self.refs.index(ref)
-                self = DRS(self.refs[:i]+[newvar]+self.refs[i+1:],
-                           [cond.replace(ref, newvarex, True) 
-                            for cond in self.conds])
-                
-            #replace in the conditions
-            return DRS(self.refs,
-                       [cond.replace(variable, expression, replace_bound) 
-                        for cond in self.conds])
-
-    def free(self, indvar_only=True):
-        """@see: Expression.free()"""
-        conds_free = reduce(operator.or_, 
-                            [c.free(indvar_only) for c in self.conds], set()) 
-        return conds_free - (set(self.refs) | reduce(operator.or_, [set(c.refs) for c in self.conds if isinstance(c, PresuppositionDRS)], set()))
-
-    def deepcopy(self, operation=None):
-        """This method returns a deep copy of the DRS.
-        Optionally, it can take a tuple (DRS, function) 
-        as an argument and generate a reading by performing 
-        a substitution in the DRS as specified by the function.
-        @param operation: a tuple (DRS, function), 
-        where the DRS is an argument to pass to that function.
-        """
-        function = None
-        if operation and self == operation[0]:
-            function = operation[1]
-            operation = None
-        new_drs = self.__class__(list(self.refs), \
-                                 [cond.deepcopy(operation) for cond in self.conds])
-        if function:
-            return function(new_drs)
-        else:
-            return new_drs
-
-class PresuppositionDRS(DRS):
-    """A Discourse Representation Structure for presuppositions.
-    Presuppositions triggered by a possessive pronoun/marker, the definite article, a proper name
-    will be resolved in different ways. They are represented by subclasses of PresuppositionalDRS."""
-    pass
+            # Get a deep copy of the drs with substitutions for one reading
+            new_readings.append(drs.deepcopy(operations=o))
+        return new_readings
 
 class AbstractVariableExpression(logic.AbstractVariableExpression):
     def deepcopy(self):
