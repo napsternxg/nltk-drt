@@ -4,7 +4,6 @@ import temporaldrt as drt
 from temporaldrt import AnaphoraResolutionException
 from temporaldrt import DrtEqualityExpression
 from temporaldrt import is_propername
-from temporaldrt import DrtProperNameApplicationExpression
 from temporaldrt import DrtConstantExpression
 class DrtTokens(drt.DrtTokens):
     REFLEXIVE_PRONOUN = 'REFPRO'
@@ -152,10 +151,6 @@ class DrtParser(drt.DrtParser):
                function.variable.name == DrtTokens.POSSESSIVE_PRONOUN and \
                isinstance(argument, drt.DrtIndividualVariableExpression):
             return DrtPossessivePronounApplicationExpression(function, argument)
-        
-        elif isinstance(function, DrtConstantExpression) and\
-               is_propername(function.variable.name):
-            return DrtProperNameApplicationExpression(function, argument)
 
 #        elif isinstance(argument, drt.DrtEventVariableExpression):
 #            return DrtEventApplicationExpression(function, argument)
