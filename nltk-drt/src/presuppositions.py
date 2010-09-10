@@ -1,24 +1,26 @@
-from nltk.sem.drt import DrtParser as OldParser
 import temporaldrt
 import nltk.sem.drt as drt
 import deepcopy_readings
 from deepcopy_readings import PresuppositionDRS, DRS
+from temporaldrt import DrtProperNameApplicationExpression
+
+# Nltk fix
 import nltkfixtemporal
 from nltk.sem.drt import AbstractDrs
 def gr(s, recursive=False):
     return []
-
 AbstractDrs.get_refs = gr
                         
 class DrtTokens(temporaldrt.DrtTokens):
     PROPER_NAME_DRS = 'PROPERNAME'
+    DEFINITE_DESCRIPTION_DRS = 'DEFDESCR'
+    # And pronouns:
     PERSONAL_PRONOUN_DRS = 'PERSPRON'
-    PRESUPP_OF_EXISTENCE_DRS = 'PRSPEX' # presupposition of existence triggered by the definite article, 
-    # the possessiive marker and a possessive pronoun
-    POSSESSION_DRS = 'POSSDRS'
-    #PRESUPPOSITION_DRS = 'PRESUPP'
-    #PRESUPPOSITION_ACCOMODATION = 'ACCOMOD'
-    PRESUPPOSITION_DRS = [PROPER_NAME_DRS, PERSONAL_PRONOUN_DRS, PRESUPP_OF_EXISTENCE_DRS, POSSESSION_DRS]
+    POSSESSIVE_PRONOUN_DRS = 'POSSPRON'
+    REFLEXIVE_PRONOUN_DRS = 'REFLPRON'
+    PRESUPPOSITION_DRS = [PROPER_NAME_DRS, DEFINITE_DESCRIPTION_DRS, 
+                          PERSONAL_PRONOUN_DRS, POSSESSIVE_PRONOUN_DRS, 
+                          REFLEXIVE_PRONOUN_DRS]
 
 class DrtParser(temporaldrt.DrtParser):
 
@@ -33,30 +35,80 @@ class DrtParser(temporaldrt.DrtParser):
         """
         self.assertNextToken(DrtTokens.OPEN)
         drs = self.handle_DRS(tok,context)
-        
         if tok == DrtTokens.PROPER_NAME_DRS:
             return ProperNameDRS(drs.refs, drs.conds)
+        elif tok == DrtTokens.DEFINITE_DESCRIPTION_DRS:
+            return DefiniteDescriptionDRS(drs.refs, drs.conds)
         elif tok == DrtTokens.PERSONAL_PRONOUN_DRS:
             return PersonalPronounDRS(drs.refs, drs.conds)
-        elif tok == DrtTokens.PRESUPP_OF_EXISTENCE_DRS:
-            return PresuppOfExistenceDRS(drs.refs, drs.conds)
-        elif tok == DrtTokens.POSSESSION_DRS:
-            return PossessionDRS(drs.refs, drs.conds)
+        elif tok == DrtTokens.POSSESSIVE_PRONOUN_DRS:
+            return PossessivePronounDRS(drs.refs, drs.conds)
+        elif tok == DrtTokens.REFLEXIVE_PRONOUN_DRS:
+            return ReflexivePronounDRS(drs.refs, drs.conds)
 
     def handle_DRS(self, tok, context):
         drs = drt.DrtParser.handle_DRS(self, tok, context)
         return DRS(drs.refs, drs.conds)
 
 class ProperNameDRS(PresuppositionDRS):
+    def readings(self, trail=[]):
+        """A proper name always yields one reading: it is either global binding 
+        or global accommodation (if binding is not possible)"""
+        # In DRSs representing sentences like 'John, who owns a dog, feeds it',
+        # there will be more than one condition in the presupposition DRS.
+        # Find the proper name application expression
+        proper_name = None
+        for cond in self.conds:
+            if isinstance(cond, DrtProperNameApplicationExpression):
+                proper_name = cond
+                break
+        assert(proper_name is not None)
+        drss = temporaldrt.get_drss(trail)
+        ########
+        # Try binding in the outer DRS
+        ########
+        antecedent_ref = None
+        outer_drs = drss['global']
+        for cond in outer_drs.conds:
+            # Binding is only possible if there is a condition with the 
+            # same functor (proper name) at the global level
+            if isinstance(cond, DrtProperNameApplicationExpression) and \
+            cond.function.variable.name == proper_name.function.variable.name:
+                antecedent_ref = cond.argument
+                break
+        if antecedent_ref:
+            # 1) Put all conditions (except the proper name itself)
+            # into the outer DRS, and replace the referent in them with
+            # antecedent_ref.
+            # 2) In the conditions of the local DRS, replace the 
+            # referent of proper name with antecedent_ref.
+            def function():
+                pass
+            
+        
+        
+        
+        # TODO: if you generate a reading/readings, return at once!
+        # And all the drss above return them, too.
+        pass
+
+class DefiniteDescriptionDRS(PresuppositionDRS):
+    def readings(self, trail=[]):
+        pass
+
+class PronounDRS(PresuppositionDRS):
+    """A superclass for DRSs for personal, reflexive, 
+    and possessive pronouns"""
+    def readings(self, trail=[]):
+        pass
+
+class PersonalPronounDRS(PronounDRS):
     pass
 
-class PersonalPronounDRS(PresuppositionDRS):
+class PossessivePronounDRS(PronounDRS):
     pass
 
-class PresuppOfExistenceDRS(PresuppositionDRS):
-    pass
-
-class PossessionDRS(PresuppositionDRS):
+class ReflexivePronounDRS(PronounDRS):
     pass
 
 #################################
@@ -99,21 +151,16 @@ if __name__ == '__main__':
                  'The boy s father marries his girl',
                  ['John marries his girl','He walks'],
                  'The boy walks',
-                 ['A boy marries the girl', 'He walks']
+                 ['A boy marries the girl', 'He walks'],
+                 'A boy s father marries his girl'
                  ]
+    """
+    # A DRS sees the referents of the immediately embedded 
+    # presuppositional DRSs as its referents
     p = DrtParser().parse
-    #expr = p(r'DRS([x],[smoke(x)])')
-    expr = p(r'\x.DRS([],[PRSPEX([x],[boy(x)])walk(x)])(z)')
-    expr_1 = p(r'DRS([],[PRSPEX([x],[boy(x)])walk(x)])')
-    expr_11 = p(r'DRS([x],[PRSPEX([],[boy(x)])walk(x)])')
+    expr = p(r'\x.DRS([],[DEFDESCR([x],[boy(x)])walk(x)])(z)')
+    expr_1 = p(r'DRS([],[DEFDESCR([x],[boy(x)])walk(x)])')
     print expr.simplify()
     print expr_1.free()
-    print expr_1.get_refs(True)
-    print expr_11.free()
-    print expr_11.get_refs(True)
-    expr_2 = p(r'\x.DRS([x],[DRS([],[boy(x)])walk(x)])(z)')
-    print expr.simplify()
-    print expr_2.simplify()
-    #expr_2 = p('DRS([x],[smoke(x)])')
-    #print (expr+expr_2).simplify()
-    for sentence in sentences[-1:]: test(sentence, parser, draworig = True, drawdrs = True)
+    """
+    for sentence in sentences[2:3]: test(sentence, parser, draworig = True, drawdrs = True)
