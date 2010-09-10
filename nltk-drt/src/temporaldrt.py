@@ -178,10 +178,9 @@ class AbstractDrs(drt.AbstractDrs):
     
     def substitute_bindings(self, bindings):
         expr = self
-        #print "sub:", self, type(self), expr.variables(), bindings
         for var in expr.variables():
-            if var in bindings:
-                val = bindings[var]
+            val = bindings.get(var, None)
+            if val:
                 if isinstance(val, Variable):
                     val = DrtVariableExpression(val)
                 elif isinstance(val, Expression):
@@ -277,10 +276,13 @@ class DRS(AbstractDrs, drt.DRS):
         return self.__class__(self.refs, [cond.resolve(trail + [self]) for cond in self.conds])
     
     def readings(self, trail=[]):
+        """get the readings for this DRS, if the second return value is true the condition is removed"""
         for cond in self.conds:
             readings = cond.readings(trail + [self])
             if readings:
-                return readings
+                if readings[1]:
+                    self.conds.remove(cond)
+                return readings[0], False
    
 class PresuppositionDRS(DRS):
     """A Discourse Representation Structure for presuppositions.
@@ -315,7 +317,7 @@ class DrtAbstractVariableExpression(AbstractDrs, drt.DrtAbstractVariableExpressi
         return self
     
     def readings(self, trail=[]):
-        pass
+        return None
     
     def deepcopy(self, operations=None):
         return self.__class__(self.variable)
