@@ -176,6 +176,24 @@ class AbstractDrs(drt.AbstractDrs):
                         self.make_VariableExpression(Variable(newVar)), True)
         return result
     
+    def substitute_bindings(self, bindings):
+        expr = self
+        #print "sub:", self, type(self), expr.variables(), bindings
+        for var in expr.variables():
+            if var in bindings:
+                val = bindings[var]
+                if isinstance(val, Variable):
+                    val = DrtVariableExpression(val)
+                elif isinstance(val, Expression):
+                    val = val.substitute_bindings(bindings)
+                elif isinstance(val, str):
+                    val = DrtFeatureExpression(Variable(val))
+                else:
+                    raise ValueError('Can not substitute a non-expression '
+                                         'value into an expression: %r' % (val,))
+                expr = expr.replace(var, val)
+        return expr.simplify()
+
     def resolve(self, trail=[]):
         """
         resolve anaphora should not resolve individuals and events to time referents.
@@ -314,19 +332,27 @@ class DrtEventVariableExpression(DrtIndividualVariableExpression, drt.DrtEventVa
 class DrtConstantExpression(DrtAbstractVariableExpression, drt.DrtConstantExpression):
     pass
 
+class DrtFeatureExpression(DrtConstantExpression):
+    """An expression for a single syntactic feature"""
+    pass
+
 class DrtFeatureConstantExpression(DrtConstantExpression):
     """A constant expression with syntactic features attached"""
     def __init__(self, variable, features):
         DrtConstantExpression.__init__(self, variable)
         self.features = features
 
-    def substitute_bindings(self, bindings):
-        expression = DrtConstantExpression.substitute_bindings(self, bindings)
-#        print type(expression), self.features, bindings
+    def replace(self, variable, expression, replace_bound=False):
+        """@see: Expression.replace()"""
+        assert isinstance(variable, Variable), "%s is not an Variable" % variable
+        assert isinstance(expression, Expression), "%s is not an Expression" % expression
+        return self.__class__(DrtConstantExpression.replace(self, variable, expression, replace_bound).variable, [feature.replace(variable, expression, replace_bound) for feature in self.features])
 
-        features = reduce(lambda acc, var: (var in bindings and acc + [bindings[var]]) or acc, self.features, [])
-
-        return self.__class__(expression.variable, features or self.features)
+    def visit(self, function, combinator, default):
+        """@see: Expression.visit()"""
+        re = combinator(function(self.variable), reduce(combinator, 
+                      [function(e) for e in self.features], default))
+        return re
 
     def str(self, syntax=DrtTokens.NLTK):
         return str(self.variable) + "{" + ",".join([str(feature) for feature in self.features]) + "}"
@@ -598,7 +624,7 @@ class DrtParser(drt.DrtParser):
             if self.token(0) == DrtTokens.OPEN_BRACE:
                 self.token() # swallow the OPEN_BRACE
                 while self.token(0) != DrtTokens.CLOSE_BRACE:
-                    features.append(self.token())
+                    features.append(DrtFeatureExpression(Variable(self.token())))
                     if self.token(0) == drt.DrtTokens.COMMA:
                         self.token() # swallow the comma
                 self.token() # swallow the CLOSE_BRACE
