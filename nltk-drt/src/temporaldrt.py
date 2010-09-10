@@ -247,9 +247,7 @@ class DRS(AbstractDrs, drt.DRS):
         @param operations: a dictionary DRS: function, 
         where the DRS is an argument to pass to that function.
         """
-        function = None
-        if self in operations.keys(): function = operations[self]
-        #function = (operation and self == operation and operation[1]) or None
+        function = (operations and self in operations and operations[self]) or None
         newdrs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
         return (function and function(newdrs)) or newdrs
             
@@ -545,42 +543,6 @@ class DrtProperNameApplicationExpression(DrtApplicationExpression):
     def fol(self):
         """New condition for proper names added"""
         return EqualityExpression(self.function.fol(), self.argument.fol())
-    def resolve(self, trail=[]):
-        for ancestor in trail:
-            if isinstance(ancestor, DRS):
-                outer_drs = ancestor
-                break
-        for ancestor in ReverseIterator(trail):
-                inner_drs = ancestor
-                break
-
-        if inner_drs is not outer_drs:
-            inner_drs.refs.remove(self.get_variable())
-            outer_drs.refs.append(self.get_variable())
-            outer_drs.conds.append(self)
-            return None
-        else:
-            return self
-
-    def readings(self, trail=[]):
-        for ancestor in trail:
-            if isinstance(ancestor, DRS):
-                outer_drs = ancestor
-                break
-        for ancestor in ReverseIterator(trail):
-                inner_drs = ancestor
-                break
-
-        if inner_drs is not outer_drs:
-            def function1(drs):
-                drs.refs.remove(self.get_variable())
-                drs.conds.remove(self)
-            def function2(drs):
-                drs.refs.append(self.get_variable())
-                drs.conds.append(self)
-            return [Reading({inner_drs:function1, outer_drs:function2})]
-        else:
-            return []
 
     def get_variable(self):
         return self.argument.variable
