@@ -190,7 +190,7 @@ class DRS(AbstractDrs, drt.DRS):
     def replace(self, variable, expression, replace_bound=False):
         """Replace all instances of variable v with expression E in self,
         where v is free in self."""
-        if variable in self.refs + reduce(operator.add, [c.refs for c in self.conds if isinstance(c, PresuppositionDRS)], []):
+        if variable in self.get_refs():
             #if a bound variable is the thing being replaced
             if not replace_bound:
                 return self
@@ -244,8 +244,10 @@ class DRS(AbstractDrs, drt.DRS):
         where the DRS is an argument to pass to that function.
         """
 
-        return ((operation and self == operation and operation[1]) or (lambda x: x))(self.__class__(list(self.refs), \
-                                 [cond.deepcopy(operation) for cond in self.conds]))
+        function = (operation and self == operation and operation[1]) or None
+        newdrs = self.__class__(list(self.refs), [cond.deepcopy(operation) for cond in self.conds])
+        return (function and function(newdrs)) or newdrs
+            
 
     def simplify(self):
         return self.__class__(self.refs, [cond.simplify() for cond in self.conds])
@@ -254,11 +256,11 @@ class DRS(AbstractDrs, drt.DRS):
         return self.__class__(self.refs, [cond.resolve(trail + [self]) for cond in self.conds])
     
     def readings(self, trail=[]):
-        readings = []
         for cond in self.conds:
-            readings.extend(cond.readings(trail + [self]))
-        return readings
-    
+            readings = cond.readings(trail + [self])
+            if readings:
+                return readings
+   
 class PresuppositionDRS(DRS):
     """A Discourse Representation Structure for presuppositions.
     Presuppositions triggered by a possessive pronoun/marker, the definite article, a proper name
@@ -292,7 +294,7 @@ class DrtAbstractVariableExpression(AbstractDrs, drt.DrtAbstractVariableExpressi
         return self
     
     def readings(self, trail=[]):
-        return []
+        pass
     
     def deepcopy(self, operation=None):
         return self.__class__(self.variable)
@@ -316,6 +318,10 @@ class DrtProperNameExpression(DrtConstantExpression):
 class DrtNegatedExpression(AbstractDrs, drt.DrtNegatedExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.term.resolve(trail + [self]))
+
+    def readings(self, trail=[]):
+        return self.term.readings(trail + [self])
+
     def deepcopy(self, operation=None):
         return self.__class__(self.term.deepcopy(operation))
 
@@ -366,7 +372,11 @@ class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
                               self.second.resolve(trail + [self]))
         
     def readings(self, trail=[]):
-        return self.first.readings(trail + [self]) + self.second.readings(trail + [self])
+        first_readings = self.first.readings(trail + [self])
+        if first_readings:
+            return first_readings
+        else:
+            return self.second.readings(trail + [self])
     
     def deepcopy(self, operation=None):
         return self.__class__(self.first.deepcopy(operation), self.second.deepcopy(operation))
@@ -378,10 +388,13 @@ class DrtImpExpression(DrtBooleanExpression, drt.DrtImpExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.first.resolve(trail + [self]),
                               self.second.resolve(trail + [self, self.first]))
-        
-    def readings(self, trail=[]):
-        return self.first.readings(trail + [self]) + self.second.readings(trail + [self, self.first])
 
+    def readings(self, trail=[]):
+        first_readings = self.first.readings(trail + [self])
+        if first_readings:
+            return first_readings
+        else:
+            return self.second.readings(trail + [self, self.first])
 
 class DrtIffExpression(DrtBooleanExpression, drt.DrtIffExpression):
     pass
@@ -391,7 +404,7 @@ class DrtEqualityExpression(AbstractDrs, drt.DrtEqualityExpression):
         return self
     
     def readings(self, trail=[]):
-        return []
+        return None
     
     def deepcopy(self, operation=None):
         return self.__class__(self.first.deepcopy(operation), self.second.deepcopy(operation))
@@ -453,10 +466,14 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.function.resolve(trail + [self]),
                               self.argument.resolve(trail + [self]))
-        
+
     def readings(self, trail=[]):
-        return self.function.readings(trail + [self]) + self.argument.readings(trail + [self])
-    
+        function_readings = self.function.readings(trail + [self])
+        if function_readings:
+            return function_readings
+        else:
+            return self.argument.readings(trail + [self, self.first])
+
     def deepcopy(self, operation=None):
         return self.__class__(self.function.deepcopy(operation), self.argument.deepcopy(operation))
 
@@ -480,54 +497,6 @@ class ReverseIterator:
         while i > 0:
             i = i - 1
             yield self.sequence[i]
-
-class DrtProperNameApplicationExpression(DrtApplicationExpression):
-    def fol(self):
-        """New condition for proper names added"""
-        return EqualityExpression(self.function.fol(), self.argument.fol())
-    def resolve(self, trail=[]):
-        for ancestor in trail:
-            if isinstance(ancestor, DRS):
-                outer_drs = ancestor
-                break
-        for ancestor in ReverseIterator(trail):
-                inner_drs = ancestor
-                break
-
-        if inner_drs is not outer_drs:
-            inner_drs.refs.remove(self.get_variable())
-            outer_drs.refs.append(self.get_variable())
-            outer_drs.conds.append(self)
-            return None
-        else:
-            return self
-
-    def readings(self, trail=[]):
-        for ancestor in trail:
-            if isinstance(ancestor, DRS):
-                outer_drs = ancestor
-                break
-        for ancestor in ReverseIterator(trail):
-                inner_drs = ancestor
-                break
-
-        if inner_drs is not outer_drs:
-            def function1(drs):
-                drs.refs.remove(self.get_variable())
-                drs.conds.remove(self)
-            def function2(drs):
-                drs.refs.append(self.get_variable())
-                drs.conds.append(self)
-            return [Reading({inner_drs:function1, outer_drs:function2})]
-        else:
-            return []
-
-    def get_variable(self):
-        return self.argument.variable
-
-class Reading(object):
-    def __init__(self, substitutions):
-        self.substitutions = substitutions
 
 class LocationTimeResolutionException(Exception):
     pass
@@ -553,72 +522,7 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
                             "resolve to anything." % self.argument)
         
     def readings(self, trail=[]):
-        return []
-        
-class DrtPresuppositionApplicationExpression(DrtApplicationExpression):
-    
-    def resolve(self, trail=[]):
-        # We have three possible types of accomodation :
-        # local (in this very DRS), intermediate (in the preceeding DRS),
-        # and global (in the outermost DRS)
-        
-        # First, get the inner DRS and ,if possible (if they are not the same DRS), 
-        # the preceeding DRS and the outer DRS
-        inner_drs = None # local accomodation
-        preceeding_drs = None # intermediate accomodation
-        outermost_drs = None # global accomodation
-        while trail:
-            ancestor = trail.pop()
-            if isinstance(ancestor, DRS):
-                if not inner_drs: inner_drs = ancestor
-                elif not preceeding_drs:
-                    preceeding_drs = ancestor
-                    break
-        while trail:
-            ancestor = trail.pop(0)
-            if isinstance(ancestor, DRS):
-                outermost_drs = ancestor
-                break
-        
-        # Now go through the conditions of the inner DRS and take out all 
-        # conditions pertaining to the presupposition
-        presupp_referents = [] # Probably this list will never have more than one element.
-        presupp_conditions = [] # All the presupposition conditions will be removed 
-        for cond in inner_drs.conds:
-            if not isinstance(cond, DrtApplicationExpression): # for example, DrtEqualityExpression
-                continue
-            if self == cond.function:
-                presupp_referents.append(cond.argument)
-                presupp_conditions.append(cond)
-            elif cond.argument in presupp_referents:
-                presupp_conditions.append(cond)
-        
-        for prcon in presupp_conditions:            
-            if self == prcon.function:
-                # Add a DrtEqualityExpression to the inner DRS
-                inner_drs.conds.append(DrtEqualityExpression(self.argument, prcon.argument))
-                inner_drs.conds.remove(prcon)
-                # If possible, add a DrtPossiblePresuppAccomodationExpression 
-                # to each of the 3 DRS's (inner, preceeding, outermost)
-                accomodation = DrtPossiblePresuppAccomodationExpression(DrtConstantExpression(Variable(DrtTokens.PRESUPP_ACCOMODATION)), prcon.argument)
-                inner_drs.conds.append(accomodation)
-                if preceeding_drs: preceeding_drs.conds.append(accomodation)
-                if outermost_drs: outermost_drs.conds.append(accomodation)
-            else:
-                # If possible, put the prcon condition into each of the 3 DRS's 
-                # (inner [it is already there], preceeding, outermost)
-                if preceeding_drs: preceeding_drs.conds.append(prcon)
-                if outermost_drs: outermost_drs.conds.append(prcon)
-        return self
-
-    def readings(self, trail=[]):
-        return []
-
-    def get_variable(self):
-        return self.argument.variable
-    
-class DrtPossiblePresuppAccomodationExpression(DrtApplicationExpression):
-    pass
+        return None
 
 class DrtParser(drt.DrtParser):
     """DrtParser producing conditions and referents for temporal logic"""
@@ -655,12 +559,6 @@ class DrtParser(drt.DrtParser):
             return DrtLocationTimeApplicationExpression(function, argument)
         elif isinstance(argument, DrtTimeVariableExpression):
             return DrtTimeApplicationExpression(function, argument)
-        elif isinstance(function, DrtProperNameExpression):
-            return DrtProperNameApplicationExpression(function, argument)
-        elif isinstance(function, DrtAbstractVariableExpression) and \
-        function.variable.name == DrtTokens.PRESUPPOSITION and \
-        isinstance(argument, DrtIndividualVariableExpression):
-            return DrtPresuppositionApplicationExpression(function, argument)
         else:
             return DrtApplicationExpression(function, argument)
 
