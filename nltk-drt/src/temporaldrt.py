@@ -239,17 +239,18 @@ class DRS(AbstractDrs, drt.DRS):
         else:
             return self.refs + reduce(operator.add, [c.refs for c in self.conds if isinstance(c, PresuppositionDRS)], [])
 
-    def deepcopy(self, operation=None):
+    def deepcopy(self, operations=None):
         """This method returns a deep copy of the DRS.
         Optionally, it can take a tuple (DRS, function) 
         as an argument and generate a reading by performing 
         a substitution in the DRS as specified by the function.
-        @param operation: a tuple (DRS, function), 
+        @param operations: a dictionary DRS: function, 
         where the DRS is an argument to pass to that function.
         """
-
-        function = (operation and self == operation and operation[1]) or None
-        newdrs = self.__class__(list(self.refs), [cond.deepcopy(operation) for cond in self.conds])
+        function = None
+        if self in operations.keys(): function = operations[self]
+        #function = (operation and self == operation and operation[1]) or None
+        newdrs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
         return (function and function(newdrs)) or newdrs
             
 
@@ -300,7 +301,7 @@ class DrtAbstractVariableExpression(AbstractDrs, drt.DrtAbstractVariableExpressi
     def readings(self, trail=[]):
         pass
     
-    def deepcopy(self, operation=None):
+    def deepcopy(self, operations=None):
         return self.__class__(self.variable)
 
 class DrtIndividualVariableExpression(DrtAbstractVariableExpression, drt.DrtIndividualVariableExpression):
@@ -332,7 +333,7 @@ class DrtFeatureConstantExpression(DrtConstantExpression):
     def str(self, syntax=DrtTokens.NLTK):
         return str(self.variable) + "{" + ",".join([str(feature) for feature in self.features]) + "}"
     
-    def deepcopy(self, operation=None):
+    def deepcopy(self, operations=None):
         return self.__class__(self.variable, self.features)
 
 class DrtProperNameExpression(DrtConstantExpression):
@@ -346,8 +347,8 @@ class DrtNegatedExpression(AbstractDrs, drt.DrtNegatedExpression):
     def readings(self, trail=[]):
         return self.term.readings(trail + [self])
 
-    def deepcopy(self, operation=None):
-        return self.__class__(self.term.deepcopy(operation))
+    def deepcopy(self, operations=None):
+        return self.__class__(self.term.deepcopy(operations))
 
 class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
     def alpha_convert(self, newvar):
@@ -387,8 +388,8 @@ class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
     def readings(self, trail=[]):
         return self.term.readings(trail + [self])
     
-    def deepcopy(self, operation=None):
-        return self.__class__(self.variable, self.term.deepcopy(operation))
+    def deepcopy(self, operations=None):
+        return self.__class__(self.variable, self.term.deepcopy(operations))
 
 class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
     def resolve(self, trail=[]):
@@ -402,8 +403,8 @@ class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
         else:
             return self.second.readings(trail + [self])
     
-    def deepcopy(self, operation=None):
-        return self.__class__(self.first.deepcopy(operation), self.second.deepcopy(operation))
+    def deepcopy(self, operations=None):
+        return self.__class__(self.first.deepcopy(operations), self.second.deepcopy(operations))
 
 class DrtOrExpression(DrtBooleanExpression, drt.DrtOrExpression):
     pass
@@ -430,8 +431,8 @@ class DrtEqualityExpression(AbstractDrs, drt.DrtEqualityExpression):
     def readings(self, trail=[]):
         return None
     
-    def deepcopy(self, operation=None):
-        return self.__class__(self.first.deepcopy(operation), self.second.deepcopy(operation))
+    def deepcopy(self, operations=None):
+        return self.__class__(self.first.deepcopy(operations), self.second.deepcopy(operations))
 
 class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
     """DRS of the form '(DRS + DRS)'"""
@@ -498,8 +499,8 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
         else:
             return self.argument.readings(trail + [self])
 
-    def deepcopy(self, operation=None):
-        return self.__class__(self.function.deepcopy(operation), self.argument.deepcopy(operation))
+    def deepcopy(self, operations=None):
+        return self.__class__(self.function.deepcopy(operations), self.argument.deepcopy(operations))
 
 class PossibleAntecedents(AbstractDrs, drt.PossibleAntecedents):
     pass
@@ -521,6 +522,24 @@ class ReverseIterator:
         while i > 0:
             i = i - 1
             yield self.sequence[i]
+
+def get_drss(trail=[]):
+    """Take a trail (a list of all previously visited DRSs and expressions) 
+    and return the local, intermediate and outer DRSs"""
+    drss = {}
+    outer_drs = trail[0]
+    assert isinstance(outer_drs, DRS)
+    drss['global'] = outer_drs
+    inner_drs = trail[-1]
+    if inner_drs is not outer_drs:
+        assert isinstance(inner_drs, DRS)
+        drss['local'] = inner_drs
+    for ancestor in reversed(trail[:-1]):
+                if isinstance(ancestor, DRS):
+                    if ancestor is not outer_drs: 
+                        drss['intermediate'] = ancestor
+                    break
+    return drss
 
 class DrtProperNameApplicationExpression(DrtApplicationExpression):
     def fol(self):

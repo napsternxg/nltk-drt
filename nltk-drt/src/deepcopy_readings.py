@@ -21,7 +21,6 @@
 
 import temporaldrt
 import nltk.sem.logic as logic
-import nltk.sem.drt as drt
 from temporaldrt import DrtVariableExpression, unique_variable
 
 import operator
@@ -85,7 +84,7 @@ class Readings:
         """Return a list of DRSs that are new readings to replace the older
         one (the argument drs).
         @param drs: a C{DRS} object (the outermost DRS)
-        @param operations: C{list} of tuples (DRS, function)
+        @param operations: C{dict} of the form DRS function
         The argument DRS gets copied as many times as there are tuples on 
         the operations list, and for each copy, one of the operations is performed."""
         for o in operations:

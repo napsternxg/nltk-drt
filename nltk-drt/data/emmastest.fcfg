@@ -28,21 +28,21 @@ Det[NUM=sg,SEM=<\P Q.(DRS([],[not((DRS([x],[])+P(x))+Q(x))]))>] -> 'no'
 
 
 # Proper name
-#\P.(DRS([],[PROPERNAME([x],[John(x)])])+P(x))
 PropN[NUM=sg,SEM=<\P.(DRS([],[PROPERNAME([x],[John(x)])])+P(x))>] -> 'John'
 # Pronoun
-#\P.(DRS([],[PERSPRON([x],[])])+P(x))
 Pron[NUM=sg, GEN=m, SEM=<\P.(DRS([],[PERSPRON([x],[])])+P(x))>] -> 'he' | 'He'
 Pron[NUM=sg, GEN=f, SEM=<\P.(DRS([],[PERSPRON([x],[])])+P(x))>] -> 'she' | 'She'
 # Definite article
-#\P Q.(DRS([],[(PRDRS([x],[])+P(x))])+Q(x))
-Det[NUM=sg,SEM=<\P Q.(DRS([],[(PRSPEX([x],[])+P(x))])+Q(x))>] -> 'the' | 'The'
+Det[NUM=sg,SEM=<\P Q.(DRS([],[(DEFDESCR([x],[])+P(x))])+Q(x))>] -> 'the' | 'The'
 # Possessive pronoun
-#\P Q.(DRS([],[(PRDRS([x],[poss(y,x), PRDRS([y],[])])+P(x))])+Q(x))
-Det[NUM=sg,GEN=m,SEM=<\P Q.(DRS([],[(POSSDRS([x],[poss(y,x), PRSPEX([y],[])])+P(x))])+Q(x))>] -> 'his' | 'His'
-Det[NUM=sg,GEN=f,SEM=<\P Q.(DRS([],[(POSSDRS([x],[poss(y,x), PRSPEX([y],[])])+P(x))])+Q(x))>] -> 'her' | 'Her'
-#Possessive marker 's
-PosMarker[SEM=<\O P Q.(DRS([],[(O(\x.(POSSDRS([y],[poss(x,y)])))+P(y))])+Q(y))>] -> 's'
+Det[NUM=sg,GEN=m,SEM=<\P Q.(DRS([],[(DEFDESCR([x],[poss(y,x), POSSPRON([y],[])])+P(x))])+Q(x))>] -> 'his' | 'His'
+Det[NUM=sg,GEN=f,SEM=<\P Q.(DRS([],[(DEFDESCR([x],[poss(y,x), POSSPRON([y],[])])+P(x))])+Q(x))>] -> 'her' | 'Her'
+# Reflexive pronoun
+Pron[NUM=sg, GEN=m, SEM=<\P.(DRS([],[REFLPRON([x],[])])+P(x))>] -> 'himself'
+Pron[NUM=sg, GEN=f, SEM=<\P.(DRS([],[REFLPRON([x],[])])+P(x))>] -> 'herself'
+# Possessive marker 's
+PosMarker[SEM=<\O P Q.(DRS([],[(O(\x.(DEFDESCR([y],[poss(x,y)])))+P(y))])+Q(y))>] -> 's'
+
 
 N[NUM=sg,SEM=<\x.DRS([],[boy(x)])>] -> 'boy' 
 N[NUM=sg,SEM=<\x.DRS([],[girl(x)])>] -> 'girl'
