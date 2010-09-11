@@ -14,7 +14,7 @@ import re
 import operator
 
 from nltk.sem.logic import Variable
-from nltk.sem.logic import EqualityExpression
+from nltk.sem.logic import EqualityExpression, ApplicationExpression
 from nltk.sem.logic import IndividualVariableExpression
 from nltk.sem.logic import _counter, is_eventvar, is_funcvar
 from nltk.sem.logic import BasicType
@@ -344,6 +344,9 @@ class DrtFeatureConstantExpression(DrtConstantExpression):
     
     def deepcopy(self, operations=None):
         return self.__class__(self.variable, self.features)
+    
+    def fol(self):
+        return DrtConstantExpression(self.variable)
 
 class DrtProperNameExpression(DrtConstantExpression):
     """Class for proper names"""
@@ -498,6 +501,16 @@ class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
 
 class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
     
+    def fol(self):
+        if self.is_propername():
+            print self
+            return EqualityExpression(self.function.fol(),
+                                      self.argument.fol())
+                 
+        else: return ApplicationExpression(self.function.fol(), 
+                                           self.argument.fol())
+        
+        
     def is_propername(self):
         """
         A proper name is capitalised. We assume that John(x) uniquely
