@@ -59,20 +59,6 @@ def is_timevar(expr):
     """
     assert isinstance(expr, str), "%s is not a string" % expr
     return re.match(r'^[tn]\d*$', expr)
-
-
-def is_propername(expr):
-    """
-    A proper name is capitalized. We assume that John(x) uniquely
-    identifies the bearer of the name John and so, when going from Kamp & Reyle's
-    DRT format into classical FOL logic, we change a condition like that into John = x.   
-    
-    @param expr: C{str}
-    @return: C{boolean} True if expr is of the correct form 
-    """
-    assert isinstance(expr, str), "%s is not a string" % expr
-    return expr[:1].isupper() and not expr.isupper()
-
   
 def unique_variable(pattern=None, ignore=None):
     """
@@ -307,9 +293,6 @@ def DrtVariableExpression(variable):
         return DrtEventVariableExpression(variable)
     elif is_timevar(variable.name):
         return DrtTimeVariableExpression(variable)
-        """Condition for proper names added"""
-    elif is_propername(variable.name):
-        return DrtProperNameExpression(variable)
     else:
         return DrtConstantExpression(variable)
     
@@ -515,7 +498,19 @@ class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
         else:
             return self.__class__(first,second)
 
-class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):       
+class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
+    
+    def is_propername(self):
+        """
+        A proper name is capitalised. We assume that John(x) uniquely
+        identifies the bearer of the name John and so, when going from Kamp & Reyle's
+        DRT format into classical FOL logic, we change a condition like that into John = x.   
+
+        @return: C{boolean} True if expr is of the correct form 
+        """
+        return isinstance(self.function, DrtConstantExpression) and\
+        self.function.variable.name.istitle()
+   
     def resolve(self, trail=[]):
         return self.__class__(self.function.resolve(trail + [self]),
                               self.argument.resolve(trail + [self]))
@@ -572,15 +567,6 @@ def get_drss(trail=[]):
                         drss['intermediate'] = ancestor
                     break
     return drss
-
-class DrtProperNameApplicationExpression(DrtApplicationExpression):
-    def fol(self):
-        """New condition for proper names added"""
-        return EqualityExpression(self.function.fol(), self.argument.fol())
-
-    def get_variable(self):
-        return self.argument.variable
-
 
 class LocationTimeResolutionException(Exception):
     pass
@@ -690,8 +676,6 @@ class DrtParser(drt.DrtParser):
             return DrtLocationTimeApplicationExpression(function, argument)
         elif isinstance(argument, DrtTimeVariableExpression):
             return DrtTimeApplicationExpression(function, argument)
-        elif isinstance(function, DrtProperNameExpression):
-            return DrtProperNameApplicationExpression(function, argument)
         else:
             return DrtApplicationExpression(function, argument)
 
