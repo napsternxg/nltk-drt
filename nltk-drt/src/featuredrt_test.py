@@ -1,8 +1,10 @@
 from nltk import load_parser
-from featuredrt import AnaphoraResolutionException
 from temporaldrt import DrtParser, DrtFeatureExpression
-from util import parse, test
+from util import Tester
 import nltkfixtemporal
+
+class AnaphoraResolutionException(Exception):
+    pass
 
 def get_refs(self, recursive=False):
     return []
@@ -38,8 +40,8 @@ def main():
     p = DrtParser()
     drs = p.parse("DRS([x,z2,e],[Jones{sg,m}(x), Porsche{sg,n}(z2), own(e)])")
     print drs
-    parser = load_parser('file:../data/tenseaspect_1.fcfg', logic_parser=DrtParser())
-    drs = parse(parser, "Angus owns a car.", True)
+    tester = Tester('file:../data/grammar.fcfg', DrtParser)
+    drs = tester.parse( "Mary kissed a girl. She bit she.")
     drs = drs.resolve()
     print drs.deepcopy()
     drs.draw()
