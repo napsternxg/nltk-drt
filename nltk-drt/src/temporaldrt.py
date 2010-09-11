@@ -192,7 +192,39 @@ class AbstractDrs(drt.AbstractDrs):
         """
         raise NotImplementedError()
     
-    def readings(self, trail=[]):
+    def readings(self):
+        "This method does the whole job of collecting multiple readings."
+        """We aim to get new readings from the old ones by resolving
+        presuppositional DRSs one by one. Every time one presupposition
+        is resolved, new readings are created and replace the old ones,
+        until there are no presuppositions left to resolve.
+        """
+        readings = []
+        
+        def acc_functions(functions, expr):
+            f = expr.readings()
+            if f:
+                functions.extend(f)
+                return functions
+            else:
+                readings.append(expr)
+
+        functions = acc_functions([], self)
+
+        while functions:
+            # Go through the list of readings we already have
+            new_functions = []
+            for function in functions:
+                # If a presupposition resolution took place, readings() 
+                # returns a dictionary (DRS, operation). Otherwise
+                # it will return a None.
+                acc_functions(self.deepcopy(function), new_functions)
+
+            functions = new_functions
+
+        return readings
+    
+    def _readings(self, trail=[]):
         raise NotImplementedError()
 
 class DRS(AbstractDrs, drt.DRS):
@@ -269,10 +301,10 @@ class DRS(AbstractDrs, drt.DRS):
     def resolve(self, trail=[]):
         return self.__class__(self.refs, [cond.resolve(trail + [self]) for cond in self.conds])
     
-    def readings(self, trail=[]):
+    def _readings(self, trail=[]):
         """get the readings for this DRS, if the second return value is true the condition is removed"""
         for cond in self.conds:
-            readings = cond.readings(trail + [self])
+            readings = cond._readings(trail + [self])
             if readings:
                 return readings
 
@@ -299,7 +331,7 @@ class DrtAbstractVariableExpression(AbstractDrs, drt.DrtAbstractVariableExpressi
     def resolve(self, trail=[]):
         return self
     
-    def readings(self, trail=[]):
+    def _readings(self, trail=[]):
         return None
     
     def deepcopy(self, operations=None):
@@ -356,8 +388,8 @@ class DrtNegatedExpression(AbstractDrs, drt.DrtNegatedExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.term.resolve(trail + [self]))
 
-    def readings(self, trail=[]):
-        return self.term.readings(trail + [self])
+    def _readings(self, trail=[]):
+        return self.term._readings(trail + [self])
 
     def deepcopy(self, operations=None):
         return self.__class__(self.term.deepcopy(operations))
@@ -397,8 +429,8 @@ class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
     def resolve(self, trail=[]):
         return self.__class__(self.variable, self.term.resolve(trail + [self]))
 
-    def readings(self, trail=[]):
-        return self.term.readings(trail + [self])
+    def _readings(self, trail=[]):
+        return self.term._readings(trail + [self])
     
     def deepcopy(self, operations=None):
         return self.__class__(self.variable, self.term.deepcopy(operations))
@@ -408,12 +440,12 @@ class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
         return self.__class__(self.first.resolve(trail + [self]), 
                               self.second.resolve(trail + [self]))
         
-    def readings(self, trail=[]):
-        first_readings = self.first.readings(trail + [self])
+    def _readings(self, trail=[]):
+        first_readings = self.first._readings(trail + [self])
         if first_readings:
             return first_readings
         else:
-            return self.second.readings(trail + [self])
+            return self.second._readings(trail + [self])
     
     def deepcopy(self, operations=None):
         return self.__class__(self.first.deepcopy(operations), self.second.deepcopy(operations))
@@ -426,12 +458,12 @@ class DrtImpExpression(DrtBooleanExpression, drt.DrtImpExpression):
         return self.__class__(self.first.resolve(trail + [self]),
                               self.second.resolve(trail + [self, self.first]))
 
-    def readings(self, trail=[]):
-        first_readings = self.first.readings(trail + [self])
+    def _readings(self, trail=[]):
+        first_readings = self.first._readings(trail + [self])
         if first_readings:
             return first_readings
         else:
-            return self.second.readings(trail + [self, self.first])
+            return self.second._readings(trail + [self, self.first])
 
 class DrtIffExpression(DrtBooleanExpression, drt.DrtIffExpression):
     pass
@@ -440,7 +472,7 @@ class DrtEqualityExpression(AbstractDrs, drt.DrtEqualityExpression):
     def resolve(self, trail=[]):
         return self
     
-    def readings(self, trail=[]):
+    def _readings(self, trail=[]):
         return None
     
     def deepcopy(self, operations=None):
@@ -525,12 +557,12 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
         return self.__class__(self.function.resolve(trail + [self]),
                               self.argument.resolve(trail + [self]))
 
-    def readings(self, trail=[]):
-        function_readings = self.function.readings(trail + [self])
+    def _readings(self, trail=[]):
+        function_readings = self.function._readings(trail + [self])
         if function_readings:
             return function_readings
         else:
-            return self.argument.readings(trail + [self])
+            return self.argument._readings(trail + [self])
 
     def deepcopy(self, operations=None):
         return self.__class__(self.function.deepcopy(operations), self.argument.deepcopy(operations))
@@ -601,7 +633,7 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
         raise LocationTimeResolutionException("Variable '%s' does not "
                             "resolve to anything." % self.argument)
         
-    def readings(self, trail=[]):
+    def _readings(self, trail=[]):
         return None
 
 class PresuppositionDRS(DRS):
@@ -611,17 +643,17 @@ class PresuppositionDRS(DRS):
     pass
 
 class ProperNameDRS(PresuppositionDRS):
-    def readings(self, trail=[]):
+    def _readings(self, trail=[]):
         pass
 
 class DefiniteDescriptionDRS(PresuppositionDRS):
-    def readings(self, trail=[]):
+    def _readings(self, trail=[]):
         pass
 
 class PronounDRS(PresuppositionDRS):
     """A superclass for DRSs for personal, reflexive, 
     and possessive pronouns"""
-    def readings(self, trail=[]):
+    def _readings(self, trail=[]):
         pass
 
 class DrtParser(drt.DrtParser):
