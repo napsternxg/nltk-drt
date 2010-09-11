@@ -285,10 +285,9 @@ class DRS(AbstractDrs, drt.DRS):
         @param operations: a dictionary DRS: function, 
         where the DRS is an argument to pass to that function.
         """
-        function = (operations and self in operations and operations[self]) or None
+        function = operations and [function for obj, function in operations if obj is self] or None
         newdrs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
-        return (function and function(newdrs)) or newdrs
-            
+        return (function and function[0](newdrs)) or newdrs        
 
     def simplify(self):
         return self.__class__(self.refs, [cond.simplify() for cond in self.conds])
