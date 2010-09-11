@@ -100,6 +100,10 @@ class DrtTokens(drt.DrtTokens):
     SYMBOLS = drt.DrtTokens.SYMBOLS + PUNCT
     TOKENS = drt.DrtTokens.TOKENS + PUNCT
     LOCATION_TIME = 'LOCPRO'
+    PROPER_NAME_DRS = 'PROP'
+    DEFINITE_DESCRIPTION_DRS = 'DEF'
+    PRONOUN_DRS = 'PRO'
+    PRESUPPOSITION_DRS = [PROPER_NAME_DRS, DEFINITE_DESCRIPTION_DRS, PRONOUN_DRS]
 
 class AbstractDrs(drt.AbstractDrs):
     """
@@ -271,12 +275,6 @@ class DRS(AbstractDrs, drt.DRS):
             readings = cond.readings(trail + [self])
             if readings:
                 return readings
-   
-class PresuppositionDRS(DRS):
-    """A Discourse Representation Structure for presuppositions.
-    Presuppositions triggered by a possessive pronoun/marker, the definite article, a proper name
-    will be resolved in different ways. They are represented by subclasses of PresuppositionalDRS."""
-    pass
 
 def DrtVariableExpression(variable):
     """
@@ -562,10 +560,10 @@ def get_drss(trail=[]):
         assert isinstance(inner_drs, DRS)
         drss['local'] = inner_drs
     for ancestor in ReverseIterator(trail,-2):
-                if isinstance(ancestor, DRS):
-                    if ancestor is not outer_drs: 
-                        drss['intermediate'] = ancestor
-                    break
+        if isinstance(ancestor, DRS):
+            if ancestor is not outer_drs: 
+                drss['intermediate'] = ancestor
+            break
     return drss
 
 class LocationTimeResolutionException(Exception):
@@ -594,6 +592,26 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
     def readings(self, trail=[]):
         return None
 
+class PresuppositionDRS(DRS):
+    """A Discourse Representation Structure for presuppositions.
+    Presuppositions triggered by a possessive pronoun/marker, the definite article, a proper name
+    will be resolved in different ways. They are represented by subclasses of PresuppositionalDRS."""
+    pass
+
+class ProperNameDRS(PresuppositionDRS):
+    def readings(self, trail=[]):
+        pass
+
+class DefiniteDescriptionDRS(PresuppositionDRS):
+    def readings(self, trail=[]):
+        pass
+
+class PronounDRS(PresuppositionDRS):
+    """A superclass for DRSs for personal, reflexive, 
+    and possessive pronouns"""
+    def readings(self, trail=[]):
+        pass
+
 class DrtParser(drt.DrtParser):
     """DrtParser producing conditions and referents for temporal logic"""
 
@@ -602,6 +620,24 @@ class DrtParser(drt.DrtParser):
 
     def isvariable(self, tok):
         return tok not in DrtTokens.TOKENS
+
+    def handle(self, tok, context):
+        """We add new types of DRS to represent presuppositions"""
+        if tok.upper() in DrtTokens.PRESUPPOSITION_DRS:
+            return self.handle_PRESUPPOSITION_DRS(tok.upper(), context)
+        else: return super(DrtParser, self).handle(tok, context)
+        
+    def handle_PRESUPPOSITION_DRS(self, tok, context):
+        """Parse new types of DRS: presuppositon DRSs.
+        """
+        self.assertNextToken(DrtTokens.OPEN)
+        drs = self.handle_DRS(tok, context)
+        if tok == DrtTokens.PROPER_NAME_DRS:
+            return ProperNameDRS(drs.refs, drs.conds)
+        elif tok == DrtTokens.DEFINITE_DESCRIPTION_DRS:
+            return DefiniteDescriptionDRS(drs.refs, drs.conds)
+        elif tok == DrtTokens.PRONOUN_DRS:
+            return PronounDRS(drs.refs, drs.conds)
 
     def handle_variable(self, tok, context):
         #It's either: 1) a predicate expression: sees(x,y)
