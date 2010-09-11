@@ -2,7 +2,7 @@ import temporaldrt
 import nltk.sem.drt as drt
 import deepcopy_readings
 from deepcopy_readings import Readings
-from temporaldrt import DrtProperNameApplicationExpression, PresuppositionDRS, DRS
+from temporaldrt import PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression
 
 # Nltk fix
 import nltkfixtemporal
@@ -11,20 +11,7 @@ def gr(s, recursive=False):
     return []
 AbstractDrs.get_refs = gr
                         
-class DrtTokens(temporaldrt.DrtTokens):
-    PROPER_NAME_DRS = 'PROP'
-    DEFINITE_DESCRIPTION_DRS = 'DEF'
-    PRONOUN_DRS = 'PRO'
-    PRESUPPOSITION_DRS = [PROPER_NAME_DRS, DEFINITE_DESCRIPTION_DRS,
-                          PRONOUN_DRS]
-
 class DrtParser(temporaldrt.DrtParser):
-
-    def handle(self, tok, context):
-        """We add new types of DRS to represent presuppositions"""
-        if tok.upper() in DrtTokens.PRESUPPOSITION_DRS:
-            return self.handle_PRESUPPOSITION_DRS(tok.upper(), context)
-        else: return super(DrtParser, self).handle(tok, context)
         
     def handle_PRESUPPOSITION_DRS(self, tok, context):
         """Parse new types of DRS: presuppositon DRSs.
@@ -44,7 +31,7 @@ class DrtParser(temporaldrt.DrtParser):
 
 class ProperNameDRS(PresuppositionDRS):
     
-    def readings(self, trail=[]):
+    def _readings(self, trail=[]):
         """A proper name always yields one reading: it is either global binding 
         or global accommodation (if binding is not possible)"""
         # In DRSs representing sentences like 'John, who owns a dog, feeds it',
@@ -53,10 +40,11 @@ class ProperNameDRS(PresuppositionDRS):
         print "PROPER NAME READINGs"
         proper_name = None
         for cond in self.conds:
-            if isinstance(cond, DrtProperNameApplicationExpression):
+            if isinstance(cond, DrtApplicationExpression) and cond.is_propername():
                 proper_name = cond
                 break
         assert(proper_name is not None)
+        print "PROPER NAME", proper_name
         drss = temporaldrt.get_drss(trail)
         ########
         # Try binding in the outer DRS
@@ -67,27 +55,32 @@ class ProperNameDRS(PresuppositionDRS):
         for cond in outer_drs.conds:
             # Binding is only possible if there is a condition with the 
             # same functor (proper name) at the global level
-            if isinstance(cond, DrtProperNameApplicationExpression) and \
-            cond.function.variable.name == proper_name.function.variable.name:
+            if isinstance(cond, DrtApplicationExpression) and cond.is_propername() \
+            and cond.function.variable.name == proper_name.function.variable.name:
                 antecedent_ref = cond.argument
                 break
         if antecedent_ref:
-            # 1) Put all conditions (except the proper name itself)
-            # into the outer DRS, and replace the proper name referent in them with
-            # antecedent_ref.
-            # 2) In the conditions of the local DRS, replace the 
-            # referent of the proper name with antecedent_ref.
             def outer_binding(drs):
                 """Put all conditions from the presupposition DRS
                 (except the proper name itself) into the outer DRS, 
                 and replace the proper name referent in them with antecedent_ref"""
-                self.replace(proper_name.argument.variable, antecedent_ref, True)
-                drs.conds.extend([cond for cond in self.conds if cond is not proper_name])
+                print "called outer binding"
+                newdrs = self.replace(proper_name.argument.variable, antecedent_ref, True)
+                # There will be referents and conditions to move 
+                # if there is a relative clause modifying the proper name
+                drs.refs.extend([ref for ref in newdrs.refs \
+                                 if ref != antecedent_ref.variable])
+                drs.conds.extend([cond for cond in newdrs.conds \
+                                  if cond.function.variable.name != proper_name.function.variable.name])
+                
             def inner(drs):
                 """In the conditions of the local DRS, replace the 
                 referent of the proper name with antecedent_ref"""
+                print "called inner"
                 if local_drs is outer_drs: outer_binding(drs)
-                drs.replace(proper_name.argument.variable, antecedent_ref, True)
+                newdrs = drs.replace(proper_name.argument.variable, antecedent_ref, True)
+                drs.refs = newdrs.refs
+                drs.conds = newdrs.conds
                 drs.conds.remove(self)
             # Return the reading
             return [{outer_drs: outer_binding,
@@ -152,10 +145,18 @@ def test_2(sentence, parser):
     else: 
         tree = parser.nbest_parse(sentence.split())[0].node['SEM']
     a = tree.simplify()
-    print "TYPE", type(a)
+    for cond in a.conds: print "TYPE", type(cond), cond
     a.draw()
-    for reading in Readings(tree): reading.draw()
+    for reading in tree.readings(): reading.draw()
     
+def test_3(parser):
+    trees = parser.nbest_parse('John walks'.split())
+    first = trees[0].node['SEM'].simplify().readings()[0]
+    trees = parser.nbest_parse('Every girl marries John'.split())
+    second = (first + trees[0].node['SEM']).simplify().readings()[0]
+    print second, second.__class__
+    second.draw()
+
 if __name__ == '__main__':
     
     from nltk import load_parser
@@ -174,6 +175,8 @@ if __name__ == '__main__':
                  ['A boy marries the girl', 'He walks'],
                  'A boy s father marries his girl', 'his girl'
                  ]
-    sentences_2 = [['John walks', 'Every girl marries John']]
+    sentences_2 = [['John walks', 'Every girl marries John'], "John marries Mia"]
+    
     #for sentence in sentences[-1:]: test(sentence, parser, draworig = True, drawdrs = True)
-    for sentence in sentences_2[:]: test_2(sentence, parser)
+    #for sentence in sentences_2[:-1]: test_2(sentence, parser)
+    test_3(parser)
