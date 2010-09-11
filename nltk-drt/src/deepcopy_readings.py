@@ -74,6 +74,7 @@ class Readings:
         # and call this method again.
         for oldr in old_readings: self.readings.remove(oldr)
         self.readings += new_readings
+        print "self readings in collect r", self.readings
         self.collect_readings()
         
     def get_drs_deepcopies(self, drs, operations):
