@@ -44,9 +44,9 @@ Det[SEM=<?not(?det)>] -> Not[SEM=?not] Det[SEM=?det]
 # Lexicalisation Rules:
 #############################
 
-N[NUM=?n,SEM=<(\P x.DRS([],[P(x)]))(?lexn)>] -> LexN[NUM=?n,SEM=?lexn]
+N[NUM=?n,GEN=?g,SEM=<(\x.DRS([],[?lexn{?n,?g}(x)]))>] -> LexN[NUM=?n,GEN=?g,SEM=?lexn]
 
-NP[NUM=?n,SEM=<(\Q P.(DRS([x],[Q(x)])+P(x)))(?lexn)>] -> LexPropN[NUM=?n,SEM=?lexn]
+NP[NUM=?n,GEN=?g,SEM=<(\P.(DRS([x],[?lexn{?n,?g}(x)])+P(x)))>] -> LexPropN[NUM=?n,GEN=?g,SEM=?lexn]
 
 ADJ[SEM=<(\Q P x.(DRS([],[Q(x)])+P(x)))(?ladj)>] -> LexADJ[SEM=?ladj]
 
@@ -110,18 +110,18 @@ V[SUBCAT=tv,+FIN,SEM=<(\Q X Y.(DRS([t],[PAST(t)])+Y(\x.(X(\y.DRS([s],[Q(s,x,y)])
 # Proper Names:
 ###############
 
-LexPropN[NUM=sg,SEM=<Angus>] -> 'Angus'
-LexPropN[NUM=sg,SEM=<John>] -> 'John'
-LexPropN[NUM=sg,SEM=<Mary>] -> 'Mary'
-LexPropN[NUM=sg,SEM=<Vincent>] -> 'Vincent'
-LexPropN[NUM=sg,SEM=<Mia>] -> 'Mia'
+LexPropN[NUM=sg,GEN=m,SEM=<Angus>] -> 'Angus'
+LexPropN[NUM=sg,GEN=m,SEM=<John>] -> 'John'
+LexPropN[NUM=sg,GEN=f,SEM=<Mary>] -> 'Mary'
+LexPropN[NUM=sg,GEN=m,SEM=<Vincent>] -> 'Vincent'
+LexPropN[NUM=sg,GEN=f,SEM=<Mia>] -> 'Mia'
 
 # Personal Pronouns:
 ####################
 
-LexPropN[NUM=sg,SEM=<PRO>] -> 'he' | 'He'
-LexPropN[NUM=sg,SEM=<PRO>] -> 'she' | 'She'
-LexPropN[NUM=sg,SEM=<PRO>] -> 'it' | 'it'
+LexPropN[NUM=sg,GEN=m,SEM=<PRO>] -> 'he' | 'He'
+LexPropN[NUM=sg,GEN=f,SEM=<PRO>] -> 'she' | 'She'
+LexPropN[NUM=sg,GEN=n,SEM=<PRO>] -> 'it' | 'it'
 
 # Determiners:
 ##############
@@ -147,19 +147,19 @@ LexADJ[SEM=<red>] -> 'red'
 # Common Nouns:
 ###############
 
-LexN[NUM=sg,SEM=<boy>] -> 'boy'
-LexN[NUM=pl,SEM=<boy>] -> 'boys'
-LexN[NUM=sg,SEM=<girl>] -> 'girl'
-LexN[NUM=pl,SEM=<girl>] -> 'girls'
-LexN[NUM=sg,SEM=<dog>] -> 'dog'
-LexN[NUM=pl,SEM=<dog>] -> 'dogs'
-LexN[NUM=sg,SEM=<student>] -> 'student'
-LexN[NUM=pl,SEM=<student>] -> 'students'
-LexN[NUM=sg,SEM=<garden>] -> 'garden'
-LexN[NUM=sg,SEM=<kitchen>] -> 'kitchen'
-LexN[NUM=sg,SEM=<car>] -> 'car'
-LexN[NUM=sg,SEM=<morning>] -> 'morning'
-LexN[NUM=sg,SEM=<letter>] -> 'letter'
+LexN[NUM=sg,GEN=m,SEM=<boy>] -> 'boy'
+LexN[NUM=pl,GEN=m,SEM=<boy>] -> 'boys'
+LexN[NUM=sg,GEN=f,SEM=<girl>] -> 'girl'
+LexN[NUM=pl,GEN=f,SEM=<girl>] -> 'girls'
+LexN[NUM=sg,GEN=n,SEM=<dog>] -> 'dog'
+LexN[NUM=pl,GEN=n,SEM=<dog>] -> 'dogs'
+LexN[NUM=sg,GEN=m,SEM=<student>] -> 'student'
+LexN[NUM=pl,GEN=m,SEM=<student>] -> 'students'
+LexN[NUM=sg,GEN=n,SEM=<garden>] -> 'garden'
+LexN[NUM=sg,GEN=n,SEM=<kitchen>] -> 'kitchen'
+LexN[NUM=sg,GEN=n,SEM=<car>] -> 'car'
+LexN[NUM=sg,GEN=n,SEM=<morning>] -> 'morning'
+LexN[NUM=sg,GEN=n,SEM=<letter>] -> 'letter'
 
 ###############################
 ###############################
