@@ -200,22 +200,27 @@ class AbstractDrs(drt.AbstractDrs):
         until there are no presuppositions left to resolve.
         """
         readings = []
-        
-        def get_functions(expr):
-            return expr._readings() or (readings.append(expr) or [])
 
-        functions = get_functions(self)
+        def get_operations(expr):
+            ops = expr._readings()
+            return (ops and [(expr, ops)]) or (readings.append(expr) or [])
 
-        while functions:
+        operations = get_operations(self)
+
+        while operations:
             # Go through the list of readings we already have
-            new_functions = []
-            for function in functions:
-                # If a presupposition resolution took place, readings() 
-                # returns a dictionary (DRS, operation). Otherwise
+            new_operations = []
+            for reading, operation_list in operations:
+                # If a presupposition resolution took place, _readings() 
+                # returns a tuple (DRS, operation). Otherwise
                 # it will return a None.
-                new_functions.extend(get_functions(self.deepcopy(function)))
+                print "operation_list", operation_list
+                for operation in operation_list:
+                    print "operation", operation
+                    new_reading = reading.deepcopy(operation)
+                    new_operations.extend(get_operations(new_reading))
 
-            functions = new_functions
+            operations = new_operations
 
         return readings
     
@@ -285,7 +290,13 @@ class DRS(AbstractDrs, drt.DRS):
         @param operations: a dictionary DRS: function, 
         where the DRS is an argument to pass to that function.
         """
+        print "dc self", id(self)
+        if operations:
+            for obj, func in operations:
+                print "dc obj", id(obj)
         function = operations and [function for obj, function in operations if obj is self] or None
+        if function:
+            pass
         newdrs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
         return (function and function[0](newdrs)) or newdrs        
 
