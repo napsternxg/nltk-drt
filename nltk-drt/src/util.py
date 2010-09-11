@@ -8,15 +8,16 @@ class Tester(object):
     subs = [#(re.compile("^(?P<stem>[a-z]+)ed$"), lambda m: "did %s" % m.group("stem")),
             (re.compile("^([a-z]+)'s?$"), lambda m: "%s s" % m.group(1)),
             #(re.compile("^([a-z]+)s$"), lambda m: "does %s" % m.group(1)),
-            (re.compile("owns"), "does own"),
-            (re.compile("owned"), "did own"),
-            (re.compile("lives"), "does live"),
-            (re.compile("lived"), "did live"),
-            (re.compile("kisses"), "does kiss"),
-            (re.compile("bit"), "did bite"),
-            (re.compile("walked"), "did walk"),
-            (re.compile("danced"), "did dance"),
-            (re.compile("wrote"), "did write")]
+            (re.compile("^owns$"), "does own"),
+            (re.compile("^owned$"), "did own"),
+            (re.compile("^lives$"), "does live"),
+            (re.compile("^lived$"), "did live"),
+            (re.compile("^kissed$"), "did kiss"),
+            (re.compile("^kisses$"), "does kiss"),
+            (re.compile("^bit$"), "did bite"),
+            (re.compile("^walked$"), "did walk"),
+            (re.compile("^danced$"), "did dance"),
+            (re.compile("^wrote$"), "did write")]
     def __init__(self, grammar, logic_parser):
         assert isinstance(grammar, str) and grammar.endswith('.fcfg'), \
                             "%s is not a grammar name" % grammar
