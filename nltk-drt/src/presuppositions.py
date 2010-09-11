@@ -12,15 +12,11 @@ def gr(s, recursive=False):
 AbstractDrs.get_refs = gr
                         
 class DrtTokens(temporaldrt.DrtTokens):
-    PROPER_NAME_DRS = 'PROPERNAME'
-    DEFINITE_DESCRIPTION_DRS = 'DEFDESCR'
-    # And pronouns:
-    PERSONAL_PRONOUN_DRS = 'PERSPRON'
-    POSSESSIVE_PRONOUN_DRS = 'POSSPRON'
-    REFLEXIVE_PRONOUN_DRS = 'REFLPRON'
+    PROPER_NAME_DRS = 'PROP'
+    DEFINITE_DESCRIPTION_DRS = 'DEF'
+    PRONOUN_DRS = 'PRO'
     PRESUPPOSITION_DRS = [PROPER_NAME_DRS, DEFINITE_DESCRIPTION_DRS,
-                          PERSONAL_PRONOUN_DRS, POSSESSIVE_PRONOUN_DRS,
-                          REFLEXIVE_PRONOUN_DRS]
+                          PRONOUN_DRS]
 
 class DrtParser(temporaldrt.DrtParser):
 
@@ -39,21 +35,15 @@ class DrtParser(temporaldrt.DrtParser):
             return ProperNameDRS(drs.refs, drs.conds)
         elif tok == DrtTokens.DEFINITE_DESCRIPTION_DRS:
             return DefiniteDescriptionDRS(drs.refs, drs.conds)
-        elif tok == DrtTokens.PERSONAL_PRONOUN_DRS:
-            return PersonalPronounDRS(drs.refs, drs.conds)
-        elif tok == DrtTokens.POSSESSIVE_PRONOUN_DRS:
-            return PossessivePronounDRS(drs.refs, drs.conds)
-        elif tok == DrtTokens.REFLEXIVE_PRONOUN_DRS:
-            return ReflexivePronounDRS(drs.refs, drs.conds)
+        elif tok == DrtTokens.PRONOUN_DRS:
+            return PronounDRS(drs.refs, drs.conds)
 
     def handle_DRS(self, tok, context):
         drs = drt.DrtParser.handle_DRS(self, tok, context)
         return DRS(drs.refs, drs.conds)
 
 class ProperNameDRS(PresuppositionDRS):
-    def __init__(self, refs, conds):
-        print "Proper name", refs, conds
-        super(ProperNameDRS, self).__init__(refs, conds)
+    
     def readings(self, trail=[]):
         """A proper name always yields one reading: it is either global binding 
         or global accommodation (if binding is not possible)"""
@@ -126,15 +116,6 @@ class PronounDRS(PresuppositionDRS):
     def readings(self, trail=[]):
         pass
 
-class PersonalPronounDRS(PronounDRS):
-    pass
-
-class PossessivePronounDRS(PronounDRS):
-    pass
-
-class ReflexivePronounDRS(PronounDRS):
-    pass
-
 #################################
 ## Demo
 #################################
@@ -171,6 +152,7 @@ def test_2(sentence, parser):
     else: 
         tree = parser.nbest_parse(sentence.split())[0].node['SEM']
     a = tree.simplify()
+    print "TYPE", type(a)
     a.draw()
     for reading in Readings(tree): reading.draw()
     
@@ -190,8 +172,8 @@ if __name__ == '__main__':
                  ['John marries his girl', 'He walks'],
                  'The boy walks',
                  ['A boy marries the girl', 'He walks'],
-                 'A boy s father marries his girl',
+                 'A boy s father marries his girl', 'his girl'
                  ]
-    sentences_2 = ['John walks', 'Every girl marries John']
-    #for sentence in sentences[2:3]: test(sentence, parser, draworig = True, drawdrs = True)
+    sentences_2 = [['John walks', 'Every girl marries John']]
+    #for sentence in sentences[-1:]: test(sentence, parser, draworig = True, drawdrs = True)
     for sentence in sentences_2[:]: test_2(sentence, parser)
