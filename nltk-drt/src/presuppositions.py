@@ -1,6 +1,7 @@
 import temporaldrt
 import nltk.sem.drt as drt
 from temporaldrt import PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression
+import util
 
 # Nltk fix
 import nltkfixtemporal
@@ -182,3 +183,6 @@ if __name__ == '__main__':
     #for sentence in sentences[-1:]: test(sentence, parser, draworig = True, drawdrs = True)
     #for sentence in sentences_2[:-1]: test_2(sentence, parser)
     test_3(parser)
+    tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
+    expr = tester.parse('Every girl bit John')
+    expr.readings()[0].draw()
