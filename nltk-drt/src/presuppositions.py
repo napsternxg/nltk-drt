@@ -81,8 +81,8 @@ class ProperNameDRS(PresuppositionDRS):
                 drs.conds = newdrs.conds
                 drs.conds.remove(self)
             # Return the reading
-            return [(outer_drs, outer_binding),
-                     (local_drs, inner)]
+            return [[(outer_drs, outer_binding),
+                     (local_drs, inner)]]
         # If no suitable antecedent has been found in the outer DRS,
         # binding is not possible, so we go for accommodation instead.
         def outer_accommodation(drs):
@@ -94,8 +94,8 @@ class ProperNameDRS(PresuppositionDRS):
         def inner_remove(drs):
             if local_drs is outer_drs: outer_accommodation(drs)
             drs.conds.remove(self)
-        return [(outer_drs, outer_accommodation),
-                 (local_drs, inner_remove)]
+        return [[(outer_drs, outer_accommodation),
+                 (local_drs, inner_remove)]]
 
 class DefiniteDescriptionDRS(PresuppositionDRS):
     def readings(self, trail=[]):
