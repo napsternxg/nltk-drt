@@ -503,7 +503,6 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
     
     def fol(self):
         if self.is_propername():
-            print self
             return EqualityExpression(self.function.fol(),
                                       self.argument.fol())
                  
