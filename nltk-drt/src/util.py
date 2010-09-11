@@ -2,23 +2,27 @@ import nltkfixtemporal
 
 from nltk import load_parser
 from nltk.sem.drt import AbstractDrs
-
-class ReverseIterator:
-    def __init__(self, sequence):
-        self.sequence = sequence
-    def __iter__(self):
-        i = len(self.sequence)
-        while i > 0:
-            i = i - 1
-            yield self.sequence[i]
+import re
 
 class Tester(object):
+    subs = [#(re.compile("^(?P<stem>[a-z]+)ed$"), lambda m: "did %s" % m.group("stem")),
+            (re.compile("^([a-z]+)'s?$"), lambda m: "%s s" % m.group(1)),
+            #(re.compile("^([a-z]+)s$"), lambda m: "does %s" % m.group(1)),
+            (re.compile("owns"), "does own"),
+            (re.compile("owned"), "did own"),
+            (re.compile("lives"), "does live"),
+            (re.compile("lived"), "did live"),
+            (re.compile("kisses"), "does kiss"),
+            (re.compile("bit"), "did bite"),
+            (re.compile("walked"), "did walk"),
+            (re.compile("danced"), "did dance"),
+            (re.compile("wrote"), "did write")]
     def __init__(self, grammar, logic_parser):
         assert isinstance(grammar, str) and grammar.endswith('.fcfg'), \
                             "%s is not a grammar name" % grammar
-        self.logic_parser = logic_parser
-        self.parser = load_parser(grammar, logic_parser=self.logic_parser()) 
-        
+        self.logic_parser = logic_parser()
+        self.parser = load_parser(grammar, logic_parser=self.logic_parser) 
+
     def parse(self, text, **args):
         sentences = text.split('.')
         utter = args.get("utter", False)
@@ -30,14 +34,19 @@ class Tester(object):
             if sentence:
                 new_words = []
                 for word in sentence.split():
-                    if "'" in word:
-                        parts = word.split("'")
-                        new_words.append(parts[0])
-                        if parts[1]:
-                            new_words.append(parts[1])
-                    else:
+                    is_written = False
+                    for pattern, repl in self.subs:
+                        word_list = pattern.sub(repl, word)
+                        word_list = word_list.split(" ")
+                        if len(word_list)>1:
+                            new_words.extend(word_list)
+                            is_written = True
+                            break
+
+                    if not is_written:
                         new_words.append(word)
     
+                print new_words
                 trees = self.parser.nbest_parse(new_words)
                 new_drs = trees[0].node['SEM'].simplify()
                 if show_interim:
