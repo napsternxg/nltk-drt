@@ -214,11 +214,8 @@ class AbstractDrs(drt.AbstractDrs):
                 # If a presupposition resolution took place, _readings() 
                 # returns a tuple (DRS, operation). Otherwise
                 # it will return a None.
-                print "operation_list", operation_list
                 for operation in operation_list:
-                    print "operation", operation
-                    new_reading = reading.deepcopy(operation)
-                    new_operations.extend(get_operations(new_reading))
+                    new_operations.extend(get_operations(reading.deepcopy(operation)))
 
             operations = new_operations
 
@@ -290,13 +287,8 @@ class DRS(AbstractDrs, drt.DRS):
         @param operations: a dictionary DRS: function, 
         where the DRS is an argument to pass to that function.
         """
-        print "dc self", id(self)
-        if operations:
-            for obj, func in operations:
-                print "dc obj", id(obj)
+
         function = operations and [function for obj, function in operations if obj is self] or None
-        if function:
-            pass
         newdrs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
         return (function and function[0](newdrs)) or newdrs        
 
