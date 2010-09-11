@@ -201,15 +201,10 @@ class AbstractDrs(drt.AbstractDrs):
         """
         readings = []
         
-        def acc_functions(functions, expr):
-            f = expr.readings()
-            if f:
-                functions.extend(f)
-                return functions
-            else:
-                readings.append(expr)
+        def get_functions(expr):
+            return expr._readings() or (readings.append(expr) or [])
 
-        functions = acc_functions([], self)
+        functions = get_functions(self)
 
         while functions:
             # Go through the list of readings we already have
@@ -218,7 +213,7 @@ class AbstractDrs(drt.AbstractDrs):
                 # If a presupposition resolution took place, readings() 
                 # returns a dictionary (DRS, operation). Otherwise
                 # it will return a None.
-                acc_functions(self.deepcopy(function), new_functions)
+                new_functions.extend(get_functions(self.deepcopy(function)))
 
             functions = new_functions
 
