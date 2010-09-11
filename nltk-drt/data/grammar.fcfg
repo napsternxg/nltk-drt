@@ -48,16 +48,13 @@ Det[SEM=<?not(?det)>] -> Not[SEM=?not] Det[SEM=?det]
 
 N[NUM=?n,GEN=?g,SEM=<\x.DRS([],[?lexn{?n,?g}(x)])>] -> LexN[NUM=?n,GEN=?g,SEM=?lexn]
 
-#NP[NUM=?n,GEN=?g,SEM=<\P.(DRS([],[PRO([x],[?lexp{?n,?g}(x)])])+P(x))>] -> LexPro[NUM=?n,GEN=?g,SEM=?lexp]
-NP[NUM=?n,GEN=?g,SEM=<\P.(DRS([],[DRS([x],[?lexp{?n,?g}(x)])])+P(x))>] -> LexPro[NUM=?n,GEN=?g,SEM=?lexp]
+NP[NUM=?n,GEN=?g,SEM=<\P.(DRS([],[PRO([x],[?lexp{?n,?g}(x)])])+P(x))>] -> LexPro[NUM=?n,GEN=?g,SEM=?lexp]
 
-#NP[NUM=?n,GEN=?g,SEM=<\P.(DRS([],[PROP([x],[?lexn{?n,?g}(x)])])+P(x))>] -> LexPropN[NUM=?n,GEN=?g,SEM=?lexn]
-NP[NUM=?n,GEN=?g,SEM=<\P.(DRS([],[DRS([x],[?lexn{?n,?g}(x)])])+P(x))>] -> LexPropN[NUM=?n,GEN=?g,SEM=?lexn]
+NP[NUM=?n,GEN=?g,SEM=<\P.(DRS([],[PROP([x],[?lexn{?n,?g}(x)])])+P(x))>] -> LexPropN[NUM=?n,GEN=?g,SEM=?lexn]
 
 ADJ[SEM=<\P x.(DRS([],[?ladj(x)])+P(x))>] -> LexADJ[SEM=?ladj]
 
-#Det[SEM=<\P Q.(DRS([],[(DEF([x],[poss(y,x), PRO([y],[?lexp{?n,?g}(y)])])+P(x))])+Q(x))>] -> LexPos[NUM=?n,GEN=?g,SEM=?lexp]
-Det[SEM=<\P Q.(DRS([],[(DRS([x],[poss(y,x), DRS([y],[?lexp{?n,?g}(y)])])+P(x))])+Q(x))>] -> LexPos[NUM=?n,GEN=?g,SEM=?lexp]
+Det[SEM=<\P Q.(DRS([],[(DEF([x],[poss(y,x), PRO([y],[?lexp{?n,?g}(y)])])+P(x))])+Q(x))>] -> LexPos[NUM=?n,GEN=?g,SEM=?lexp]
 
 
 # Infinitives: Intransitive Events / States
