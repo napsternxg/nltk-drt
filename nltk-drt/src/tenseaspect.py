@@ -2,12 +2,14 @@ import re
 import operator
 
 import nltkfixtemporal
+import util
 
 from nltk.sem.logic import Variable
 from nltk.sem.logic import IndividualVariableExpression
 from nltk.sem.logic import _counter
 from nltk.sem.logic import BasicType
 from nltk.sem.logic import Expression
+from nltk.sem.logic import AndExpression, ExistsExpression
 import temporaldrt as drt
 
 from temporaldrt import is_timevar, DrtIndividualVariableExpression, \
@@ -174,8 +176,32 @@ class AbstractDrs(drt.AbstractDrs):
         return result
 
 
+def ref_type(referent):
+    """Checks a referent type and returns corresponding predicate"""
+    ref_cond = None
+    if is_eventvar(referent.name):
+        ref_cond = drt.DrtConstantExpression(Variable("event"))
+    elif is_statevar(referent.name):
+        ref_cond = drt.DrtConstantExpression(Variable("state"))
+    elif is_timevar(referent.name):
+        ref_cond = drt.DrtConstantExpression(Variable("time"))
+    else:
+        ref_cond = drt.DrtConstantExpression(Variable("individual"))
+    
+    return DrtApplicationExpression(ref_cond,DrtAbstractVariableExpression(referent))
+
+
 class DRS(AbstractDrs, drt.DRS):
     """A Temporal Discourse Representation Structure."""
+    
+    def fol(self):
+        if not self.conds:
+            raise Exception("Cannot convert DRS with no conditions to FOL.")
+        accum = reduce(AndExpression, [c.fol() for c in self.conds])
+        for ref in self.refs[::-1]:
+            accum = ExistsExpression(ref, AndExpression(accum,ref_type(ref).fol()))
+        return accum
+    
 
     def replace(self, variable, expression, replace_bound=False):
         """Replace all instances of variable v with expression E in self,
@@ -490,7 +516,6 @@ class DrtParser(drt.DrtParser):
                 tense_cond = [c for c in drs.conds if isinstance(c, DrtApplicationExpression) and \
                                c.function in DrtTokens.TENSE and DrtVariableExpression(ref) == c.argument]
                 if not tense_cond == []:
-
                     if tense_cond[0].function == DrtTokens.PRES:
                         """Put UTTER(t) instead"""
                         drs.conds[drs.conds.index(tense_cond[0])] = DrtFindUtterTimeApplicationExpression(DrtTokens.UTTER, DrtTimeVariableExpression(ref))
@@ -517,7 +542,6 @@ class DrtParser(drt.DrtParser):
         
         if tok == DrtTokens.DRS_CONC:
             return ConcatenationDRS
-        
         elif tok in DrtTokens.OR:
             return drt.DrtOrExpression
         elif tok in DrtTokens.IMP:
@@ -574,7 +598,7 @@ def subcat_check(expression):
 
 
 def insert_conds_tensed(first, second):
-            
+    print first, '+', second      
     target_drs = subcat_check(second)
     
     if not target_drs:
@@ -629,22 +653,29 @@ def insert_conds_tensed(first, second):
     
 def test_4():
     
-    from nltk import load_parser
-    parser = load_parser('file:../data/tenseaspect.fcfg', logic_parser=DrtParser())
-    trees = parser.nbest_parse("Angus died".split())
-    trees_2 = parser.nbest_parse("He had owned a car".split())
-    parser_obj = DrtParser()
-    drs = parser_obj.parse('DRS([n],[])')
-    expr = trees[0].node['SEM']
-    expr_2 = trees_2[0].node['SEM']
+    #from nltk import load_parser
+    #parser = load_parser('file:../data/tenseaspect.fcfg', logic_parser=DrtParser())
+    
+    tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
+    
+    expr = tester.parse('The car has written a letter', utter=True).resolve()
+    print expr
+    expr.draw()
+    
+    #trees = parser.nbest_parse("Angus wrote a letter".split())
+    #trees_2 = parser.nbest_parse("He had owned a car".split())
+    #parser_obj = DrtParser()
+    #drs = parser_obj.parse('DRS([n],[])')
+    #expr = trees[0].node['SEM']
+    #expr_2 = trees_2[0].node['SEM']
     #expr_3 = (drs + expr).simplify().resolve()
     #expr_3 = ((drs + expr).simplify() + expr_2).simplify()
-    expr_3 = ((drs + expr).simplify().resolve() + expr_2).simplify().resolve()
+    #expr_3 = ((drs + expr).simplify().resolve() + expr_2).simplify().resolve()
     #print expr_3.__class__
     #for cond in expr_3.conds:
     #    print cond, cond.__class__
-    print expr_3
-    expr_3.draw()
+    #print expr_3
+    #expr_3.draw()
 
 if __name__ == "__main__":
     test_4()
