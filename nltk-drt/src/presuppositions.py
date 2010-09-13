@@ -36,14 +36,12 @@ class ProperNameDRS(PresuppositionDRS):
         # In DRSs representing sentences like 'John, who owns a dog, feeds it',
         # there will be more than one condition in the presupposition DRS.
         # Find the proper name application expression.
-        print "PROPER NAME READINGs"
         proper_name = None
         for cond in self.conds:
             if isinstance(cond, DrtApplicationExpression) and cond.is_propername():
                 proper_name = cond
                 break
         assert(proper_name is not None)
-        print "PROPER NAME", proper_name
         drss = temporaldrt.get_drss(trail)
         ########
         # Try binding in the outer DRS
@@ -63,7 +61,6 @@ class ProperNameDRS(PresuppositionDRS):
                 """Put all conditions from the presupposition DRS
                 (except the proper name itself) into the outer DRS, 
                 and replace the proper name referent in them with antecedent_ref"""
-                print "called outer binding"
                 newdrs = self.replace(proper_name.argument.variable, antecedent_ref, True)
                 # There will be referents and conditions to move 
                 # if there is a relative clause modifying the proper name
@@ -75,12 +72,10 @@ class ProperNameDRS(PresuppositionDRS):
             def inner(drs):
                 """In the conditions of the local DRS, replace the 
                 referent of the proper name with antecedent_ref"""
-                print "called inner"
                 if local_drs is outer_drs: outer_binding(drs)
                 newdrs = drs.replace(proper_name.argument.variable, antecedent_ref, True)
                 drs.refs = newdrs.refs
                 drs.conds = newdrs.conds
-                drs.conds.remove(self)
             # Return the reading
             if local_drs is outer_drs:
                 return [[(local_drs, inner)]]
@@ -91,16 +86,9 @@ class ProperNameDRS(PresuppositionDRS):
         def outer_accommodation(drs):
             """Accommodation: put all referents and conditions from 
             the presupposition DRS into the outer DRS"""
-            print "outer_accommodation"
             drs.refs.extend(self.refs) 
             drs.conds.extend(self.conds)
-        def inner_remove(drs):
-            if local_drs is outer_drs: outer_accommodation(drs)
-            drs.conds.remove(self)
-        if local_drs is outer_drs:
-            return [[(local_drs, inner_remove)]]
-        return [[(outer_drs, outer_accommodation),
-                 (local_drs, inner_remove)]]
+        return [[(outer_drs, outer_accommodation)]]
 
 class DefiniteDescriptionDRS(PresuppositionDRS):
     def _presupposition_readings(self, trail=[]):
@@ -113,9 +101,9 @@ class PronounDRS(PresuppositionDRS):
         pass
 
 #################################
-## Demo
+## Demo, tests
 #################################
-def test (sentence, parser, draworig=True, drawdrs=True):
+def presuppositions_test (sentence, parser):
     print '==========================', sentence , '=========================='
     if isinstance(sentence, list):
         tree = parser.nbest_parse(sentence.pop(0).split())[0].node['SEM']
@@ -127,17 +115,13 @@ def test (sentence, parser, draworig=True, drawdrs=True):
         tree = parser.nbest_parse(sentence.split())[0].node['SEM']
     print '========================== Tree node SEM'
     print tree
-    #if draworig: tree.draw()
     print '========================== Tree node SEM, simplified'
     a = tree.simplify()
     print a
-    #print "========================== The same SEM, resolved"
-    #a.resolve()
-    #print a
-    #print "\n\n"
-    if drawdrs: a.draw()
+    a.draw()
+    for reading in a.readings(): reading.draw()
 
-def test_2(sentence, parser):
+def proper_names_test_1(sentence, parser):
     print '==========================', sentence , '=========================='
     if isinstance(sentence, list):
         tree = parser.nbest_parse(sentence.pop(0).split())[0].node['SEM']
@@ -148,18 +132,22 @@ def test_2(sentence, parser):
     else: 
         tree = parser.nbest_parse(sentence.split())[0].node['SEM']
     a = tree.simplify()
-    for cond in a.conds: print "TYPE", type(cond), cond
     a.draw()
-    for reading in tree.readings(): reading.draw()
+    for reading in a.readings(): reading.draw()
     
-def test_3(parser):
+def proper_names_test_2(parser):
     trees = parser.nbest_parse('John walks'.split())
     first = trees[0].node['SEM'].simplify().readings()[0]
     trees = parser.nbest_parse('Every girl marries John'.split())
     second = (first + trees[0].node['SEM']).simplify().readings()[0]
     print second, second.__class__
     second.draw()
-
+    
+def integration_test():
+    tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
+    expr = tester.parse('Every girl bit John')
+    expr.readings()[0].draw()
+    
 if __name__ == '__main__':
     
     from nltk import load_parser
@@ -180,9 +168,7 @@ if __name__ == '__main__':
                  ]
     sentences_2 = [['John walks', 'Every girl marries John'], "John marries Mia"]
     
-    #for sentence in sentences[-1:]: test(sentence, parser, draworig = True, drawdrs = True)
-    #for sentence in sentences_2[:-1]: test_2(sentence, parser)
-    test_3(parser)
-    tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
-    expr = tester.parse('Every girl bit John')
-    expr.readings()[0].draw()
+    for sentence in sentences[:1]: presuppositions_test(sentence, parser)
+    for sentence in sentences_2[:-1]: proper_names_test_1(sentence, parser)
+    proper_names_test_2(parser)
+    integration_test()
