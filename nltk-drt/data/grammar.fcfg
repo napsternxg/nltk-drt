@@ -12,6 +12,10 @@
 
 #Cbar[SEM=<?ibar(?subj)>] -> IP[SEM=?ip] PP[SEM=?pp]
 
+IP[SEM = <?or(?s1,?s2)>] -> IP[SEM=?s1] OR[SEM=?or] IP[SEM=?s2]
+
+IP[SEM=<?if(?s1,?s2)>] -> IF[SEM=?if] IP[SEM=?s1] IP[SEM=?s2]
+
 IP[SEM=<?ibar(?subj)>] -> NP[NUM=?n,SEM=?subj] Ibar[NUM=?n,SEM=?ibar]
 
 Ibar[NUM=?n,SEM=<?vp>] -> VP[NUM=?n,+FIN,SEM=?vp]
@@ -60,31 +64,31 @@ Det[SEM=<\P Q.(DRS([],[(DEF([x],[poss(y,x), PRON([y],[?lexp{?n,?g}(y)])])+P(x))]
 # Infinitives: Intransitive Events / States
 ###########################################
 
-V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e,t],[?lv(e,x),ACH(e),LOCPRO(t)])>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv,-PERF]
+V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e,t],[?lv(e),AGENT(e,x),ACH(e),LOCPRO(t)])>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv,-PERF]
 
-V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e,t],[?lv(e,x),ACT(e),LOCPRO(t)])>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=act,SEM=?lv,-PERF]
+V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e,t],[?lv(e),AGENT(e,x),ACT(e),LOCPRO(t)])>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=act,SEM=?lv,-PERF]
 
-V[SUBCAT=iv,-FIN,SEM=<\x.DRS([s,t],[?lv(s,x),LOCPRO(t)])>] -> LexV[SUBCAT=iv,-FIN,TYPE=s,SEM=?lv,-PERF]
+V[SUBCAT=iv,-FIN,SEM=<\x.DRS([s,t],[?lv(s),AGENT(s,x),LOCPRO(t)])>] -> LexV[SUBCAT=iv,-FIN,TYPE=s,SEM=?lv,-PERF]
 
 
 
-V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e],[?lv(e,x),ACH(e),PERF(e)])>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv,+PERF]
+V[SUBCAT=iv,-FIN,SEM=<\x.DRS([e],[?lv(e),AGENT(e,x),ACH(e),PERF(e)])>] -> LexV[SUBCAT=iv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv,+PERF]
 
 
 
 # Infinitives: Transitive Events / States
 #########################################
 
-V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e,t],[?lv(e,x,y),ACC(e),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=acc,SEM=?lv,-PERF]
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e,t],[?lv(e),AGENT(e,x),PATIENT(e,y),ACC(e),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=acc,SEM=?lv,-PERF]
 
-V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e,t],[?lv(e,x,y),ACH(e),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv,-PERF]
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e,t],[?lv(e),AGENT(e,x),PATIENT(e,y),ACH(e),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=ach,SEM=?lv,-PERF]
 
-V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([s,t],[?lv(s,x,y),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=s,SEM=?lv,-PERF]
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([s,t],[?lv(s),AGENT(s,x),PATIENT(s,y),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=s,SEM=?lv,-PERF]
 
 
-V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e],[?lv(e,x,y),ACC(e),PERF(e)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=acc,SEM=?lv,+PERF]
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([e],[?lv(e),AGENT(e,x),PATIENT(e,y),ACC(e),PERF(e)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=e,SUBTYPE=acc,SEM=?lv,+PERF]
 
-V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([s],[?lv(s,x,y),PERF(s)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=s,SEM=?lv,+PERF]
+V[SUBCAT=tv,-FIN,SEM=<\X x.X(\y.DRS([s],[?lv(s),AGENT(s,x),PATIENT(s,y),PERF(s)]))>] -> LexV[SUBCAT=tv,-FIN,TYPE=s,SEM=?lv,+PERF]
 
 
 #############################
@@ -212,3 +216,6 @@ LexV[SUBCAT=tv,-FIN,TYPE=s,SEM=<own>,+PERF] -> 'owned'
 ## Copula:
 
 V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([t],[PRES(t)])+Y(\x.(X(\y.DRS([s],[eq(s,x,y)])))))>] -> 'is'
+
+OR[SEM=<\X Y.DRS([],[(X or Y)])>] -> 'or'
+IF[SEM=<\X Y.DRS([],[(X implies Y)])>] -> 'if' | 'If'
