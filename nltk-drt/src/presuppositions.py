@@ -30,7 +30,7 @@ class DrtParser(temporaldrt.DrtParser):
 
 class ProperNameDRS(PresuppositionDRS):
     
-    def _readings(self, trail=[]):
+    def _presupposition_readings(self, trail=[]):
         """A proper name always yields one reading: it is either global binding 
         or global accommodation (if binding is not possible)"""
         # In DRSs representing sentences like 'John, who owns a dog, feeds it',
@@ -103,13 +103,13 @@ class ProperNameDRS(PresuppositionDRS):
                  (local_drs, inner_remove)]]
 
 class DefiniteDescriptionDRS(PresuppositionDRS):
-    def readings(self, trail=[]):
+    def _presupposition_readings(self, trail=[]):
         pass
 
 class PronounDRS(PresuppositionDRS):
     """A superclass for DRSs for personal, reflexive, 
     and possessive pronouns"""
-    def readings(self, trail=[]):
+    def _presupposition_readings(self, trail=[]):
         pass
 
 #################################
