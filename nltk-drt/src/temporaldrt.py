@@ -104,6 +104,8 @@ class DrtTokens(drt.DrtTokens):
     DEFINITE_DESCRIPTION_DRS = 'DEF'
     PRONOUN_DRS = 'PRON'
     PRESUPPOSITION_DRS = [PROPER_NAME_DRS, DEFINITE_DESCRIPTION_DRS, PRONOUN_DRS]
+    REFLEXIVE_PRONOUN = 'RPRO'
+    POSSESSIVE_PRONOUN = 'PPRO'
 
 class AbstractDrs(drt.AbstractDrs):
     """
@@ -571,7 +573,6 @@ class DrtTimeVariableExpression(DrtIndividualVariableExpression, TimeVariableExp
     """Type of discourse referents of time"""
     pass
 
-
 class DrtTimeApplicationExpression(DrtApplicationExpression):
     """Type of DRS-conditions used in temporal logic"""
     pass
@@ -751,8 +752,8 @@ class DrtParser(drt.DrtParser):
         """If statement added returning DrtTimeApplicationExpression"""
         """ Is self of the form "LOCPRO(t)"? """
         if isinstance(function, DrtAbstractVariableExpression) and \
-        function.variable.name == DrtTokens.LOCATION_TIME and \
-        isinstance(argument, DrtTimeVariableExpression):
+           function.variable.name == DrtTokens.LOCATION_TIME and \
+           isinstance(argument, DrtTimeVariableExpression):
             return DrtLocationTimeApplicationExpression(function, argument)
         elif isinstance(argument, DrtTimeVariableExpression):
             return DrtTimeApplicationExpression(function, argument)
