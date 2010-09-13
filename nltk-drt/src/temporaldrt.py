@@ -302,9 +302,17 @@ class DRS(AbstractDrs, drt.DRS):
     
     def _readings(self, trail=[]):
         """get the readings for this DRS, if the second return value is true the condition is removed"""
-        for cond in self.conds:
+        for i, cond in enumerate(self.conds):
             readings = cond._readings(trail + [self])
             if readings:
+                for reading in readings:
+                    for index, (drs, operation) in enumerate(reading):
+                        if drs is self:
+                            def new_operation(d):
+                                d.conds.pop(i)
+                                return operation(d)
+                            reading[index] = (drs, new_operation)
+                                
                 return readings
 
 def DrtVariableExpression(variable):
