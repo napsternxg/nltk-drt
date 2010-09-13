@@ -23,39 +23,33 @@ class DrtParser(temporaldrt.DrtParser):
         elif tok == DrtTokens.PRONOUN_DRS:
             return PronounDRS(drs.refs, drs.conds)
 
-def get_drses(trail):
-    for ancestor in trail:
-        if isinstance(ancestor, DRS):
-            yield ancestor
-
 class PronounDRS(PresuppositionDRS):
     """A superclass for DRSs for personal, reflexive, 
     and possessive pronouns"""
-    def is_pronoun_application_expression(self, expr):
+    PRONOUNS = [DrtTokens.PRONOUN, DrtTokens.REFLEXIVE_PRONOUN, DrtTokens.POSSESSIVE_PRONOUN]
+
+    def get_pronoun_data(self):
         """Is expr of the form "PRO(x)"? """
-        return isinstance(expr, DrtApplicationExpression) and\
-             isinstance(expr.function, DrtAbstractVariableExpression) and \
-             expr.function.variable.name == DrtTokens.PRONOUN and \
-             isinstance(expr.argument, DrtIndividualVariableExpression)
+        for cond in self.conds:
+            if isinstance(cond, DrtApplicationExpression) and\
+             isinstance(cond.function, DrtAbstractVariableExpression) and \
+             cond.function.variable.name in self.PRONOUNS and \
+             isinstance(cond.argument, DrtIndividualVariableExpression):
+                return cond.argument.variable, (isinstance(cond.function, DrtFeatureConstantExpression) and cond.function.features) or None, cond.function.variable.name
+                break
 
     def _presupposition_readings(self, trail=[]):
         possible_antecedents = []
-        pro = [cond for cond in self.conds if self.is_pronoun_application_expression(cond)][0]
-        pro_variable = pro.argument.variable
-        pro_features = (isinstance(pro.function, DrtFeatureConstantExpression) and pro.function.features) or None
+        pro_variable, pro_features, pro_type = self.get_pronoun_data()
         roles = {}
         events = {}
         refs = []
-        for drs in get_drses(trail):
+        for drs in (ancestor for ancestor in trail if isinstance(ancestor, DRS)):
             print "drs", drs
             refs.extend(drs.refs)
             for cond in drs.conds:
-                #exclude pronouns from resolution
-                if self.is_pronoun_application_expression(cond) and\
-                    not self._resolve_to_pronouns():
-                    continue
 
-                elif isinstance(cond, DrtApplicationExpression) and\
+                if isinstance(cond, DrtApplicationExpression) and\
                     cond.argument.__class__ is DrtIndividualVariableExpression:
                     var = cond.argument.variable
                     # nouns/proper names
@@ -66,10 +60,8 @@ class PronounDRS(PresuppositionDRS):
 
                         #print "refs", refs, "var", var, "pro_variable", pro_variable
 
-                        if not var == pro_variable and\
-                                (not isinstance(cond.function, DrtFeatureConstantExpression or\
-                                 not pro_features) or\
-                                 cond.function.features == pro_features):
+                        if (not isinstance(cond.function, DrtFeatureConstantExpression or\
+                                 not pro_features) or cond.function.features == pro_features):
                             possible_antecedents.append((self.make_VariableExpression(var), 0))
                     # role application
                     if isinstance(cond.function, DrtApplicationExpression) and\
@@ -96,7 +88,7 @@ class PronounDRS(PresuppositionDRS):
                 except KeyError:
                     pass
         for var, rank in possible_antecedents:
-            if self._is_possible_antecedent(var.variable, pro_variable, events):
+            if self._is_possible_antecedent(var.variable, pro_variable, pro_type, events):
                 antecedents.append((var, rank))
 
         #ranking system
@@ -122,26 +114,26 @@ class PronounDRS(PresuppositionDRS):
         inner_drs = trail[-1]
         antecedents = sorted(antecedents, key=lambda e: e[1], reverse=True)
         print "antecedents", antecedents
-        print inner_drs, antecedents[0] in inner_drs.refs
-        self.refs.remove(pro_variable)
         return [[(inner_drs, lambda d: d.__class__(d.refs, [cond.replace(pro_variable, antecedent[0], False) for cond in d.conds]))] for antecedent in antecedents]
 
-    def _is_possible_antecedent(self, variable, pro_variable, events):
+    def _is_possible_antecedent(self, variable, pro_variable, pro_type, events):
         #non reflexive pronouns can not resolve to variables having a role in the same event
-        return events[variable].isdisjoint(events[pro_variable])
-    
-    def _resolve_to_pronouns(self):
-        return False
+        if pro_type == DrtTokens.PRONOUN:
+            return events[variable].isdisjoint(events[pro_variable])
+        elif pro_type == DrtTokens.REFLEXIVE_PRONOUN:
+            return not events[variable].isdisjoint(events[pro_variable])
+        else:
+            return True
 
 def main():
     from util import Tester
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
-    drs = tester.parse( "Mary kissed a girl. She bit she.")
+    drs = tester.parse( "Mary kissed a girl. She does walk.")# bit herself.")
     print drs
     readings = drs.readings()
     print readings
-    for reading in readings:
-        reading.draw()
+#    for reading in readings:
+#        reading.draw()
 
 if __name__ == '__main__':
     main()
