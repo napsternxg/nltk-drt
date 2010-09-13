@@ -637,20 +637,23 @@ class PresuppositionDRS(DRS):
     """A Discourse Representation Structure for presuppositions.
     Presuppositions triggered by a possessive pronoun/marker, the definite article, a proper name
     will be resolved in different ways. They are represented by subclasses of PresuppositionalDRS."""
-    pass
+    
+    def _readings(self, trail=[]):
+        return (DRS._readings(self, trail) or
+        self._presupposition_readings(trail))
 
 class ProperNameDRS(PresuppositionDRS):
-    def _readings(self, trail=[]):
+    def _presupposition_readings(self, trail=[]):
         pass
 
 class DefiniteDescriptionDRS(PresuppositionDRS):
-    def _readings(self, trail=[]):
+    def _presupposition_readings(self, trail=[]):
         pass
 
 class PronounDRS(PresuppositionDRS):
     """A superclass for DRSs for personal, reflexive, 
     and possessive pronouns"""
-    def _readings(self, trail=[]):
+    def _presupposition_readings(self, trail=[]):
         pass
 
 class DrtParser(drt.DrtParser):
