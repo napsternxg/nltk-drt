@@ -131,7 +131,8 @@ class PronounReplacer(object):
 def main():
     from util import Tester
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
-    drs = tester.parse( "Mary kissed a girl. She bit she.")
+    #drs = tester.parse( "Mary kissed a girl. She bit herself.")
+    drs = tester.parse( "Her car does walk.")
     print drs
     readings = drs.readings()
     print readings
