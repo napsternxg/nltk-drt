@@ -1,6 +1,6 @@
 import temporaldrt
 import nltk.sem.drt as drt
-from temporaldrt import PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression
+from temporaldrt import PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, Reading, Function
 import util
 
 # Nltk fix
@@ -79,8 +79,8 @@ class ProperNameDRS(PresuppositionDRS):
             # Return the reading
             if local_drs is outer_drs:
                 return [[(local_drs, inner)]]
-            return [[(outer_drs, outer_binding),
-                     (local_drs, inner)]]
+            return [Reading(Function(outer_drs, outer_binding),
+                     Function(local_drs, inner))]
         # If no suitable antecedent has been found in the outer DRS,
         # binding is not possible, so we go for accommodation instead.
         def outer_accommodation(drs):
@@ -89,7 +89,7 @@ class ProperNameDRS(PresuppositionDRS):
             drs.refs.extend(self.refs) 
             drs.conds.extend(self.conds)
             return drs
-        return [[(outer_drs, outer_accommodation)]]
+        return [Reading((Function(outer_drs, outer_accommodation),))]
 
 class DefiniteDescriptionDRS(PresuppositionDRS):
     def _presupposition_readings(self, trail=[]):
