@@ -50,6 +50,10 @@ Det[SEM=<?not(?det)>] -> Not[SEM=?not] Det[SEM=?det]
 # Lexicalisation Rules:
 #############################
 
+N[NUM=?n,GEN=?g,SEM=<?pp(?np)>] -> N[NUM=?n,GEN=?g,SEM=?np] PP[SEM=?pp]
+
+PP[SEM=<?p(?np)>] -> RelMarker[SEM=?p] NP[SEM=?np]
+
 N[NUM=?n,GEN=?g,SEM=<\x.DRS([],[?lexn{?n,?g}(x)])>] -> LexN[NUM=?n,GEN=?g,SEM=?lexn]
 
 NP[NUM=?n,GEN=?g,SEM=<\P.(DRS([],[PRON([x],[?lexp{?n,?g}(x)])])+P(x))>] -> LexPro[NUM=?n,GEN=?g,SEM=?lexp]
@@ -59,7 +63,6 @@ NP[NUM=?n,GEN=?g,SEM=<\P.(DRS([],[PROP([x],[?lexn{?n,?g}(x)])])+P(x))>] -> LexPr
 ADJ[SEM=<\P x.(DRS([],[?ladj(x)])+P(x))>] -> LexADJ[SEM=?ladj]
 
 Det[SEM=<\P Q.(DRS([],[(DEF([x],[poss(y,x), PRON([y],[?lexp{?n,?g}(y)])])+P(x))])+Q(x))>] -> LexPos[NUM=?n,GEN=?g,SEM=?lexp]
-
 
 # Infinitives: Intransitive Events / States
 ###########################################
@@ -133,11 +136,11 @@ Not[SEM=<\ Q P Z.(DRS([],[-Q(P,Z)]))>] -> 'not' | 'Not'
 # Presuppositional Determiners:
 ###############################
 
-#Det[SEM=<\P Q.(DRS([],[(DEF([x],[])+P(x))])+Q(x))>] -> 'the' | 'The'
-Det[SEM=<\P Q.(DRS([],[(DRS([x],[])+P(x))])+Q(x))>] -> 'the' | 'The'
+Det[SEM=<\P Q.(DRS([],[(DEF([x],[])+P(x))])+Q(x))>] -> 'the' | 'The'
 
-#PosMarker[SEM=<\O P Q.(DRS([],[(O(\x.(DEF([y],[poss(x,y)])))+P(y))])+Q(y))>] -> 's'
-PosMarker[SEM=<\O P Q.(DRS([],[(O(\x.(DRS([y],[poss(x,y)])))+P(y))])+Q(y))>] -> 's'
+PosMarker[SEM=<\O P Q.(DRS([],[(O(\x.(DEF([y],[poss(x,y)])))+P(y))])+Q(y))>] -> 's'
+
+RelMarker[SEM=<\Q P z.(Q(\y.DRS([],[THEME(z,y)]))+P(z))>] -> 'of'
 
 # Relative Pronoun: (substitutes for SubjNP of the relative clause)
 ###################
