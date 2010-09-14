@@ -230,6 +230,22 @@ class AbstractDrs(drt.AbstractDrs):
     def _readings(self, trail=[]):
         raise NotImplementedError()
 
+class Functor(object):
+    def __init__(self, drs):
+        self.drs = drs
+    def __call__(self, drs):
+        raise NotImplementedError()
+
+class Function(Functor):
+    def __init__(self, drs, function):
+        Functor.__init__(self, drs)
+        self.function = function
+    def __call__(self, drs):
+        return self.function(drs)
+
+class Reading(list):
+    pass
+
 class DRS(AbstractDrs, drt.DRS):
     """A Temporal Discourse Representation Structure."""
 
@@ -293,7 +309,7 @@ class DRS(AbstractDrs, drt.DRS):
         @param operations: a list of lists of tuples
         """
 
-        functions = [function for obj, function in operations if obj is self]
+        functions = [function for function in operations if function.drs is self]
         newdrs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
         return functions[0](newdrs) if functions else newdrs
 
@@ -309,9 +325,9 @@ class DRS(AbstractDrs, drt.DRS):
             readings = cond._readings(trail + [self])
             if readings:
                 for reading in readings:
-                    for index, (drs, operation) in enumerate(reading):
-                        if drs is self:
-                            reading[index] = (drs, PresuppositionDRSRemover(i, operation))
+                    for index, functor in enumerate(reading):
+                        if functor.drs is self:
+                            reading[index] = PresuppositionDRSRemover(functor, i)
                                 
                 return readings
 
@@ -322,14 +338,15 @@ class DRS(AbstractDrs, drt.DRS):
             return '([%s],[%s])' % (','.join([str(r) for r in self.get_refs()]),
                                     ', '.join([c.str(syntax) for c in self.conds]))
 
-class PresuppositionDRSRemover(object):
-    def __init__(self, cond_index, operation):
+class PresuppositionDRSRemover(Functor):
+    def __init__(self, functor, cond_index):
+        Functor.__init__(self, functor.drs)
         self.cond_index = cond_index
-        self.operation = operation
+        self.functor = functor
     def __call__(self, drs):
         assert isinstance(drs.conds[self.cond_index], PresuppositionDRS)
         drs.conds.pop(self.cond_index)
-        return self.operation(drs)    
+        return self.functor(drs)
 
 def DrtVariableExpression(variable):
     """
