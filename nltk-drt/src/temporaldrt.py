@@ -327,8 +327,6 @@ class PresuppositionDRSRemover(object):
     def __init__(self, cond_index):
         self.cond_index = cond_index
     def __call__(self, drs):
-        print "Remover"
-        print drs, self.cond_index
         assert isinstance(drs.conds[self.cond_index], PresuppositionDRS)
         drs.conds.pop(self.cond_index)
         return drs
