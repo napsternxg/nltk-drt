@@ -96,7 +96,7 @@ class PronounDRS(PresuppositionDRS):
             raise AnaphoraResolutionException("Variable '%s' does not "
                                 "resolve to anything." % pro_variable)
 
-        return [Reading([(trail[-1], PronounReplacer(pro_variable, var))]) for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)]
+        return [Reading([(trail[-1], PronounReplacer(pro_variable, var))]) for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)], True
 
     def _is_possible_antecedent(self, variable, pro_variable, pro_type, events):
         #non reflexive pronouns can not resolve to variables having a role in the same event
