@@ -1,5 +1,5 @@
 import temporaldrt
-from temporaldrt import Reading, Functor, Variable, DrtVariableExpression, DrtAbstractVariableExpression, DrtIndividualVariableExpression, PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, DefiniteDescriptionDRS, DrtConstantExpression, DrtFeatureConstantExpression
+from temporaldrt import ReverseIterator, Reading, Functor, Variable, DrtVariableExpression, DrtAbstractVariableExpression, DrtIndividualVariableExpression, PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, DefiniteDescriptionDRS, DrtConstantExpression, DrtFeatureConstantExpression
 from nltk.sem.drt import AnaphoraResolutionException
 from presuppositions import ProperNameDRS
 # Nltk fix
@@ -43,9 +43,7 @@ class PronounDRS(PresuppositionDRS):
         pro_variable, pro_features, pro_type = self.get_pronoun_data()
         roles = {}
         events = {}
-        refs = []
         for drs in (ancestor for ancestor in trail if isinstance(ancestor, DRS)):
-            refs.extend(drs.refs)
             for cond in drs.conds:
 
                 if isinstance(cond, DrtApplicationExpression) and\
@@ -68,7 +66,6 @@ class PronounDRS(PresuppositionDRS):
                             roles.setdefault(var,set()).add(cond.function.function)
                             events.setdefault(var,set()).add(cond.function.argument)
 
-        antecedents = []
         #filter by events
         #in case pronoun participates in only one event, which has no other participants,
         #try to extend it with interlinked events
@@ -86,25 +83,14 @@ class PronounDRS(PresuppositionDRS):
                     events[pro_variable] = events[pro_variable].union(events[event.variable])
                 except KeyError:
                     pass
-        for var, rank in possible_antecedents:
-            if self._is_possible_antecedent(var.variable, pro_variable, pro_type, events):
-                antecedents.append((var, rank))
+
+        antecedents = [(var, rank) for var, rank in possible_antecedents if self._is_possible_antecedent(var.variable, pro_variable, pro_type, events)]
 
         #ranking system
         #increment ranking for matching roles and map the positions of antecedents
         if len(antecedents) > 1:
-            idx_map = {}
             for index, (var, rank) in enumerate(antecedents):
-                idx_map[refs.index(var.variable)] = var
-                antecedents[index] = (var, rank + len(roles[var.variable].intersection(roles[pro_variable])))
-
-            #rank by proximity
-            for i,key in enumerate(sorted(idx_map)):
-                v = idx_map[key]
-                for index, (var, rate) in enumerate(antecedents):
-                    if var == v:
-                        antecedents[index] = (var, rate+i)
-                        break
+                antecedents[index] = (var, rank + index + len(roles[var.variable].intersection(roles[pro_variable])))
 
         if len(antecedents) == 0:
             raise AnaphoraResolutionException("Variable '%s' does not "
