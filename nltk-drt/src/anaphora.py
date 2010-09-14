@@ -1,5 +1,5 @@
 import temporaldrt
-from temporaldrt import ReverseIterator, Reading, Functor, Variable, DrtVariableExpression, DrtAbstractVariableExpression, DrtIndividualVariableExpression, PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, DefiniteDescriptionDRS, DrtConstantExpression, DrtFeatureConstantExpression
+from temporaldrt import Reading, Variable, DrtVariableExpression, DrtAbstractVariableExpression, DrtIndividualVariableExpression, PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, DefiniteDescriptionDRS, DrtConstantExpression, DrtFeatureConstantExpression
 from nltk.sem.drt import AnaphoraResolutionException
 from presuppositions import ProperNameDRS
 # Nltk fix
@@ -44,8 +44,8 @@ class PronounDRS(PresuppositionDRS):
         roles = {}
         events = {}
         for drs in (ancestor for ancestor in trail if isinstance(ancestor, DRS)):
+            print drs
             for cond in drs.conds:
-
                 if isinstance(cond, DrtApplicationExpression) and\
                     cond.argument.__class__ is DrtIndividualVariableExpression:
                     var = cond.argument.variable
@@ -96,7 +96,7 @@ class PronounDRS(PresuppositionDRS):
             raise AnaphoraResolutionException("Variable '%s' does not "
                                 "resolve to anything." % pro_variable)
 
-        return [Reading((PronounReplacer(trail[-1], pro_variable, var),)) for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)]
+        return [Reading([(trail[-1], PronounReplacer(pro_variable, var))]) for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)]
 
     def _is_possible_antecedent(self, variable, pro_variable, pro_type, events):
         #non reflexive pronouns can not resolve to variables having a role in the same event
@@ -107,9 +107,8 @@ class PronounDRS(PresuppositionDRS):
         else:
             return True
 
-class PronounReplacer(Functor):
-    def __init__(self, drs, pro_var, new_var):
-        Functor.__init__(self, drs)
+class PronounReplacer(object):
+    def __init__(self, pro_var, new_var):
         self.pro_var = pro_var
         self.new_var = new_var
     def __call__(self, drs):
@@ -118,8 +117,11 @@ class PronounReplacer(Functor):
 def main():
     from util import Tester
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
-    drs = tester.parse( "Mary kissed a girl. She bit herself.")
+    drs = tester.parse( "a boy kissed a girl. She bit he.")
+    #drs = tester.parse( "John does walk. His car does walk.")
+    #drs = tester.parse( "Mary does write John s letter of himself.")
     print drs
+    #drs.draw()
     readings = drs.readings()
     print readings
     for reading in readings:
