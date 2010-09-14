@@ -1,6 +1,6 @@
 import temporaldrt
 import nltk.sem.drt as drt
-from temporaldrt import PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, Reading, Function
+from temporaldrt import PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, Reading
 import util
 
 # Nltk fix
@@ -30,6 +30,61 @@ class DrtParser(temporaldrt.DrtParser):
 
 class ProperNameDRS(PresuppositionDRS):
     
+    class OuterBinding(object):
+        def __init__(self, presupp_drs, proper_name, antecedent_ref, cond_index):
+            self.presupp_drs = presupp_drs
+            self.proper_name = proper_name
+            self.antecedent_ref = antecedent_ref
+            self.cond_index = cond_index
+        def __call__(self, drs):
+            """Put all conditions from the presupposition DRS
+            (except the proper name itself) into the outer DRS, 
+            and replace the proper name referent in them with antecedent_ref"""
+            newdrs = self.presupp_drs.replace(self.proper_name.argument.variable, self.antecedent_ref, True)
+            # There will be referents and conditions to move 
+            # if there is a relative clause modifying the proper name
+            drs.refs.extend([ref for ref in newdrs.refs \
+                             if ref != self.antecedent_ref.variable])
+            conds_to_move = [cond for cond in newdrs.conds \
+                            if cond.function.variable.name != self.proper_name.function.variable.name]
+            # Put the conditions at the position of the original presupposition DRS
+            if self.cond_index is None: # it is an index, it can be zero
+                drs.conds.extend(conds_to_move)
+            else:
+                drs.conds = drs.conds[:self.cond_index+1]+conds_to_move+drs.conds[self.cond_index+1:]
+                return drs
+            
+    class InnerReplace(object):
+        def __init__(self, proper_name, antecedent_ref, local_is_outer, cond_index):
+            self.proper_name = proper_name
+            self.antecedent_ref = antecedent_ref
+            self.local_is_outer = local_is_outer
+            self.cond_index = cond_index
+        def __call__(self, drs):
+                """In the conditions of the local DRS, replace the 
+                referent of the proper name with antecedent_ref"""
+                if self.local_is_outer:
+                    func = ProperNameDRS.OuterBinding(drs, self.proper_name, self.antecedent_ref, self.cond_index)
+                    drs = func(drs)
+                return drs.replace(self.proper_name.argument.variable, self.antecedent_ref, True)
+    
+    class OuterAccommodation(object):
+        def __init__(self, presupp_drs, cond_index):
+            self.presupp_drs = presupp_drs
+            self.cond_index = cond_index
+        def __call__(self, drs):
+            """Accommodation: put all referents and conditions from 
+            the presupposition DRS into the outer DRS"""
+            drs.refs.extend(self.presupp_drs.refs) 
+            if self.cond_index is None:
+                drs.conds.extend(self.presupp_drs.conds)
+            else:
+                print self.cond_index
+                print "outer accommodation drs.conds before",drs.conds
+                drs.conds = drs.conds[:self.cond_index+1]+self.presupp_drs.conds+drs.conds[self.cond_index+1:]
+                print "outer accommodation drs.conds after",drs.conds
+            return drs
+        
     def _presupposition_readings(self, trail=[]):
         """A proper name always yields one reading: it is either global binding 
         or global accommodation (if binding is not possible)"""
@@ -56,54 +111,19 @@ class ProperNameDRS(PresuppositionDRS):
             and cond.function.variable.name == proper_name.function.variable.name:
                 antecedent_ref = cond.argument
                 break
-        i = None
+        cond_index = None
         if local_drs is outer_drs:
-            i = local_drs.conds.index(self)
-        if antecedent_ref:
-            def outer_binding(drs):
-                """Put all conditions from the presupposition DRS
-                (except the proper name itself) into the outer DRS, 
-                and replace the proper name referent in them with antecedent_ref"""
-                newdrs = self.replace(proper_name.argument.variable, antecedent_ref, True)
-                # There will be referents and conditions to move 
-                # if there is a relative clause modifying the proper name
-                drs.refs.extend([ref for ref in newdrs.refs \
-                                 if ref != antecedent_ref.variable])
-                conds_to_move = [cond for cond in newdrs.conds \
-                                if cond.function.variable.name != proper_name.function.variable.name]
-                # Put the conditions at the position of the original presupposition DRS
-                if i is None: # i is an index, it can be zero
-                    drs.conds.extend(conds_to_move)
-                else:
-                    i = drs.conds.index(self)
-                    drs.conds = drs.conds[:i]+conds_to_move+drs.conds[i+1:]
-                
-                return drs
-               
-            def inner(drs):
-                """In the conditions of the local DRS, replace the 
-                referent of the proper name with antecedent_ref"""
-                if local_drs is outer_drs: drs = outer_binding(drs)
-                return drs.replace(proper_name.argument.variable, antecedent_ref, True)
-                
+            cond_index = local_drs.conds.index(self)
+        if antecedent_ref:           
             # Return the reading
             if local_drs is outer_drs:
-                return [[(local_drs, inner)]]
-            return [Reading(Function(outer_drs, outer_binding),
-                     Function(local_drs, inner))]
+                return [Reading([(local_drs, ProperNameDRS.InnerReplace(proper_name, antecedent_ref, (local_drs is outer_drs), cond_index))])]
+            return [Reading([(outer_drs, ProperNameDRS.OuterBinding(self, proper_name, antecedent_ref, cond_index)),
+                     (local_drs, ProperNameDRS.InnerReplace(proper_name, antecedent_ref, (local_drs is outer_drs), cond_index))])]
         # If no suitable antecedent has been found in the outer DRS,
         # binding is not possible, so we go for accommodation instead.
-        def outer_accommodation(drs):
-            """Accommodation: put all referents and conditions from 
-            the presupposition DRS into the outer DRS"""
-            drs.refs.extend(self.refs) 
-            if i is None:
-                drs.conds = drs.conds[:i]+self.conds+drs.conds[i+1:]
-            else:
-                drs.conds.extend(self.conds)
-            return drs
-        return [Reading((Function(outer_drs, outer_accommodation),))]
-
+        return [Reading([(outer_drs, ProperNameDRS.OuterAccommodation(self, cond_index))])]
+    
 class DefiniteDescriptionDRS(PresuppositionDRS):
     def _presupposition_readings(self, trail=[]):
         pass
@@ -180,9 +200,9 @@ if __name__ == '__main__':
                  ['A boy marries the girl', 'He walks'],
                  'A boy s father marries his girl', 'his girl'
                  ]
-    sentences_2 = [['John walks', 'Every girl marries John'], "John marries Mia"]
+    sentences_2 = [['John walks','John walks'], ['John walks', 'Every girl marries John'], "John marries Mia"]
     
-    for sentence in sentences[:1]: presuppositions_test(sentence, parser)
+    #for sentence in sentences[:1]: presuppositions_test(sentence, parser)
     for sentence in sentences_2[:-1]: proper_names_test_1(sentence, parser)
     proper_names_test_2(parser)
     integration_test()
