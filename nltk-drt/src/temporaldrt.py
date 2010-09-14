@@ -239,13 +239,13 @@ class DRS(AbstractDrs, drt.DRS):
         if variable in self.get_refs():
             #if a bound variable is the thing being replaced
             if not replace_bound:
-                return self.deepcopy()
+                return self
             else:
                 if variable in self.refs:
                     i = self.refs.index(variable)
                     refs = self.refs[:i]+[expression.variable]+self.refs[i+1:]
                 else:
-                    refs = list(self.refs)
+                    refs = self.refs
                 return self.__class__(refs,
                            [cond.replace(variable, expression, True) for cond in self.conds])
         else:
@@ -260,13 +260,13 @@ class DRS(AbstractDrs, drt.DRS):
                     i = self.refs.index(ref)
                     refs = self.refs[:i]+[newvar]+self.refs[i+1:]
                 else:
-                    refs = list(self.refs)
+                    refs = self.refs
                 self = self.__class__(refs,
                            [cond.replace(ref, newvarex, True) 
                             for cond in self.conds])
                 
             #replace in the conditions
-            return self.__class__(list(self.refs),
+            return self.__class__(self.refs,
                        [cond.replace(variable, expression, replace_bound) 
                         for cond in self.conds])
             
@@ -293,11 +293,9 @@ class DRS(AbstractDrs, drt.DRS):
         @param operations: a list of lists of tuples
         """
 
-#        functions = [function for obj, function in operations if obj is self]
-#        newdrs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
-#        return functions[0](newdrs) if functions else newdrs
         functions = [function for obj, function in operations if obj is self]
-        return functions[0](self) if functions else self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
+        newdrs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
+        return functions[0](newdrs) if functions else newdrs
 
     def simplify(self):
         return self.__class__(self.refs, [cond.simplify() for cond in self.conds])

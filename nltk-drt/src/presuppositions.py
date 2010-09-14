@@ -64,20 +64,18 @@ class ProperNameDRS(PresuppositionDRS):
                 newdrs = self.replace(proper_name.argument.variable, antecedent_ref, True)
                 # There will be referents and conditions to move 
                 # if there is a relative clause modifying the proper name
-#                drs.refs.extend([ref for ref in newdrs.refs \
-#                                 if ref != antecedent_ref.variable])
-#                drs.conds.extend([cond for cond in newdrs.conds \
-#                                  if cond.function.variable.name != proper_name.function.variable.name])
-                return drs.__class__(drs.refs + [ref for ref in newdrs.refs if ref != antecedent_ref.variable],\
-                                     drs.conds + [cond for cond in newdrs.conds if cond.function.variable.name != proper_name.function.variable.name])
-                
+                drs.refs.extend([ref for ref in newdrs.refs \
+                                 if ref != antecedent_ref.variable])
+                drs.conds.extend([cond for cond in newdrs.conds \
+                                if cond.function.variable.name != proper_name.function.variable.name])
+                return drs
+               
             def inner(drs):
                 """In the conditions of the local DRS, replace the 
                 referent of the proper name with antecedent_ref"""
                 if local_drs is outer_drs: drs = outer_binding(drs)
                 return drs.replace(proper_name.argument.variable, antecedent_ref, True)
-#                drs.refs = newdrs.refs
-#                drs.conds = newdrs.conds
+                
             # Return the reading
             if local_drs is outer_drs:
                 return [[(local_drs, inner)]]
@@ -88,9 +86,9 @@ class ProperNameDRS(PresuppositionDRS):
         def outer_accommodation(drs):
             """Accommodation: put all referents and conditions from 
             the presupposition DRS into the outer DRS"""
-            #drs.refs.extend(self.refs) 
-            #drs.conds.extend(self.conds)
-            return drs.__class__(drs.refs + self.refs, drs.conds + self.conds)
+            drs.refs.extend(self.refs) 
+            drs.conds.extend(self.conds)
+            return drs
         return [[(outer_drs, outer_accommodation)]]
 
 class DefiniteDescriptionDRS(PresuppositionDRS):
