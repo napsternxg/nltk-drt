@@ -56,6 +56,9 @@ class ProperNameDRS(PresuppositionDRS):
             and cond.function.variable.name == proper_name.function.variable.name:
                 antecedent_ref = cond.argument
                 break
+        i = None
+        if local_drs is outer_drs:
+            i = local_drs.conds.index(self)
         if antecedent_ref:
             def outer_binding(drs):
                 """Put all conditions from the presupposition DRS
@@ -66,8 +69,15 @@ class ProperNameDRS(PresuppositionDRS):
                 # if there is a relative clause modifying the proper name
                 drs.refs.extend([ref for ref in newdrs.refs \
                                  if ref != antecedent_ref.variable])
-                drs.conds.extend([cond for cond in newdrs.conds \
-                                if cond.function.variable.name != proper_name.function.variable.name])
+                conds_to_move = [cond for cond in newdrs.conds \
+                                if cond.function.variable.name != proper_name.function.variable.name]
+                # Put the conditions at the position of the original presupposition DRS
+                if i is None: # i is an index, it can be zero
+                    drs.conds.extend(conds_to_move)
+                else:
+                    i = drs.conds.index(self)
+                    drs.conds = drs.conds[:i]+conds_to_move+drs.conds[i+1:]
+                
                 return drs
                
             def inner(drs):
@@ -87,7 +97,10 @@ class ProperNameDRS(PresuppositionDRS):
             """Accommodation: put all referents and conditions from 
             the presupposition DRS into the outer DRS"""
             drs.refs.extend(self.refs) 
-            drs.conds.extend(self.conds)
+            if i is None:
+                drs.conds = drs.conds[:i]+self.conds+drs.conds[i+1:]
+            else:
+                drs.conds.extend(self.conds)
             return drs
         return [Reading((Function(outer_drs, outer_accommodation),))]
 
