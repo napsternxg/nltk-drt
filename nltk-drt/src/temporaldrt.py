@@ -297,7 +297,9 @@ class DRS(AbstractDrs, drt.DRS):
         """
         functions = [function for drs, function in operations if drs is self]
         newdrs = self.__class__(list(self.refs), [cond.deepcopy(operations) for cond in self.conds])
-        return functions[0](newdrs) if functions else newdrs
+        for function in functions:
+            newdrs = function(newdrs)
+        return newdrs
 
     def simplify(self):
         return self.__class__(self.refs, [cond.simplify() for cond in self.conds])
@@ -311,7 +313,7 @@ class DRS(AbstractDrs, drt.DRS):
             readings = cond._readings(trail + [self])
             if readings:
                 for reading in readings:
-                    reading.insert(0, (self, PresuppositionDRSRemover(i)))
+                    reading.append((self, PresuppositionDRSRemover(i)))
                 return readings
 
     def str(self, syntax=DrtTokens.NLTK):
