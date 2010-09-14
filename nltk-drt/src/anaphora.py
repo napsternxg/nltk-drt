@@ -1,5 +1,5 @@
 import temporaldrt
-from temporaldrt import DrtAbstractVariableExpression, DrtIndividualVariableExpression, PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, DefiniteDescriptionDRS, DrtConstantExpression, DrtFeatureConstantExpression
+from temporaldrt import Variable, DrtVariableExpression, DrtAbstractVariableExpression, DrtIndividualVariableExpression, PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, DefiniteDescriptionDRS, DrtConstantExpression, DrtFeatureConstantExpression
 from nltk.sem.drt import AnaphoraResolutionException
 from presuppositions import ProperNameDRS
 # Nltk fix
@@ -33,9 +33,9 @@ class PronounDRS(PresuppositionDRS):
         for cond in self.conds:
             if isinstance(cond, DrtApplicationExpression) and\
              isinstance(cond.function, DrtAbstractVariableExpression) and \
-             cond.function.variable.name in self.PRONOUNS and \
+             cond.function.variable.name in PronounDRS.PRONOUNS and \
              isinstance(cond.argument, DrtIndividualVariableExpression):
-                return cond.argument.variable, (isinstance(cond.function, DrtFeatureConstantExpression) and cond.function.features) or None, cond.function.variable.name
+                return cond.argument.variable, cond.function.features if isinstance(cond.function, DrtFeatureConstantExpression) else None, cond.function.variable.name
                 break
 
     def _presupposition_readings(self, trail=[]):
@@ -45,7 +45,6 @@ class PronounDRS(PresuppositionDRS):
         events = {}
         refs = []
         for drs in (ancestor for ancestor in trail if isinstance(ancestor, DRS)):
-            print "drs", drs
             refs.extend(drs.refs)
             for cond in drs.conds:
 
@@ -110,11 +109,8 @@ class PronounDRS(PresuppositionDRS):
         if len(antecedents) == 0:
             raise AnaphoraResolutionException("Variable '%s' does not "
                                 "resolve to anything." % pro_variable)
-            
-        inner_drs = trail[-1]
-        antecedents = sorted(antecedents, key=lambda e: e[1], reverse=True)
-        print "antecedents", antecedents
-        return [[(inner_drs, lambda d: d.__class__(d.refs, [cond.replace(pro_variable, antecedent[0], False) for cond in d.conds]))] for antecedent in antecedents]
+
+        return [[(trail[-1], PronounReplacer(pro_variable, var))] for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)]
 
     def _is_possible_antecedent(self, variable, pro_variable, pro_type, events):
         #non reflexive pronouns can not resolve to variables having a role in the same event
@@ -125,15 +121,22 @@ class PronounDRS(PresuppositionDRS):
         else:
             return True
 
+class PronounReplacer(object):
+    def __init__(self, pro_var, new_var):
+        self.pro_var = pro_var
+        self.new_var = new_var
+    def __call__(self, drs):
+        return drs.__class__(drs.refs, [cond.replace(self.pro_var, self.new_var, False) for cond in drs.conds])
+
 def main():
     from util import Tester
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
-    drs = tester.parse( "Mary kissed a girl. She does walk.")# bit herself.")
+    drs = tester.parse( "Mary kissed a girl. She bit she.")
     print drs
     readings = drs.readings()
     print readings
-#    for reading in readings:
-#        reading.draw()
+    for reading in readings:
+        reading.draw()
 
 if __name__ == '__main__':
     main()
