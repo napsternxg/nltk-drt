@@ -206,7 +206,7 @@ class AbstractDrs(drt.AbstractDrs):
         def get_operations(expr):
             ops = expr._readings()
             if ops:
-                return [(expr, ops)]
+                return [(expr, ops[0])]
             else:
                 readings.append(expr)
                 return []
@@ -311,10 +311,10 @@ class DRS(AbstractDrs, drt.DRS):
         """get the readings for this DRS"""
         for i, cond in enumerate(self.conds):
             readings = cond._readings(trail + [self])
-            if readings:
-                for reading in readings:
+            if readings and readings[1]:
+                for reading in readings[0]:
                     reading.append((self, PresuppositionDRSRemover(i)))
-                return readings
+                return readings[0], False
 
     def str(self, syntax=DrtTokens.NLTK):
         if syntax == DrtTokens.PROVER9:
@@ -327,6 +327,8 @@ class PresuppositionDRSRemover(object):
     def __init__(self, cond_index):
         self.cond_index = cond_index
     def __call__(self, drs):
+        print "Remover"
+        print drs, self.cond_index
         assert isinstance(drs.conds[self.cond_index], PresuppositionDRS)
         drs.conds.pop(self.cond_index)
         return drs
