@@ -1,4 +1,4 @@
-from temporaldrt import DRS, DrtLambdaExpression, DrtApplicationExpression, PossibleAntecedents, DrtAbstractVariableExpression, DrtNegatedExpression, DrsDrawer
+from temporaldrt import DRS, DrtLambdaExpression, DrtApplicationExpression, DrtAbstractVariableExpression, DrtNegatedExpression, DrsDrawer
 from nltk.sem.logic import BinaryExpression
 #from nltk.sem.drt import AbstractDrs
 #
@@ -39,8 +39,6 @@ def _handle(self, expression, command, x=0, y=0):
         factory = self._handle_BinaryExpression
     elif isinstance(expression, DrtApplicationExpression):
         factory = self._handle_ApplicationExpression
-    elif isinstance(expression, PossibleAntecedents):
-        factory = self._handle_VariableExpression
     else:
         raise Exception, expression.__class__.__name__
         
