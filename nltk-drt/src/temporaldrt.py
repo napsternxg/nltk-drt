@@ -311,16 +311,17 @@ class DRS(AbstractDrs, drt.DRS):
         """get the readings for this DRS"""
         for i, cond in enumerate(self.conds):
             readings = cond._readings(trail + [self])
-            if readings and readings[1]:
-                for reading in readings[0]:
-                    reading.append((self, PresuppositionDRSRemover(i)))
+            if readings:
+                if readings[1]:
+                    for reading in readings[0]:
+                        reading.append((self, PresuppositionDRSRemover(i)))
                 return readings[0], False
 
     def str(self, syntax=DrtTokens.NLTK):
         if syntax == DrtTokens.PROVER9:
             return self.fol().str(syntax)
         else:
-            return '([%s],[%s])' % (','.join([str(r) for r in self.get_refs()]),
+            return '([%s],[%s])' % (','.join([str(r) for r in self.refs]),
                                     ', '.join([c.str(syntax) for c in self.conds]))
 
 class PresuppositionDRSRemover(object):

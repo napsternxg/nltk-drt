@@ -44,7 +44,6 @@ class PronounDRS(PresuppositionDRS):
         roles = {}
         events = {}
         for drs in (ancestor for ancestor in trail if isinstance(ancestor, DRS)):
-            print drs
             for cond in drs.conds:
                 if isinstance(cond, DrtApplicationExpression) and\
                     cond.argument.__class__ is DrtIndividualVariableExpression:
@@ -71,7 +70,7 @@ class PronounDRS(PresuppositionDRS):
         #try to extend it with interlinked events
         #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
         #will be extended to participate in e, but only if z5 has only one participant
-        if len(events[pro_variable]) == 1:
+        if pro_variable in events and len(events[pro_variable]) == 1:
             for e in events[pro_variable]:
                 event = e
             participant_count = 0
@@ -85,7 +84,6 @@ class PronounDRS(PresuppositionDRS):
                     pass
 
         antecedents = [(var, rank) for var, rank in possible_antecedents if self._is_possible_antecedent(var.variable, pro_variable, pro_type, events)]
-
         #ranking system
         #increment ranking for matching roles and map the positions of antecedents
         if len(antecedents) > 1:
@@ -117,8 +115,8 @@ class PronounReplacer(object):
 def main():
     from util import Tester
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
-    drs = tester.parse( "a boy kissed a girl. She bit he.")
-    #drs = tester.parse( "John does walk. His car does walk.")
+    #drs = tester.parse( "a boy kissed a girl. She bit he.")
+    drs = tester.parse( "John does walk. His car does walk.")
     #drs = tester.parse( "Mary does write John s letter of himself.")
     print drs
     #drs.draw()
