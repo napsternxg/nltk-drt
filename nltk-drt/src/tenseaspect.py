@@ -13,12 +13,10 @@ from nltk.sem.logic import AndExpression, ExistsExpression
 import temporaldrt as drt
 
 from temporaldrt import is_timevar, DrtIndividualVariableExpression, \
-                        DrtFunctionVariableExpression, DrtEventVariableExpression, \
-                        DrtTimeVariableExpression, DrtProperNameExpression, \
+                        DrtEventVariableExpression, DrtTimeVariableExpression, \
                         DrtApplicationExpression, DrtAbstractVariableExpression, \
                         DrtLocationTimeApplicationExpression, DrtTimeApplicationExpression, \
-                        DrtProperNameApplicationExpression, is_propername, is_funcvar, \
-                        is_eventvar
+                        is_funcvar, is_eventvar
 
 class StateType(BasicType):
     """
@@ -582,8 +580,7 @@ class DrtParser(drt.DrtParser):
 def test():
     
     tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
-    
-    expr = tester.parse('The car has written a letter', utter=True).resolve()
+    expr = tester.parse('if Mary is married her husband is away', utter=True).resolve()
     print expr
     expr.draw()
 
