@@ -94,7 +94,14 @@ class PronounDRS(PresuppositionDRS):
             raise AnaphoraResolutionException("Variable '%s' does not "
                                 "resolve to anything." % pro_variable)
 
-        return [Reading([(trail[-1], PronounReplacer(pro_variable, var))]) for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)], True
+        return [Reading([(trail[-1], PronounDRS.VariableReplacer(pro_variable, var))]) for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)], True
+
+    class VariableReplacer(object):
+        def __init__(self, pro_var, new_var):
+            self.pro_var = pro_var
+            self.new_var = new_var
+        def __call__(self, drs):
+            return drs.__class__(drs.refs, [cond.replace(self.pro_var, self.new_var, False) for cond in drs.conds])
 
     def _is_possible_antecedent(self, variable, pro_variable, pro_type, events):
         #non reflexive pronouns can not resolve to variables having a role in the same event
@@ -104,13 +111,6 @@ class PronounDRS(PresuppositionDRS):
             return not events[variable].isdisjoint(events[pro_variable])
         else:
             return True
-
-class PronounReplacer(object):
-    def __init__(self, pro_var, new_var):
-        self.pro_var = pro_var
-        self.new_var = new_var
-    def __call__(self, drs):
-        return drs.__class__(drs.refs, [cond.replace(self.pro_var, self.new_var, False) for cond in drs.conds])
 
 def main():
     from util import Tester

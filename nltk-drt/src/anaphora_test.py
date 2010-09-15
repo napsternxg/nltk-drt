@@ -1,4 +1,3 @@
-from nltk import load_parser
 from temporaldrt import DrtParser, DrtFeatureExpression
 from util import Tester
 import nltkfixtemporal
@@ -41,10 +40,11 @@ def main():
     drs = p.parse("DRS([x,z2,e],[Jones{sg,m}(x), Porsche{sg,n}(z2), own(e)])")
     print drs
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
-    drs = tester.parse( "Mary kissed a girl. She bit she.")
-    drs = drs.resolve()
-    print drs.deepcopy()
-    drs.draw()
+    drs = tester.parse("A boy does walk. His car does walk.")
+    readings = drs.readings()
+    print readings
+    for reading in readings:
+        reading.draw()
 
 if __name__ == '__main__':
     main()
