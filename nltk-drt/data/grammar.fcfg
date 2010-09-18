@@ -12,13 +12,13 @@
 
 IP[SEM=<?ibar(?subj)>] -> NP[NUM=?n,SEM=?subj] Ibar[NUM=?n,SEM=?ibar]
 
-Ibar[NUM=?n,SEM=<?i(?vp)>] -> I[NUM=?n,PERF=?p,SEM=?i] VP[PERF=?p,SEM=?vp]
+Ibar[NUM=?n,SEM=<?i(?vp)>] -> I[NUM=?n,FORM=?f,SEM=?i] VP[FORM=?f,SEM=?vp]
 
 I[NUM=?n,SEM=<?neg(?i)>] -> I[NUM=?n,SEM=?i] Neg[SEM=?neg]
 
-VP[PERF=?p,SEM=?v] -> V[SUBCAT=iv,PERF=?p,SEM=?v]
+VP[FORM=?f,SEM=?v] -> V[SUBCAT=iv,FORM=?f,SEM=?v]
 
-VP[PERF=?p,SEM=<?v(?obj)>] -> V[SUBCAT=tv,PERF=?p,SEM=?v] NP[SEM=?obj]
+VP[FORM=?f,SEM=<?v(?obj)>] -> V[SUBCAT=tv,FORM=?f,SEM=?v] NP[SEM=?obj]
 
 RC[NUM=?n,SEM=<?rpro(?ibar)>] -> Rpro[SEM=?rpro] Ibar[NUM=?n,SEM=?ibar]
 
@@ -27,11 +27,11 @@ RC[NUM=?n,SEM=<?rpro(?ibar)>] -> Rpro[SEM=?rpro] Ibar[NUM=?n,SEM=?ibar]
 
 NP[NUM=?n,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  Nbar[NUM=?n,SEM=?nom]
 
-Nbar[NUM=?n,SEM=<?adj(?nom)>] -> ADJ[SEM=?adj] N[NUM=?n,SEM=?nom]
-
 Nbar[NUM=?n,SEM=<?rc(?nom)>] -> N[NUM=?n,SEM=?nom] RC[NUM=?n,SEM=?rc]
 
 Nbar[NUM=?n,SEM=<?nom>] -> N[NUM=?n,SEM=?nom]
+
+N[NUM=?n,SEM=<?adj(?nom)>] -> ADJ[SEM=?adj] N[NUM=?n,SEM=?nom]
 
 N[NUM=?n,SEM=<?pp(?nom)>] -> N[NUM=?n,SEM=?nom] PP[SEM=?pp]
 
@@ -49,10 +49,11 @@ IP[SEM = <?conj(?s1,?s2)>] -> IP[SEM=?s1] CONJ[SEM=?conj] IP[SEM=?s2]
 
 IP[SEM=<?if(?s1,?s2)>] -> IF[SEM=?if] IP[SEM=?s1] IP[SEM=?s2]
 
+Ibar[NUM=?n,SEM=<?conj(?ibar1,?ibar2)>] -> Ibar[NUM=?n,SEM=?ibar1] IbarAND[SEM=?conj] Ibar[NUM=?n,SEM=?ibar2]
+
 CONJ[SEM=?or] -> OR[SEM=?or]
 
 CONJ[SEM=?and] -> AND[SEM=?and]
-
 
 #############################
 # Lexicalisation Rules:
@@ -71,25 +72,33 @@ ADJ[SEM=<\P x.(DRS([],[?ladj(x)])+P(x))>] -> LexADJ[SEM=?ladj]
 
 Det[SEM=<\P Q.(DRS([],[(DEF([x],[POSS(y,x), PRON([y],[?lexp{?n,?g}(y)])])+P(x))])+Q(x))>] -> LexPos[NUM=?n,GEN=?g,SEM=?lexp]
 
+
+# Predicative adjectives, adverbs
+#################################
+
+V[SUBCAT=iv,FORM=pred,SEM=<\x.DRS([s,t],[?ladj(s),THEME(s,x),LOCPRO(t)])>] -> LexADJ[SEM=?ladj]
+
 # Bare infinitives: Intransitive Events / States
 ################################################
 
-V[SUBCAT=iv,-PERF,SEM=<\x.DRS([e,t],[?lv(e),AGENT(e,x),LOCPRO(t)])>] -> LexV[SUBCAT=iv,TYPE=e,SEM=?lv,-PERF]
+V[SUBCAT=iv,FORM=inf,SEM=<\x.DRS([e,t],[?lv(e),AGENT(e,x),LOCPRO(t)])>] -> LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=?lv]
 
-V[SUBCAT=iv,-PERF,SEM=<\x.DRS([s,t],[?lv(s),AGENT(s,x),LOCPRO(t)])>] -> LexV[SUBCAT=iv,TYPE=s,SEM=?lv,-PERF]
+V[SUBCAT=iv,FORM=inf,SEM=<\x.DRS([s,t],[?lv(s),AGENT(s,x),LOCPRO(t)])>] -> LexV[SUBCAT=iv,FORM=inf,TYPE=s,SEM=?lv]
 
-V[SUBCAT=iv,+PERF,SEM=<\x.DRS([e],[?lv(e),AGENT(e,x),PERF(e)])>] -> LexV[SUBCAT=iv,TYPE=e,SEM=?lv,+PERF]
+V[SUBCAT=iv,FORM=perf,SEM=<\x.DRS([e],[?lv(e),AGENT(e,x),PERF(e)])>] -> LexV[SUBCAT=iv,FORM=perf,TYPE=e,SEM=?lv]
+
+V[SUBCAT=iv,FORM=perf,SEM=<\x.DRS([s],[?lv(s),AGENT(s,x),PERF(s)])>] -> LexV[SUBCAT=iv,FORM=perf,TYPE=s,SEM=?lv]
 
 # Bare infinitives: Transitive Events / States
 ##############################################
 
-V[SUBCAT=tv,-PERF,SEM=<\X x.X(\y.DRS([e,t],[?lv(e),AGENT(e,x),PATIENT(e,y),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,TYPE=e,SEM=?lv,-PERF]
+V[SUBCAT=tv,FORM=inf,SEM=<\X x.X(\y.DRS([e,t],[?lv(e),AGENT(e,x),PATIENT(e,y),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=?lv]
 
-V[SUBCAT=tv,-PERF,SEM=<\X x.X(\y.DRS([s,t],[?lv(s),AGENT(s,x),PATIENT(s,y),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,TYPE=s,SEM=?lv,-PERF]
+V[SUBCAT=tv,FORM=inf,SEM=<\X x.X(\y.DRS([s,t],[?lv(s),AGENT(s,x),PATIENT(s,y),LOCPRO(t)]))>] -> LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=?lv]
 
-V[SUBCAT=tv,+PERF,SEM=<\X x.X(\y.DRS([e],[?lv(e),AGENT(e,x),PATIENT(e,y),PERF(e)]))>] -> LexV[SUBCAT=tv,TYPE=e,SEM=?lv,+PERF]
+V[SUBCAT=tv,FORM=perf,SEM=<\X x.X(\y.DRS([e],[?lv(e),AGENT(e,x),PATIENT(e,y),PERF(e)]))>] -> LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=?lv]
 
-V[SUBCAT=tv,+PERF,SEM=<\X x.X(\y.DRS([s],[?lv(s),AGENT(s,x),PATIENT(s,y),PERF(s)]))>] -> LexV[SUBCAT=tv,TYPE=s,SEM=?lv,+PERF]
+V[SUBCAT=tv,FORM=perf,SEM=<\X x.X(\y.DRS([s],[?lv(s),AGENT(s,x),PATIENT(s,y),PERF(s)]))>] -> LexV[SUBCAT=tv,FORM=perf,TYPE=s,SEM=?lv]
 
 
 #############################
@@ -105,8 +114,8 @@ LexPropN[NUM=sg,GEN=f,SEM=<Mary>] -> 'Mary'
 LexPropN[NUM=sg,GEN=m,SEM=<Vincent>] -> 'Vincent'
 LexPropN[NUM=sg,GEN=f,SEM=<Mia>] -> 'Mia'
 
-# Personal and Reflexive Pronouns:
-##################################
+# Personal, Reflexive and Possessive Pronouns:
+##############################################
 
 LexPro[NUM=sg,GEN=m,SEM=<PRO>] -> 'he' | 'He'
 LexPro[NUM=sg,GEN=f,SEM=<PRO>] -> 'she' | 'She'
@@ -148,6 +157,9 @@ Rpro[SEM=<\P Q x.(P(\D.D(x))+Q(x))>] -> 'that'
 #############
 
 LexADJ[SEM=<red>] -> 'blue'
+LexADJ[SEM=<married>] -> 'married'
+LexADJ[SEM=<away>] -> 'away'
+LexADJ[SEM=<dead>] -> 'dead'
 
 # Common Nouns:
 ###############
@@ -165,7 +177,7 @@ LexN[NUM=sg,GEN=n,SEM=<kitchen>] -> 'kitchen'
 LexN[NUM=sg,GEN=n,SEM=<car>] -> 'car'
 LexN[NUM=sg,GEN=n,SEM=<morning>] -> 'morning'
 LexN[NUM=sg,GEN=n,SEM=<letter>] -> 'letter'
-
+LexN[NUM=sg,GEN=n,SEM=<letter>] -> 'husband'
 
 # Prepositions:
 ###############
@@ -181,17 +193,24 @@ IF[SEM=<\X Y.DRS([],[(X implies Y)])>] -> 'if' | 'If'
 
 AND[SEM=<\X Y.(X+Y)>] -> 'and'
 
+# bugsy
+IbarAND[SEM=<\X Z Y.(X(Y)+Z(Y))>] -> 'and'
+
 ###############################
 ###############################
 
 # Auxiliary Verbs and Negation:
 ###############################
 
-I[NUM=sg,-PERF,SEM=<\X Y.(DRS([t],[PRES(t)])+Y(X))>] -> 'does'
-I[-PERF,SEM=<\X Y.(DRS([t],[FUT(t)])+Y(X))>] -> 'will'
-I[-PERF,SEM=<\X Y.(DRS([t],[PAST(t)])+Y(X))>] -> 'did'
-I[NUM=sg,+PERF,SEM=<\X Y.(DRS([t,s],[PRES(t),include(s,t)])+Y(X))>] -> 'has'
-I[+PERF,SEM=<\X Y.(DRS([t,s],[PAST(t),overlap(s,t)])+Y(X))>] -> 'had'
+I[NUM=sg,FORM=inf,SEM=<\X Y.(DRS([t],[PRES(t)])+Y(X))>] -> 'does'
+I[FORM=inf,SEM=<\X Y.(DRS([t],[FUT(t)])+Y(X))>] -> 'will'
+I[FORM=inf,SEM=<\X Y.(DRS([t],[PAST(t)])+Y(X))>] -> 'did'
+I[NUM=sg,FORM=perf,SEM=<\X Y.(DRS([t,s],[PRES(t),include(s,t)])+Y(X))>] -> 'has'
+I[FORM=perf,SEM=<\X Y.(DRS([t,s],[PAST(t),overlap(s,t)])+Y(X))>] -> 'had'
+
+I[NUM=sg,FORM=pred,SEM=<\X Y.(DRS([t],[PRES(t)])+Y(X))>] -> 'is'
+I[NUM=sg,FORM=pred,SEM=<\X Y.(DRS([t],[PAST(t)])+Y(X))>] -> 'was'
+
 Neg[SEM=<\Q P.Q(\x.DRS([],[-P(x)]))>] -> 'not'
 
 # Bare infinitives:
@@ -200,26 +219,24 @@ Neg[SEM=<\Q P.Q(\x.DRS([],[-P(x)]))>] -> 'not'
 # Intransitives:
 #################
 
-LexV[SUBCAT=iv,TYPE=e,SEM=<die>,-PERF] -> 'die'
-LexV[SUBCAT=iv,TYPE=e,SEM=<walk>,-PERF] -> 'walk'
-LexV[SUBCAT=iv,TYPE=e,SEM=<dance>,-PERF] -> 'dance'
+LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<die>] -> 'die'
+LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<walk>] -> 'walk'
+LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<dance>] -> 'dance'
+LexV[SUBCAT=iv,FORM=inf,TYPE=s,SEM=<live>] -> 'live'
 
-LexV[SUBCAT=iv,TYPE=e,SEM=<die>,+PERF] -> 'died'
-
-LexV[SUBCAT=iv,TYPE=s,SEM=<live>] -> 'live'
+LexV[SUBCAT=iv,FORM=perf,TYPE=e,SEM=<die>] -> 'died'
+LexV[SUBCAT=iv,FORM=perf,TYPE=s,SEM=<live>] -> 'lived'
 
 # Transitives:
 ###############
 
-LexV[SUBCAT=tv,TYPE=e,SEM=<kiss>,-PERF] -> 'kiss'
-LexV[SUBCAT=tv,TYPE=e,SEM=<write>,-PERF] -> 'write'
-LexV[SUBCAT=tv,TYPE=e,SEM=<bite>,-PERF] -> 'bite'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<kiss>] -> 'kiss'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<write>] -> 'write'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<bite>] -> 'bite'
+LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<own>] -> 'own'
 
-LexV[SUBCAT=tv,TYPE=e,SEM=<write>,+PERF] -> 'written'
-
-LexV[SUBCAT=tv,TYPE=s,SEM=<own>,-PERF] -> 'own'
-
-LexV[SUBCAT=tv,TYPE=s,SEM=<own>,+PERF] -> 'owned'
+LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<write>] -> 'written'
+LexV[SUBCAT=tv,FORM=perf,TYPE=s,SEM=<own>] -> 'owned'
 
 # Ditransitives:
 #################
