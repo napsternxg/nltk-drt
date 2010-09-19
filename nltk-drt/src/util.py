@@ -12,12 +12,13 @@ class Tester(object):
             (re.compile("^owned$"), "did own"),
             (re.compile("^lives$"), "does live"),
             (re.compile("^lived$"), "did live"),
-            (re.compile("^kissed$"), "did kiss"),
-            (re.compile("^kisses$"), "does kiss"),
-            (re.compile("^bit$"), "did bite"),
+            (re.compile("^died$"), "did die"),
             (re.compile("^walked$"), "did walk"),
             (re.compile("^danced$"), "did dance"),
+            (re.compile("^kissed$"), "did kiss"),
+            (re.compile("^bit$"), "did bite"),
             (re.compile("^wrote$"), "did write")]
+    
     def __init__(self, grammar, logic_parser):
         assert isinstance(grammar, str) and grammar.endswith('.fcfg'), \
                             "%s is not a grammar name" % grammar
@@ -34,15 +35,23 @@ class Tester(object):
             sentence = sentence.lstrip()
             if sentence:
                 new_words = []
-                for word in sentence.split():
+                split = sentence.split()
+                for word in split:
                     is_written = False
-                    for pattern, repl in self.subs:
-                        word_list = pattern.sub(repl, word)
-                        word_list = word_list.split(" ")
-                        if len(word_list)>1:
-                            new_words.extend(word_list)
-                            is_written = True
-                            break
+                    if not ((split[split.index(word)-1] == 'has' or
+                        split[split.index(word)-1] == 'had' or
+                        (split[split.index(word)-1] == 'not' and
+                        (split[split.index(word)-2] == 'has' or
+                        split[split.index(word)-2] == 'had')))):
+                        """should not break down past participles"""
+                        
+                        for pattern, repl in self.subs:
+                            word_list = pattern.sub(repl, word)
+                            word_list = word_list.split(" ")
+                            if len(word_list)>1:
+                                new_words.extend(word_list)
+                                is_written = True
+                                break
 
                     if not is_written:
                         new_words.append(word)
