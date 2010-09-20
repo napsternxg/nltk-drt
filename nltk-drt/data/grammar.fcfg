@@ -49,11 +49,15 @@ IP[SEM = <?conj(?s1,?s2)>] -> IP[SEM=?s1] CONJ[SEM=?conj] IP[SEM=?s2]
 
 IP[SEM=<?if(?s1,?s2)>] -> IF[SEM=?if] IP[SEM=?s1] IP[SEM=?s2]
 
-Ibar[NUM=?n,SEM=<?conj(?ibar1,?ibar2)>] -> Ibar[NUM=?n,SEM=?ibar1] IbarAND[SEM=?conj] Ibar[NUM=?n,SEM=?ibar2]
+Ibar[NUM=?n,SEM=<?conj(?ibar1,?ibar2)>] -> Ibar[NUM=?n,SEM=?ibar1] IbarCONJ[SEM=?conj] Ibar[NUM=?n,SEM=?ibar2]
 
 CONJ[SEM=?or] -> OR[SEM=?or]
 
 CONJ[SEM=?and] -> AND[SEM=?and]
+
+IbarCONJ[SEM=?or] -> IbarOR[SEM=?or]
+
+IbarCONJ[SEM=?and] -> IbarAND[SEM=?and]
 
 #############################
 # Lexicalisation Rules:
@@ -73,8 +77,11 @@ ADJ[SEM=<\P x.(DRS([],[?ladj(x)])+P(x))>] -> LexADJ[SEM=?ladj]
 Det[SEM=<\P Q.(DRS([],[(DEF([x],[POSS(y,x), PRON([y],[?lexp{?n,?g}(y)])])+P(x))])+Q(x))>] -> LexPos[NUM=?n,GEN=?g,SEM=?lexp]
 
 
-# Predicative adjectives, adverbs
-#################################
+# Predicative NPs, adjectives, adverbs
+######################################
+
+#predicative NP
+V[SUBCAT=iv,FORM=pred,SEM=<?det(?nbar)>] -> PredDet[NUM=sg,SEM=?det] Nbar[NUM=sg,SEM=?nbar]
 
 V[SUBCAT=iv,FORM=pred,SEM=<\x.DRS([s,t],[?ladj(s),THEME(s,x),LOCPRO(t)])>] -> LexADJ[SEM=?ladj]
 
@@ -136,6 +143,7 @@ Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'every' | 
 Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'all' | 'All'
 Det[SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'some' | 'Some'
 Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
+PredDet[NUM=sg,SEM=<\P x.(P(s)+DRS([s,t],[THEME(s,x),LOCPRO(t)]))>] -> 'a'
 Det[NUM=sg,SEM=<\P Q.(DRS([], [not ((DRS([x],[])+P(x))+Q(x))]))>] -> 'no' | 'No'
 # Pre-Determiner:
 Not[SEM=<\ Q P Z.(DRS([],[-Q(P,Z)]))>] -> 'not' | 'Not'
@@ -156,10 +164,12 @@ Rpro[SEM=<\P Q x.(P(\D.D(x))+Q(x))>] -> 'that'
 # Adjectives:
 #############
 
-LexADJ[SEM=<red>] -> 'blue'
+LexADJ[SEM=<red>] -> 'red'
+LexADJ[SEM=<rich>] -> 'rich'
 LexADJ[SEM=<married>] -> 'married'
 LexADJ[SEM=<away>] -> 'away'
 LexADJ[SEM=<dead>] -> 'dead'
+LexADJ[SEM=<broken>] -> 'broken'
 
 # Common Nouns:
 ###############
@@ -177,7 +187,10 @@ LexN[NUM=sg,GEN=n,SEM=<kitchen>] -> 'kitchen'
 LexN[NUM=sg,GEN=n,SEM=<car>] -> 'car'
 LexN[NUM=sg,GEN=n,SEM=<morning>] -> 'morning'
 LexN[NUM=sg,GEN=n,SEM=<letter>] -> 'letter'
-LexN[NUM=sg,GEN=n,SEM=<letter>] -> 'husband'
+LexN[NUM=sg,GEN=m,SEM=<letter>] -> 'husband'
+
+LexN[NUM=sg,GEN=m,SEM=<human>] -> 'one'
+LexN[NUM=sg,GEN=n,SEM=<thing>] -> 'thing'
 
 # Prepositions:
 ###############
@@ -193,8 +206,9 @@ IF[SEM=<\X Y.DRS([],[(X implies Y)])>] -> 'if' | 'If'
 
 AND[SEM=<\X Y.(X+Y)>] -> 'and'
 
-# bugsy
-IbarAND[SEM=<\X Z Y.(X(Y)+Z(Y))>] -> 'and'
+IbarAND[SEM=<\X Y Z.Y(\Q.X(\P.Z(\y.(P(y)+Q(y)))))>] -> 'and'
+
+IbarOR[SEM=<\X Y Z.Y(\Q.X(\P.Z(\y.(DRS([],[(P(y) or Q(y))])))))>] -> 'or'
 
 ###############################
 ###############################
@@ -220,6 +234,7 @@ Neg[SEM=<\Q P.Q(\x.DRS([],[-P(x)]))>] -> 'not'
 #################
 
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<die>] -> 'die'
+LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<smile>] -> 'smile'
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<walk>] -> 'walk'
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<dance>] -> 'dance'
 LexV[SUBCAT=iv,FORM=inf,TYPE=s,SEM=<live>] -> 'live'
@@ -232,7 +247,9 @@ LexV[SUBCAT=iv,FORM=perf,TYPE=s,SEM=<live>] -> 'lived'
 
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<kiss>] -> 'kiss'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<write>] -> 'write'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<buy>] -> 'buy'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<bite>] -> 'bite'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<marry>] -> 'marry'
 LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<own>] -> 'own'
 
 LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<write>] -> 'written'
