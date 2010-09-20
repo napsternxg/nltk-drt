@@ -765,24 +765,24 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
             
             for ref in ReverseIterator(search_list):
                 refex = DrtVariableExpression(ref)
-
-                if not utter_time_search and isinstance(refex, DrtTimeVariableExpression) and \
+                
+                if isinstance(refex, DrtUtterVariableExpression):
+                    """In case there is no location time referent that has not yet been used
+                    to relate some eventuality to utterance time, use utter time as loc time."""
+                    return [Reading([(trail[-1], DrtFindUtterTimeExpression.VariableReplacer(self.argument.variable, refex))])], True
+  
+                elif not utter_time_search and isinstance(refex, DrtTimeVariableExpression) and \
                    not (refex == self.argument):
-                    
+                                      
                     if any(isinstance(c, DrtApplicationExpression) and isinstance(c.function, DrtApplicationExpression) and \
-                            c.function.argument == refex and (c.function.function.variable.name == DrtTokens.OVERLAP or \
-                            c.function.function.variable.name == DrtTokens.INCLUDE) for c in drs.conds):
-                            utter_time_search = True
+                        c.function.argument == refex and (c.function.function.variable.name == DrtTokens.OVERLAP or \
+                        c.function.function.variable.name == DrtTokens.INCLUDE) for c in drs.conds):
+                        utter_time_search = True
 
                     else:
                         """Return first suitable antecedent expression"""
                         return [Reading([(trail[-1], DrtLocationTimeApplicationExpression.VariableReplacer(self.argument.variable, refex))])], True
-                 
-                elif isinstance(refex, DrtUtterVariableExpression):
-                    """In case there is no location time referent that has not yet been used
-                    to relate some eventuality to utterance time, use utter time as loc time."""
-                    return [Reading([(trail[-1], DrtFindUtterTimeExpression.VariableReplacer(self.argument.variable, refex))])], True
-                    
+                                
         raise LocationTimeResolutionException("Variable '%s' does not "
                             "resolve to anything." % self.argument)
         
