@@ -2,22 +2,48 @@ import nltkfixtemporal
 
 from nltk import load_parser
 from nltk.sem.drt import AbstractDrs
+from temporaldrt import DRS
+import nltk.sem.drt as drt
+import temporaldrt
 import re
+
+
+class local_DrtParser(temporaldrt.DrtParser):
+    
+    def handle_DRS(self, tok, context):
+        drs = drt.DrtParser.handle_DRS(self, tok, context)
+        return DRS(drs.refs, drs.conds)
+
+
+
+
+
+
 
 class Tester(object):
     subs = [#(re.compile("^(?P<stem>[a-z]+)ed$"), lambda m: "did %s" % m.group("stem")),
-            (re.compile("^([a-z]+)'s?$"), lambda m: "%s s" % m.group(1)),
+            (re.compile("^([A-Z][a-z]+)'s?$"), lambda m: "%s s" % m.group(1)),
             #(re.compile("^([a-z]+)s$"), lambda m: "does %s" % m.group(1)),
             (re.compile("^owns$"), "does own"),
             (re.compile("^owned$"), "did own"),
             (re.compile("^lives$"), "does live"),
             (re.compile("^lived$"), "did live"),
             (re.compile("^died$"), "did die"),
+            (re.compile("^smiled$"), "did smile"),
+            (re.compile("^bought$"), "did buy"),
             (re.compile("^walked$"), "did walk"),
             (re.compile("^danced$"), "did dance"),
             (re.compile("^kissed$"), "did kiss"),
             (re.compile("^bit$"), "did bite"),
-            (re.compile("^wrote$"), "did write")]
+            (re.compile("^wrote$"), "did write"),
+            (re.compile("^everyone$"), "every one"),
+            (re.compile("^Everyone$"), "every one"),
+            (re.compile("^Everything$"), "every thing"),
+            (re.compile("^everything"), "every thing"),
+            (re.compile("^no-one"), "no one"),
+            (re.compile("^No-one$"), "no one"),
+            (re.compile("^nothing$"), "no thing"),
+            (re.compile("^Nothing$"), "no thing")]
     
     def __init__(self, grammar, logic_parser):
         assert isinstance(grammar, str) and grammar.endswith('.fcfg'), \
@@ -27,7 +53,7 @@ class Tester(object):
 
     def parse(self, text, **args):
         sentences = text.split('.')
-        utter = args.get("utter", False)
+        utter = args.get("utter", True)
         show_interim = args.get("show_interim", False)
         drs = (utter and self.logic_parser.parse('DRS([n],[])')) or []
         
@@ -73,27 +99,27 @@ class Tester(object):
     def test(self, cases, **args):
         for number, sentence, expected, error in cases:
             if expected is not None:
-                expected_drs = self.logic_parser.parse(expected)
+                expected_drs = local_DrtParser().parse(expected).readings()[0]
             else:
                 expected_drs = None
 
             drs_list = []
+            readings = []
             try:
-                drs_list.append(self.parse(sentence, args))
-                drs_list.append(drs_list[-1].resolve())
-                drs_list.append(drs_list[-1].resolve())
+                drs_list.append(self.parse(sentence, utter=True))
+                readings.append(drs_list[-1].readings()[0])
                 if error:
                     print("%s. !error: expected %s" % (number, str(error)))
                 else:
-                    if drs_list[-1] == expected_drs:
-                        print("%s. %s %s" % (number, sentence, drs_list[-1]))
+                    if readings[-1] == expected_drs:
+                        print("%s. %s %s" % (number, sentence, readings[-1]))
                     else:
-                        print("%s. !comparison failed %s != %s" % (number, drs_list[-1], expected_drs))
+                        print("%s. !comparison failed %s != %s" % (number, readings[-1], expected_drs))
             except Exception, e:
                 if error and isinstance(e, error):
-                    if drs_list[-1] == expected_drs:
-                        print("%s. *%s %s (%s)" % (number, sentence, drs_list[-1],  e))
+                    if readings[-1] == expected_drs:
+                        print("%s. *%s %s (%s)" % (number, sentence, readings[-1],  e))
                     else:
-                        print("%s. !comparison failed %s != %s" % (number, drs_list[-1], expected_drs))
+                        print("%s. !comparison failed %s != %s" % (number, readings[-1], expected_drs))
                 else:
                     print("%s. !unexpected error: %s" % (number, e))
