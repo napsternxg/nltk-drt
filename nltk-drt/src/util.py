@@ -24,9 +24,17 @@ class Tester(object):
     subs = [#(re.compile("^(?P<stem>[a-z]+)ed$"), lambda m: "did %s" % m.group("stem")),
             (re.compile("^([A-Z][a-z]+)'s?$"), lambda m: "%s s" % m.group(1)),
             #(re.compile("^([a-z]+)s$"), lambda m: "does %s" % m.group(1)),
+            (re.compile("^commutes$"), "does commute"),
+            (re.compile("^shows$"), "does show"),
+            (re.compile("^likes$"), "does like"),
+            (re.compile("^invites$"), "does invite"),
+            (re.compile("^needs$"), "does need"),
+            (re.compile("^wants$"), "does want"),
+            (re.compile("^loves$"), "does love"),
             (re.compile("^owns$"), "does own"),
             (re.compile("^owned$"), "did own"),
             (re.compile("^lives$"), "does live"),
+            (re.compile("^asked$"), "did ask"),
             (re.compile("^lived$"), "did live"),
             (re.compile("^died$"), "did die"),
             (re.compile("^smiled$"), "did smile"),
@@ -117,9 +125,9 @@ class Tester(object):
                         print("%s. !comparison failed %s != %s" % (number, readings[-1], expected_drs))
             except Exception, e:
                 if error and isinstance(e, error):
-                    if readings[-1] == expected_drs:
-                        print("%s. *%s %s (%s)" % (number, sentence, readings[-1],  e))
-                    else:
-                        print("%s. !comparison failed %s != %s" % (number, readings[-1], expected_drs))
+                    #if readings[-1] == expected_drs:
+                    print("%s. *%s (%s)" % (number, sentence,  e))
+                    #else:
+                    #    print("%s. !comparison failed %s != %s" % (number, readings[-1], expected_drs))
                 else:
                     print("%s. !unexpected error: %s" % (number, e))
