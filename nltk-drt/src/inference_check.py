@@ -1,10 +1,9 @@
 from nltk.inference.prover9 import Prover9Command
 from nltk.inference.mace import MaceCommand
-from nltk import load_parser
-from temporaldrt import DrtParser
+from anaphora import DrtParser
 from nltk.sem.drt import AbstractDrs
 from nltk import LogicParser
-from nltk.sem.logic import AndExpression, NegatedExpression, Expression
+from nltk.sem.logic import AndExpression, NegatedExpression
 import temporaldrt as drt
 import util
 from threading import Thread
@@ -331,12 +330,13 @@ def interpret(expr_1, expr_2, bk=False):
                 #locally inadmissible
                 #expression = parser_obj.parse(r'DRS([],[DRS([y],[Angus(y),live(y)]) -> DRS([x],[Mia(x),-DRS([],[die(x)])])])')
                 
-                #for ref in expression.refs:
-                #    if ref in discourse.refs:
-                #        newref = drt.DrtVariableExpression(drt.unique_variable(ref))
-                #        expression.replace(ref,newref,True)
-                
+                for ref in expression.get_refs():
+                    if ref in discourse.get_refs():
+                        newref = drt.DrtVariableExpression(drt.unique_variable(ref))
+                        expression = expression.replace(ref,newref,True)
+              
                 new_discourse = drt.DrtApplicationExpression(drt.DrtApplicationExpression(buffer,discourse),expression).simplify()
+
                 background_knowledge = None
                 
                 lp = LogicParser().parse
@@ -393,13 +393,29 @@ def test_1():
           'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
           'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
           'dead' : r'all x y z.((die(x) & AGENT(x,z) & abut(x,y)) -> (dead(y) & THEME(y,z)))',
-          'married' : r'all x y.((married(x) & THEME(x,y)) -> exists v z.(own(v) & AGENT(v,y) & PATIENT(v,z) & (husband(z) | wife(z))))',
+          'married' : r'all x y.((married(x) & THEME(x,y)) -> exists v z.(own(v) & AGENT(v,y) & PATIENT(v,z) & husband(z)))',
           'husband' : r'all y z v.((own(v) & AGENT(v,y) & PATIENT(v,z) & (husband(z) | wife(z))) -> exists x.(married(x) & THEME(x,y)))'}
   
+    #parser_obj = DrtParser()
+    #buffer = parser_obj.parse(r'\Q P.(DRS([],[P])+Q)')
+    #tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
+    #discourse = tester.parse("Angus owns a red car", utter=True)
+    #expression = tester.parse("Mia owns a car", utter=False)
+            
+    #new_discourse = drt.DrtApplicationExpression(drt.DrtApplicationExpression(buffer,discourse),expression).simplify()
+                
+    #for read in new_discourse.readings():
+        #read.draw()
+    #    print read
+    #    interpret = inference_check(read)
+    #    if interpret:
+    #        print interpret
+            #interpret.draw()
+    
     
     for interpretation in interpret("Mia is married", "Mia owns a husband", bk_1):
         if not isinstance(interpretation, str):
-            interpretation.draw()
+            print interpretation
     
         """
         Consistency check: Try "Mia died" and "Mia will die"
