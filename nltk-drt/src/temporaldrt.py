@@ -575,11 +575,11 @@ class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
             
             new_second = DRS(self.second.refs,self.second.conds)
         
-            for ref in self.second.refs:
-                if ref in self.first.refs:
-                    newref = DrtVariableExpression(unique_variable(ref))
-                    new_second = new_second.replace(ref,newref,True)
-            
+            first_refs = self.first.get_refs()
+            for ref in (r for r in self.second.get_refs() if r in first_refs):
+                newref = DrtVariableExpression(unique_variable(ref))
+                new_second = new_second.replace(ref,newref,True)
+
             return drt.DrtBooleanExpression.simplify(self.__class__(self.first,new_second))
         
         else: return drt.DrtBooleanExpression.simplify(self)
@@ -909,7 +909,7 @@ class PronounDRS(PresuppositionDRS):
     def _is_possible_antecedent(self, variable, pro_variable, pro_type, events):
         #non reflexive pronouns can not resolve to variables having a role in the same event
         if pro_type == DrtTokens.PRONOUN:
-            return events[variable].isdisjoint(events[pro_variable])
+            return variable not in events or events[variable].isdisjoint(events[pro_variable])
         elif pro_type == DrtTokens.REFLEXIVE_PRONOUN:
             return not events[variable].isdisjoint(events[pro_variable])
         else:
