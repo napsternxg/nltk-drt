@@ -120,6 +120,10 @@ LexPropN[NUM=sg,GEN=m,SEM=<John>] -> 'John'
 LexPropN[NUM=sg,GEN=f,SEM=<Mary>] -> 'Mary'
 LexPropN[NUM=sg,GEN=m,SEM=<Vincent>] -> 'Vincent'
 LexPropN[NUM=sg,GEN=f,SEM=<Mia>] -> 'Mia'
+LexPropN[NUM=sg,GEN=m,SEM=<Jones>] -> 'Jones'
+LexPropN[NUM=sg,GEN=m,SEM=<Bill>] -> 'Bill'
+LexPropN[NUM=sg,GEN=m,SEM=<Brown>] -> 'Brown'
+LexPropN[NUM=sg,GEN=f,SEM=<Charlotte>] -> 'Charlotte'
 
 # Personal, Reflexive and Possessive Pronouns:
 ##############################################
@@ -127,6 +131,9 @@ LexPropN[NUM=sg,GEN=f,SEM=<Mia>] -> 'Mia'
 LexPro[NUM=sg,GEN=m,SEM=<PRO>] -> 'he' | 'He'
 LexPro[NUM=sg,GEN=f,SEM=<PRO>] -> 'she' | 'She'
 LexPro[NUM=sg,GEN=n,SEM=<PRO>] -> 'it' | 'It'
+
+LexPro[NUM=sg,GEN=m,SEM=<PRO>] -> 'him'
+LexPro[NUM=sg,GEN=f,SEM=<PRO>] -> 'her'
 
 LexPro[NUM=sg,GEN=m,SEM=<RPRO>] -> 'himself'
 LexPro[NUM=sg,GEN=f,SEM=<RPRO>] -> 'herself'
@@ -187,7 +194,10 @@ LexN[NUM=sg,GEN=n,SEM=<kitchen>] -> 'kitchen'
 LexN[NUM=sg,GEN=n,SEM=<car>] -> 'car'
 LexN[NUM=sg,GEN=n,SEM=<morning>] -> 'morning'
 LexN[NUM=sg,GEN=n,SEM=<letter>] -> 'letter'
-LexN[NUM=sg,GEN=m,SEM=<letter>] -> 'husband'
+LexN[NUM=sg,GEN=m,SEM=<husband>] -> 'husband'
+LexN[NUM=sg,GEN=n,SEM=<picture>] -> 'picture'
+LexN[NUM=sg,GEN=n,SEM=<room>] -> 'room'
+LexN[NUM=sg,GEN=n,SEM=<porsche>] -> 'porsche'
 
 LexN[NUM=sg,GEN=m,SEM=<human>] -> 'one'
 LexN[NUM=sg,GEN=n,SEM=<thing>] -> 'thing'
@@ -204,7 +214,7 @@ OR[SEM=<\X Y.DRS([],[(X or Y)])>] -> 'or'
 
 IF[SEM=<\X Y.DRS([],[(X implies Y)])>] -> 'if' | 'If'
 
-AND[SEM=<\X Y.(X+Y)>] -> 'and'
+AND[SEM=<\X Y.(X+Y)>] -> 'and' | 'but'
 
 IbarAND[SEM=<\X Y Z.Y(\Q.X(\P.Z(\y.(P(y)+Q(y)))))>] -> 'and'
 
@@ -238,6 +248,7 @@ LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<smile>] -> 'smile'
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<walk>] -> 'walk'
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<dance>] -> 'dance'
 LexV[SUBCAT=iv,FORM=inf,TYPE=s,SEM=<live>] -> 'live'
+LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<commute>] -> 'commute'
 
 LexV[SUBCAT=iv,FORM=perf,TYPE=e,SEM=<die>] -> 'died'
 LexV[SUBCAT=iv,FORM=perf,TYPE=s,SEM=<live>] -> 'lived'
@@ -251,6 +262,13 @@ LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<buy>] -> 'buy'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<bite>] -> 'bite'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<marry>] -> 'marry'
 LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<own>] -> 'own'
+LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<want>] -> 'want'
+LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<need>] -> 'need'
+LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<love>] -> 'love'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<invite>] -> 'invite'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<ask>] -> 'ask'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<like>] -> 'like'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<show>] -> 'show'
 
 LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<write>] -> 'written'
 LexV[SUBCAT=tv,FORM=perf,TYPE=s,SEM=<own>] -> 'owned'
