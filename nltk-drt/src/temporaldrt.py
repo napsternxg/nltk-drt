@@ -658,7 +658,8 @@ class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
                 newvar = DrtVariableExpression(unique_variable(ref))
                 second = second.replace(ref, newvar, True)
             
-            return DRS(first.refs + second.refs, first.conds + second.conds)
+            """DRS type is derived from the first member"""
+            return first.__class__(first.refs + second.refs, first.conds + second.conds)
         else:
             return self.__class__(first,second)
 
