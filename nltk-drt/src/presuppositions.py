@@ -3,7 +3,7 @@ In presuppositions v.114, fix the bug in test by replacing tree with a"""
 
 import temporaldrt
 import nltk.sem.drt as drt
-from temporaldrt import PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, Reading
+from temporaldrt import PresuppositionDRS, DRS, DrtTokens, DrtApplicationExpression, Reading, DrtVariableExpression
 import util
 
 # Nltk fix
@@ -79,13 +79,23 @@ class ProperNameDRS(PresuppositionDRS):
         def __call__(self, drs):
             """Accommodation: put all referents and conditions from 
             the presupposition DRS into the outer DRS"""
-            drs.refs.extend(self.presupp_drs.refs) 
+            
+            #in case variables in the presuppositional DRS carry the same names as
+            #variable in the outer DRS.
+            presupp_drs = self.presupp_drs
+            for ref in self.presupp_drs.refs:
+                if ref in drs.refs:
+                    newref = DrtVariableExpression(drt.unique_variable(ref))
+                    presupp_drs = presupp_drs.replace(ref,newref,True)
+
+            drs.refs.extend(presupp_drs.refs)
+             
             if self.condition_index is None:
-                drs.conds.extend(self.presupp_drs.conds)
+                drs.conds.extend(presupp_drs.conds)
             else:
                 print self.condition_index
                 print "outer accommodation drs.conds before",drs.conds
-                drs.conds = drs.conds[:self.condition_index+1]+self.presupp_drs.conds+drs.conds[self.condition_index+1:]
+                drs.conds = drs.conds[:self.condition_index+1]+presupp_drs.conds+drs.conds[self.condition_index+1:]
                 print "outer accommodation drs.conds after",drs.conds
             return drs
         
