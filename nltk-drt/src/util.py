@@ -16,7 +16,7 @@ class local_DrtParser(temporaldrt.DrtParser):
 
 class Tester(object):
 
-    EXCLUDED_NEXT = re.compile("^ha[sd]|is|not$")
+    EXCLUDED_NEXT = re.compile("^ha[sd]|is|was|not|will$")
     EXCLUDED = re.compile("^does|h?is|red|[a-z]+ness$")
     SUBSTITUTIONS = [
     (re.compile("^died$"), ("did", "die")),
@@ -119,7 +119,7 @@ class Tester(object):
 
 def main():
     tester = Tester('file:../data/grammar.fcfg', temporaldrt.DrtParser)
-    sentences = ["Mia showed John a garden", "Angus bought a girl who smiled"]
+    sentences = ["Mia will kiss John a garden", "Angus bought a girl who smiled"]
     for sentence in sentences:
         print tester._split(sentence)
 
