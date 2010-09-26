@@ -22,6 +22,9 @@ from nltk.sem.logic import Expression
 from nltk.sem.logic import ParseException
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
 
+from nltk.corpus.reader.wordnet import WordNetCorpusReader
+
+import nltk
 import nltk.sem.drt as drt
 
 
@@ -1123,26 +1126,19 @@ class DrtParser(drt.DrtParser):
     def make_LambdaExpression(self, variables, term):
         return DrtLambdaExpression(variables, term)
 
-from nltk.corpus.reader.wordnet import WordNetCorpusReader
-import nltk
-
-class Singleton(type): # From Wikipedia
-    def __init__(cls, name, bases, dict):
-        super(Singleton, cls).__init__(name, bases, dict)
-        cls.instance = None
-    
-    # __call__ gets a cls argument, not 'self'
-    def __call__(cls, *args, **kw):
-        if cls.instance is None:
-            cls.instance = super(Singleton, cls).__call__(*args, **kw)
-        return cls.instance
-    
-class WNCorpusReader(object):
-    __metaclass__ = Singleton
-    
+def singleton(cls):
+    instance_container = []
+    def getinstance():
+        if not len(instance_container):
+            instance_container.append(cls())
+        return instance_container[0]
+    return getinstance
+ 
+@singleton
+class WordNet(object):
     def __init__(self, wordnetfile = 'corpora/wordnet'):
         self.wn = WordNetCorpusReader(nltk.data.find(wordnetfile))
-        
+    
     def issuperclasssof(self, first, second):
         "Is the second noun the superclass of the first one?"
         # We cannot guarantee it is a noun. By the time we deal with DRSs, this is just a condition, and could have easily
@@ -1158,9 +1154,9 @@ class WNCorpusReader(object):
         # we probably need just its first sense)
         synset_second = self._noun_synset(second, ind=1)
         for i in range(num_of_senses_first):
-            print synset_second, self._noun_synset(first, i).common_hypernyms(synset_second)
+            #print synset_second, self._noun_synset(first, i).common_hypernyms(synset_second)
             if synset_second in self._noun_synset(first, i).common_hypernyms(synset_second):
-                print "+++ first", first, "second", second, True
+                #print "+++ first", first, "second", second, True
                 return True
             
     def is_adjective(self, word):
@@ -1609,19 +1605,19 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         for cond in drs.conds:
             if self.unary_predicate(cond) and self._features_are_equal(cond, presupp_features):
                 for funcname in presupp_funcname:
-                    if (cond.function.variable.name == funcname or WNCorpusReader().issuperclasssof(cond.function.variable.name, funcname)) \
-                        and not WNCorpusReader().is_adjective(cond.function.variable.name):
+                    if (cond.function.variable.name == funcname or WordNet().issuperclasssof(cond.function.variable.name, funcname)) \
+                        and not WordNet().is_adjective(cond.function.variable.name):
                         # either equal, or second is a superclass of the first, and they are not adjectives
                         # (Because if they are adjectives, we could bind 'blue(x)' and 'blue(x)', and we don't want that.)
                         return cond.argument.variable
-                    elif (WNCorpusReader().issuperclasssof(cond.function.variable.name, 'person') and 
-                         WNCorpusReader().issuperclasssof(funcname, 'person')) or \
-                         (WNCorpusReader().issuperclasssof(cond.function.variable.name, 'animal') and 
-                         WNCorpusReader().issuperclasssof(funcname, 'animal')):
+                    elif (WordNet().issuperclasssof(cond.function.variable.name, 'person') and 
+                         WordNet().issuperclasssof(funcname, 'person')) or \
+                         (WordNet().issuperclasssof(cond.function.variable.name, 'animal') and 
+                         WordNet().issuperclasssof(funcname, 'animal')):
                         possible_antecedents.append(self.make_VariableExpression(cond.argument.variable))
         self.possible_antecedents.append(possible_antecedents)
         # TODO:
-        """WNCorpusReader().issuperclasssof(cond.function.variable.name, funcname).
+        """WordNet().issuperclasssof(cond.function.variable.name, funcname).
         Is binding possible only when the second is the superclass of the first? What if it is the other way round?
         (1) A car is going down the road. The vehicle is black.
         (2) A vehicle is going down the road. The car is black.
