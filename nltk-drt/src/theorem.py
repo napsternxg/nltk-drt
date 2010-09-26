@@ -22,7 +22,7 @@ class Prover9Parent(prover9.Prover9Parent):
         @see: L{config_prover9}
         """
         if verbose:
-            print 'Calling Me:', binary
+            print 'Calling:', binary
             print 'Args:', args
             print 'Input:\n', input_str, '\n'
         
@@ -48,16 +48,18 @@ class Prover9Parent(prover9.Prover9Parent):
             self.process.terminate()
 
 class Prover9(Prover9Parent, prover9.Prover9):
-    pass
+    def __init__(self, timeout=60):
+        prover9.Prover9.__init__(self, timeout)
 
 class Mace(Prover9Parent, mace.Mace):
-    pass
+    def __init__(self, end_size=30):
+        mace.Mace.__init__(self, end_size)
 
 class Prover(Thread):
     """Wrapper class for Prover9"""
     def __init__(self,expression):
         Thread.__init__(self)
-        self.prover = prover9.Prover9Command(expression, None, None, Prover9(60))
+        self.prover = prover9.Prover9Command(expression, None, None, Prover9())
         self.result = None
     
     def run(self):
@@ -68,7 +70,7 @@ class Builder(Thread):
     """Wrapper class for Mace"""
     def __init__(self,expression):
         Thread.__init__(self)              
-        self.builder = mace.MaceCommand(None,[expression],None, Mace(50))
+        self.builder = mace.MaceCommand(None,[expression],None, Mace())
         self.result = None 
     
     def run(self):
