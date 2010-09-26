@@ -177,6 +177,7 @@ LexADJ[SEM=<married>] -> 'married'
 LexADJ[SEM=<away>] -> 'away'
 LexADJ[SEM=<dead>] -> 'dead'
 LexADJ[SEM=<broken>] -> 'broken'
+LexADJ[SEM=<broken>] -> 'upset'
 
 # Common Nouns:
 ###############
@@ -272,14 +273,16 @@ LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<love>] -> 'love'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<invite>] -> 'invite'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<ask>] -> 'ask'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<like>] -> 'like'
-LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<show>] -> 'show'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<hide>] -> 'hide'
+LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<date>] -> 'date'
 
 LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<write>] -> 'written'
 LexV[SUBCAT=tv,FORM=perf,TYPE=s,SEM=<own>] -> 'owned'
 
 # Ditransitives:
 #################
+
+LexV[SUBCAT=dv,FORM=inf,TYPE=e,SEM=<show>] -> 'show'
 
 # Copula:
 ##########
