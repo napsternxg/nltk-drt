@@ -1454,7 +1454,7 @@ class NonPronPresuppositionDRS(PresuppositionDRS):
                 for i, cond in enumerate(superordinate_drs.conds):
                     if cond is look_for:
                         return i # condition_index
-        raise Exception("%s is not found on the list of conditions of % s" % (self, superordinate_drs))
+        return None
 
 class ProperNameDRS(NonPronPresuppositionDRS):
     def _get_presupp_data(self):
@@ -1554,7 +1554,7 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
             # This means that this will work for 'if', but not for sentences like 
             # "If a woman is married or she has a dog, then her car is black or her boss is mean."
             for drs in trail:
-                if not isinstance(drs, PresuppositionDRS):
+                if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression):
                     accommodations.append(accommodation(drs))
             return accommodations, True
         # No restrictive clause or PP -> try binding
@@ -1613,7 +1613,7 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         # (not by van der Sand's algorithm, though). Return it.
         inner_drs = trail[-1]
         for drs in trail:
-            if not isinstance(drs, PresuppositionDRS):
+            if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression):
                 antecedent_ref = self._binding_check(drs, presupp_features, presupp_funcname)
             if antecedent_ref:
                 condition_index = self._get_condition_index(drs, trail)
@@ -1638,7 +1638,7 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         binding = False
         i = 0
         for drs in trail:
-            if not isinstance(drs, PresuppositionDRS):
+            if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression):
                 antecedents = self.possible_antecedents[i]
                 i += 1
                 for antecedent in antecedents:
@@ -1722,28 +1722,26 @@ def integration_test(tester):
     expr_readings.draw()
     
 def anaphora_main(tester):
-    #drs = tester.parse( "a boy kissed a girl. She bit he.", utter=True)
-    #drs = tester.parse( "John owns a letter of Mary", utter=True) #A married boy that is dead is away
-    #drs = tester.parse( "John owns a car. John kissed Mary", utter=True) #A married boy that is dead is away
-    drs = tester.parse( "The boy owns a car.", utter=True) #A married boy that is dead is away
-    # TODO: drs = tester.parse( "If a boy owns a car or he is married Mary is away.", utter=True)
-    #drs = tester.parse( "Mary does write John s letter of himself.", utter=True) # -||- of himself
-    print drs
-    drs.draw()
-#    for cond in drs.conds:
-#        print "cond", type(cond), cond
-    readings = drs.readings()
-    #print 'number of readings', len(readings) DrtStateVariableExpression
-    for reading in readings:
-        for cond in reading.conds:
-            print type(cond), cond, #<class 'presuppositions.DrtApplicationExpression'> AGENT(s,x)
-            try:
-                print type(cond.argument), cond.argument.variable, # <class 'presuppositions.DrtIndividualVariableExpression'> x
-            except: pass
-            try: 
-                print type(cond.function.argument) #<class 'presuppositions.DrtStateVariableExpression'>
-            except: pass
-        reading.draw()
+    sentences = [ "If Mia died the girl walked", "The boy kissed his room", "John kissed a hammer. He kissed a flower. John liked the tool"
+                 ]
+    for sentence in sentences:
+        drs = tester.parse(sentence, utter=True)
+        print drs
+        drs.draw()
+#        for cond in drs.conds:
+#            print "cond", type(cond), cond
+        readings = drs.readings()
+        print 'number of readings', len(readings)
+        for reading in readings:
+#            for cond in reading.conds:
+#                print type(cond), cond, #<class 'presuppositions.DrtApplicationExpression'> AGENT(s,x)
+#                try:
+#                    print type(cond.argument), cond.argument.variable, # <class 'presuppositions.DrtIndividualVariableExpression'> x
+#                except: pass
+#                try: 
+#                    print type(cond.function.argument) #<class 'presuppositions.DrtStateVariableExpression'>
+#                except: pass
+            reading.draw()
         
 def presuppositions_sentences(tester):
     sentences = ['The married boy that kissed a dog bit a girl',
