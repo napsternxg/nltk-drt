@@ -484,7 +484,7 @@ def test_1():
             #interpret.draw()
     
     
-    for interpretation in interpret("Mia died", "if Mia died a girl walked", bk_1):
+    for interpretation in interpret("Mia died", "if Mia walked a girl walked", bk_1):
         if not isinstance(interpretation, str):
             print interpretation
             #interpretation.draw()
