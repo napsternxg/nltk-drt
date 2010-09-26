@@ -1,15 +1,16 @@
-from nltk.inference.prover9 import Prover9Command, Prover9
-from nltk.inference.mace import MaceCommand, Mace
-from anaphora import DrtParser
+#from nltk.inference.prover9 import Prover9Command, Prover9
+#from nltk.inference.mace import MaceCommand, Mace
+from presuppositions import DrtParser
 from nltk.sem.drt import AbstractDrs
 from nltk import LogicParser
 from nltk.sem.logic import AndExpression, NegatedExpression
-from nltk.inference.api import ParallelProverBuilderCommand, Prover, ModelBuilder
-import temporaldrt as drt
-#import anaphora as drt
+#from nltk.inference.api import ParallelProverBuilderCommand, Prover, ModelBuilder
+#import temporaldrt as drt
+from theorem import Builder, Prover 
+import presuppositions as drt
 import util
-from threading import Thread
-import os
+#from threading import Thread
+#import os
 
 import nltkfixtemporal
 
@@ -123,62 +124,53 @@ def inference_check(expr, background_knowledge=False):
 #        def run(self):
 #            return self.tool.build_model(True)
 #            
-    
-    class Prover(Thread):
-        """Wrapper class for Prover9"""
-        def __init__(self,expression):
-            Thread.__init__(self)
-            self.prover = Prover9Command(expression,timeout=60)
-            self.result = None
-        
-        def run(self):
-            self.result = self.prover.prove(verbose=False)
-            
-        
-    class Builder(Thread):
-        """Wrapper class for Mace"""
-        def __init__(self,expression):
-            Thread.__init__(self)              
-            self.builder = MaceCommand(None,[expression],max_models=50)
-            self.result = None 
-        
-        def run(self):
-            self.result = self.builder.build_model(verbose=True) 
 
-#    def check(expression):
-#        os.system('killall mace4')
-#        if background_knowledge:
-#            p = Prover(NegatedExpression(AndExpression(expression,background_knowledge)))
-#            m = Builder(AndExpression(expression,background_knowledge))
-#        else:
-#            p = Prover(NegatedExpression(expression))
-#            m = Builder(expression)
-#    
-#        print p
-#        print m
-#        p.start()
-#        m.start()
-#        
-#        while p.is_alive() and m.is_alive():
-#            pass
-#        if m.is_alive():
-#            """If builder is still running, there is a high
-#            likelihood of the formula to be a contradiction.
-#            """
-#            print "prover check:",p, p.result
-#            return not p.result
-##            os.system('killall mace4')
-#            """If builder returned, return its value"""
-#        print "builder check:",m, m.builder.valuation
-#        return m.result  
-    
     def check(expression):
+        #os.system('killall mace4')
         if background_knowledge:
-            expr = NegatedExpression(AndExpression(expression,background_knowledge))
+            p = Prover(NegatedExpression(AndExpression(expression,background_knowledge)))
+            m = Builder(AndExpression(expression,background_knowledge))
         else:
-            expr = NegatedExpression(expression)
+            p = Prover(NegatedExpression(expression))
+            m = Builder(expression)
+    
+        print p
+        print m
+        p.start()
+        m.start()
+        result = None
+        
+        while p.is_alive() and m.is_alive():
+            pass
+        if m.is_alive():
+            """If builder is still running, there is a high
+            likelihood of the formula to be a contradiction.
+            """
+            print "prover check:",p, p.result
+            result = not p.result
             
-        return ParallelProverBuilderCommand(Prover9(), Mace(),expr).build_model()
+            while not m.builder._modelbuilder.isrunning():
+                pass
+            
+            m.builder._modelbuilder.terminate()
+            return not p.result
+#            os.system('killall mace4')
+            """If builder returned, return its value"""
+
+        print "builder check:",m, m.builder.valuation
+        while not p.prover._prover.isrunning():
+                pass
+        result = m.result
+        p.prover._prover.terminate()
+        return result
+    
+#    def check(expression):
+#        if background_knowledge:
+#            expr = NegatedExpression(AndExpression(expression,background_knowledge))
+#        else:
+#            expr = NegatedExpression(expression)
+#            
+#        return ParallelProverBuilderCommand(Prover9(), Mace(),expr).build_model()
 
 
 #    def check(expression):
@@ -392,10 +384,10 @@ def interpret(expr_1, expr_2, bk=False):
                 #locally inadmissible
                 #expression = parser_obj.parse(r'DRS([],[DRS([y],[Angus(y),live(y)]) -> DRS([x],[Mia(x),-DRS([],[die(x)])])])')
                 
-                #for ref in expression.get_refs():
-                #    if ref in discourse.get_refs():
-                #        newref = drt.DrtVariableExpression(drt.unique_variable(ref))
-                #        expression = expression.replace(ref,newref,True)
+                for ref in expression.get_refs():
+                    if ref in discourse.get_refs():
+                        newref = drt.DrtVariableExpression(drt.unique_variable(ref))
+                        expression = expression.replace(ref,newref,True)
                 
                 new_discourse = drt.DrtApplicationExpression(drt.DrtApplicationExpression(buffer,discourse),expression).simplify()
                 
@@ -418,7 +410,7 @@ def interpret(expr_1, expr_2, bk=False):
      
                     interpretations = []
                     try:
-                        for reading in new_discourse.readings():
+                        for reading in new_discourse.readings(True):
                             interpretation = inference_check(reading, background_knowledge)
                             if interpretation:
                                 interpretations.append(interpretation)
@@ -484,7 +476,7 @@ def test_1():
             #interpret.draw()
     
     
-    for interpretation in interpret("Mia died", "if Mia walked a girl walked", bk_1):
+    for interpretation in interpret("Mia died", "Mia died", bk_1):
         if not isinstance(interpretation, str):
             print interpretation
             #interpretation.draw()
@@ -513,26 +505,26 @@ def test_1():
         #"Mia died", "If Angus walked Mia died"   -- globally uninformative
         #     
         
-def test_2():
-    parser_obj = DrtParser()
-    #parser = LogicParser().parse
-    #expression = parser(r'((p -> q) & ((p & q) -> m)) <-> ((p -> q) & (p -> (m & q)))')
-    #expression = parser_obj.parse(r'DRS([n,e,x,t],[Mia(x),die(e),AGENT(e,x),include(t,e),earlier(t,n),-DRS([t02,e01],[die(e01),AGENT(e01,x),include(t02,e01),earlier(t02,n)]) ])')
-    expression = parser_obj.parse(r'([n,t,e,x],[-([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])')
-    #expression = parser(r'DRS([],[die(Mia),-(DRS([],[die(Mia)])])')
-    print expression
-    #expression = parser('m')
-    #assumption = parser('m')
-    prover = Prover9Command(NegatedExpression(expression),timeout=60)
-    print prover.prove()
-      
-
-def test_3():
-           
-    parser_obj = DrtParser()       
-    expression = parser_obj.parse(r'([n,t,e,x],[-([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])')
-    print expression
-    print ParallelProverBuilderCommand(Prover9(), Mace(),expression).build_model()
+#def test_2():
+#    parser_obj = DrtParser()
+#    #parser = LogicParser().parse
+#    #expression = parser(r'((p -> q) & ((p & q) -> m)) <-> ((p -> q) & (p -> (m & q)))')
+#    #expression = parser_obj.parse(r'DRS([n,e,x,t],[Mia(x),die(e),AGENT(e,x),include(t,e),earlier(t,n),-DRS([t02,e01],[die(e01),AGENT(e01,x),include(t02,e01),earlier(t02,n)]) ])')
+#    expression = parser_obj.parse(r'([n,t,e,x],[-([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])')
+#    #expression = parser(r'DRS([],[die(Mia),-(DRS([],[die(Mia)])])')
+#    print expression
+#    #expression = parser('m')
+#    #assumption = parser('m')
+#    prover = Prover9Command(NegatedExpression(expression),timeout=60)
+#    print prover.prove()
+#      
+#
+#def test_3():
+#           
+#    parser_obj = DrtParser()       
+#    expression = parser_obj.parse(r'([n,t,e,x],[-([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])')
+#    print expression
+#    print ParallelProverBuilderCommand(Prover9(), Mace(),expression).build_model()
     
 if __name__ == "__main__":
     test_1()
