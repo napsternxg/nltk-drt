@@ -22,7 +22,7 @@ class Prover9Parent(prover9.Prover9Parent):
         @see: L{config_prover9}
         """
         if verbose:
-            print 'Calling:', binary
+            print 'Calling Me:', binary
             print 'Args:', args
             print 'Input:\n', input_str, '\n'
         
@@ -40,8 +40,12 @@ class Prover9Parent(prover9.Prover9Parent):
             
         return (stdout, self.process.returncode)
 
+    def isrunning(self):
+        return hasattr(self, 'process')
+
     def terminate(self):
-        self.process.terminate()
+        if self.process.poll() is None:
+            self.process.terminate()
 
 class Prover9(Prover9Parent, prover9.Prover9):
     pass
@@ -49,55 +53,23 @@ class Prover9(Prover9Parent, prover9.Prover9):
 class Mace(Prover9Parent, mace.Mace):
     pass
 
-class Prover9Command(prover9.Prover9Command):
-    """
-    A L{ProverCommand} specific to the L{Prover9} prover.  It contains
-    the a print_assumptions() method that is used to print the list
-    of assumptions in multiple formats.
-    """
-    def __init__(self, goal=None, assumptions=None, timeout=60, prover=None):
-        """
-        @param goal: Input expression to prove
-        @type goal: L{logic.Expression}
-        @param assumptions: Input expressions to use as assumptions in
-            the proof.
-        @type assumptions: C{list} of L{logic.Expression}
-        @param timeout: number of seconds before timeout; set to 0 for
-            no timeout.
-        @type timeout: C{int}
-        @param prover: a prover.  If not set, one will be created.
-        @type prover: C{Prover9}
-        """
-        if not assumptions:
-            assumptions = []
+class Prover(Thread):
+    """Wrapper class for Prover9"""
+    def __init__(self,expression):
+        Thread.__init__(self)
+        self.prover = prover9.Prover9Command(expression, None, None, Prover9(60))
+        self.result = None
+    
+    def run(self):
+        self.result = self.prover.prove(False)
         
-        if prover is not None:
-            assert isinstance(prover, Prover9)
-        else:
-            prover = Prover9(timeout)
-         
-        api.BaseProverCommand.__init__(self, prover, goal, assumptions)
-
-class MaceCommand(mace.MaceCommand):
-    pass
-
-    class Prover(Thread):
-        """Wrapper class for Prover9"""
-        def __init__(self,expression):
-            Thread.__init__(self)
-            self.prover = Prover9Command(expression,timeout=60)
-            self.result = None
-        
-        def run(self):
-            self.result = self.prover.prove(verbose=False)
-            
-        
-    class Builder(Thread):
-        """Wrapper class for Mace"""
-        def __init__(self,expression):
-            Thread.__init__(self)              
-            self.builder = MaceCommand(None,[expression],max_models=50)
-            self.result = None 
-        
-        def run(self):
-            self.result = self.builder.build_model(verbose=True)
+    
+class Builder(Thread):
+    """Wrapper class for Mace"""
+    def __init__(self,expression):
+        Thread.__init__(self)              
+        self.builder = mace.MaceCommand(None,[expression],None, Mace(50))
+        self.result = None 
+    
+    def run(self):
+        self.result = self.builder.build_model(False)
