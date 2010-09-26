@@ -1,12 +1,15 @@
-from nltk.inference.prover9 import Prover9Command
-from nltk.inference.mace import MaceCommand
+from nltk.inference.prover9 import Prover9Command, Prover9
+from nltk.inference.mace import MaceCommand, Mace
 from anaphora import DrtParser
 from nltk.sem.drt import AbstractDrs
 from nltk import LogicParser
 from nltk.sem.logic import AndExpression, NegatedExpression
+from nltk.inference.api import ParallelProverBuilderCommand, Prover, ModelBuilder
 import temporaldrt as drt
+#import anaphora as drt
 import util
 from threading import Thread
+import os
 
 import nltkfixtemporal
 
@@ -84,67 +87,118 @@ Local Constraints (Kartunen's Filters):
 """
 
 
-def inference_check(expression, background_knowledge=False):
+def inference_check(expr, background_knowledge=False):
     """General function for all kinds of inference-based checks:
     consistency, global and local informativity"""
     
-    assert isinstance(expression, drt.DRS), "Expression %s is not a DRS"
+    assert isinstance(expr, drt.DRS), "Expression %s is not a DRS"
+    
+    expression = expr.deepcopy()
+    print "first version: ",expression
+    
+    def remove_temporal_conds(e):
+    
+        for cond in list(e.conds):
+            if isinstance(cond, drt.DrtEventualityApplicationExpression) and \
+            isinstance(cond.function, drt.DrtEventualityApplicationExpression) and \
+            cond.function.function.variable.name in drt.DrtTokens.TEMP_CONDS:
+                e.conds.remove(cond)
+                
+            elif isinstance(cond, drt.DRS):
+                remove_temporal_conds(cond)
+                
+            elif isinstance(cond, drt.DrtNegatedExpression) and \
+                isinstance(cond.term, drt.DRS):
+                remove_temporal_conds(cond.term)
+                
+            elif isinstance(cond, drt.DrtBooleanExpression) and \
+                isinstance(cond.first, drt.DRS) and isinstance(cond.second, drt.DRS): 
+                remove_temporal_conds(cond.first)
+                remove_temporal_conds(cond.second)
+#    
+#    class InferenceTool():
+#        def __init__(self, expression):
+#            self.tool = ParallelProverBuilderCommand(Prover(), ModelBuilder())
+#        
+#        def run(self):
+#            return self.tool.build_model(True)
+#            
     
     class Prover(Thread):
         """Wrapper class for Prover9"""
         def __init__(self,expression):
             Thread.__init__(self)
             self.prover = Prover9Command(expression,timeout=60)
+            self.result = None
         
         def run(self):
-            self.result = self.prover.prove()
+            self.result = self.prover.prove(verbose=False)
             
         
     class Builder(Thread):
         """Wrapper class for Mace"""
         def __init__(self,expression):
             Thread.__init__(self)              
-            self.builder = MaceCommand(None,[expression],max_models=500) 
+            self.builder = MaceCommand(None,[expression],max_models=50)
+            self.result = None 
         
         def run(self):
-            self.result = self.builder.build_model() 
+            self.result = self.builder.build_model(verbose=True) 
 
+#    def check(expression):
+#        os.system('killall mace4')
+#        if background_knowledge:
+#            p = Prover(NegatedExpression(AndExpression(expression,background_knowledge)))
+#            m = Builder(AndExpression(expression,background_knowledge))
+#        else:
+#            p = Prover(NegatedExpression(expression))
+#            m = Builder(expression)
+#    
+#        print p
+#        print m
+#        p.start()
+#        m.start()
+#        
+#        while p.is_alive() and m.is_alive():
+#            pass
+#        if m.is_alive():
+#            """If builder is still running, there is a high
+#            likelihood of the formula to be a contradiction.
+#            """
+#            print "prover check:",p, p.result
+#            return not p.result
+##            os.system('killall mace4')
+#            """If builder returned, return its value"""
+#        print "builder check:",m, m.builder.valuation
+#        return m.result  
+    
     def check(expression):
         if background_knowledge:
-            p = Prover(NegatedExpression(AndExpression(expression,background_knowledge)))
-            m = Builder(AndExpression(expression,background_knowledge))
+            expr = NegatedExpression(AndExpression(expression,background_knowledge))
         else:
-            p = Prover(NegatedExpression(expression))
-            m = Builder(expression)
-    
-        #print p
-        #print m
-        p.start()
-        m.start()
-        
-        while p.is_alive() and m.is_alive():
-            pass
-        
-        if m.is_alive():
-            """If builder is still running, there is a high
-            likelihood of the formula to be a contradiction.
-            """
-            #print "prover check:",p, p.result
-            return not p.result
-            """If builder returned, return its value"""
-        #print "builder check:",m, m.builder.valuation
-        return m.result  
-        
+            expr = NegatedExpression(expression)
+            
+        return ParallelProverBuilderCommand(Prover9(), Mace(),expr).build_model()
+
+
+#    def check(expression):
+#        if background_knowledge:
+#            inference_tool = InferenceTool(NegatedExpression(AndExpression(expression,background_knowledge)))
+#        else:
+#            inference_tool = InferenceTool(NegatedExpression(expression),True)
+#    
+#        return inference_tool.run()
+      
     
     def consistency_check(expression):
         """1. Consistency check"""
-        #print "consistency check initiated\n", expression
+        print "consistency check initiated\n", expression
         return check(expression)
         
     
     def informativity_check(expression):
         """2. Global informativity check"""
-        #print "informativity check initiated"
+        print "informativity check initiated"
         local_check = []
         for cond in expression.conds:
             if isinstance(cond, drt.DRS) and \
@@ -153,7 +207,8 @@ def inference_check(expression, background_knowledge=False):
                 temp = (expression.conds[:expression.conds.index(cond)]+
                         [drt.DrtNegatedExpression(cond)]+
                     expression.conds[expression.conds.index(cond)+1:])
-                #print "new discourse %s found in %s" % (cond,expression)
+                print "new discourse %s found in %s" % (cond,expression)
+                print "expression for global check", expression.__class__(expression.refs,temp)
                 if not check(expression.__class__(expression.refs,temp)):
                     """new discourse is uninformative"""
                     return False
@@ -177,56 +232,59 @@ def inference_check(expression, background_knowledge=False):
                 temp = (expression.conds[:expression.conds.index(cond)]+
                     expression.conds[expression.conds.index(cond)+1:])
                 local_check.append((expression.__class__(expression.refs,temp),cond.first))
-                local_check.append((expression.__class__(expression.refs,temp),
-                                    drt.ConcatenationDRS(cond.first,cond.second).simplify()))
+                local_check.append((drt.ConcatenationDRS(expression.__class__(expression.refs,temp),
+                                                         cond.first).simplify(),cond.second))
 
 
         if not local_check == []:
             return local_informativity_check(local_check)
         else:
-            #print "Expression %s is informative" % expression
+            print "Expression %s is informative" % expression
             return True
         
     def local_informativity_check(check_list):
         """3. Local admissibility constraints"""
-        #print "local admissibility check initiated:", check_list
+        print "local admissibility check initiated:", check_list
 
         for main,sub in check_list:
             assert isinstance(main, drt.DRS), "Expression %s is not a DRS"
             assert isinstance(sub, drt.DRS), "Expression %s is not a DRS"
 
             if not check(main.__class__(main.refs,main.conds+[drt.DrtNegatedExpression(sub)])):
-                #print "main %s entails sub %s" % (main,sub)
+                print "main %s entails sub %s" % (main,sub)
                 #return False
                 raise Inference_check("New discourse is inadmissible due to local uninformativity:\n\n%s entails %s" % (main, sub))
                 
             elif not check(main.__class__(main.refs,main.conds+[sub])):
-                #print "main %s entails neg of sub %s" % (main,sub)
+                print "main %s entails neg of sub %s" % (main,sub)
                 #return False
                 raise Inference_check("New discourse is inadmissible due to local uninformativity:\n\n%s entails the negation of %s" % (main, sub))
                 
-        #print "main %s does not entail sub %s nor its negation" % (main,sub)
+        print "main %s does not entail sub %s nor its negation" % (main,sub)
         return True                
+
+    remove_temporal_conds(expression)
+    print "Second version: ",expression
     
     if not consistency_check(expression):
-            #print "Expression %s is inconsistent" % expression
+            print "Expression %s is inconsistent" % expression
             #return None
             raise Inference_check("New discourse is inconsistent on the following interpretation:\n\n%s" % expression)
     
     if not informativity_check(expression):
-            #print "Expression %s is uninformative" % expression
+            print "Expression %s is uninformative" % expression
             #return None
             
             raise Inference_check("New expression is uninformative on the following interpretation:\n\n%s" % expression)
  
     
-    for cond in expression.conds:
+    for cond in expr.conds:
         """Merge DRS of the new expression into the previous discourse"""
         if isinstance(cond, drt.DRS):
-            return prenex_normal_form(expression.__class__(expression.refs,
-                    expression.conds[:expression.conds.index(cond)]+
-                    expression.conds[expression.conds.index(cond)+1:]), cond)
-    return expression
+            return prenex_normal_form(expr.__class__(expr.refs,
+                    expression.conds[:expr.conds.index(cond)]+
+                    expression.conds[expr.conds.index(cond)+1:]), cond)
+    return expr
 
 
 class Inference_check(Exception):
@@ -316,7 +374,11 @@ def interpret(expr_1, expr_2, bk=False):
         try:
             try:
                 discourse = tester.parse(expr_1, utter=True)
+                
                 expression = tester.parse(expr_2, utter=False)
+                
+                #discourse = parser_obj.parse(r'DRS([x,s],[Mia(x),die(x)])')
+                #expression = parser_obj.parse(r'DRS([],[-DRS([x,s],[Mia(x),die(x)])])')
                 
                 #discourse = parser_obj.parse(r'DRS([x],[Mia(x),die(x)])')
                 #inconsistent
@@ -330,17 +392,24 @@ def interpret(expr_1, expr_2, bk=False):
                 #locally inadmissible
                 #expression = parser_obj.parse(r'DRS([],[DRS([y],[Angus(y),live(y)]) -> DRS([x],[Mia(x),-DRS([],[die(x)])])])')
                 
-                for ref in expression.get_refs():
-                    if ref in discourse.get_refs():
-                        newref = drt.DrtVariableExpression(drt.unique_variable(ref))
-                        expression = expression.replace(ref,newref,True)
-              
+                #for ref in expression.get_refs():
+                #    if ref in discourse.get_refs():
+                #        newref = drt.DrtVariableExpression(drt.unique_variable(ref))
+                #        expression = expression.replace(ref,newref,True)
+                
                 new_discourse = drt.DrtApplicationExpression(drt.DrtApplicationExpression(buffer,discourse),expression).simplify()
-
+                
+                #new_discourse = parser_obj.parse(r'DRS([x,e],[Mia(x),AGENT(e,x),die(e),DRS([e01],[AGENT(e01,x),die(e01)]) ])')
+                #new_discourse = parser_obj.parse(r'DRS([n,e,t,x],[Mia(x),AGENT(e,x),die(e),earlier(e,n),DRS([e01],[AGENT(e01,x),die(e01),earlier(e01,n)]) ])')
+                #([n,t,e,x],[([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])
+                
+                
+                
                 background_knowledge = None
                 
                 lp = LogicParser().parse
                 try:
+                    print get_bk(new_discourse, bk)
                     for formula in get_bk(new_discourse, bk):
                         if background_knowledge:
                             background_knowledge = AndExpression(background_knowledge, lp(formula))
@@ -380,8 +449,9 @@ def test_1():
           'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
           'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
           'dead' : r'all x y z.((die(x) & AGENT(x,z) & abut(x,y)) -> (dead(y) & THEME(y,z)))',
-          'married' : r'all x y.((married(x) & THEME(x,y)) <-> exists z v.(own(v) & AGENT(v,y) & PATIENT(v,z) & (husband(z) | wife(z))))',
-          'husband' : r'all x y.((married(x) & THEME(x,y)) <-> exists z v.(own(v) & AGENT(v,y) & PATIENT(v,z) & (husband(z) | wife(z))))',
+          'live' : r'all x y z v.((overlap(x,y) & live(y) & AGENT(x,z)) <-> -(overlap(x,v) & dead(v) & THEME(v,z)))',
+          'married' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))',
+          'husband' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))',
           'individual' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
           'time' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
           'state' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
@@ -392,9 +462,10 @@ def test_1():
     bk_1 = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
           'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
           'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
+          'live' : r'all x y z v.((overlap(x,y) & live(y) & AGENT(x,z)) <-> -(overlap(x,v) & dead(v) & THEME(v,z)))',
           'dead' : r'all x y z.((die(x) & AGENT(x,z) & abut(x,y)) -> (dead(y) & THEME(y,z)))',
-          'married' : r'all x y.((married(x) & THEME(x,y)) -> exists v z.(own(v) & AGENT(v,y) & PATIENT(v,z) & husband(z)))',
-          'husband' : r'all y z v.((own(v) & AGENT(v,y) & PATIENT(v,z) & (husband(z) | wife(z))) -> exists x.(married(x) & THEME(x,y)))'}
+          'married' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))',
+          'husband' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))'}
   
     #parser_obj = DrtParser()
     #buffer = parser_obj.parse(r'\Q P.(DRS([],[P])+Q)')
@@ -413,18 +484,19 @@ def test_1():
             #interpret.draw()
     
     
-    for interpretation in interpret("Mia is married", "Mia owns a husband", bk_1):
+    for interpretation in interpret("Mia died", "if Mia died a girl walked", bk_1):
         if not isinstance(interpretation, str):
             print interpretation
+            #interpretation.draw()
     
-        """
-        Consistency check: Try "Mia died" and "Mia will die"
-        
-        Global informativity check: Try "Mia owns a red car" and "Mia owns a car"
-        
-        Local admissibility check: Try "Mia has died" and "If Mia is dead Angus lives"
-            or "Mia is dead or Angus lives" or "If Mia is not dead Angus lives"        
-        """
+            """
+            Consistency check: Try "Mia died" and "Mia will die"
+            
+            Global informativity check: Try "Mia owns a red car" and "Mia owns a car"
+            
+            Local admissibility check: Try "Mia has died" and "If Mia is dead Angus lives"
+                or "Mia is dead or Angus lives" or "If Mia is not dead Angus lives"        
+            """
         #TODO: As it goes deep into DRS it hits unresolved presuppositional DRS and if
         #a name is repeated twice, it will prove uninformativity, as encoded.
         #Presuppositional DRS should be resolved to have a reasonable inference check.
@@ -441,8 +513,27 @@ def test_1():
         #"Mia died", "If Angus walked Mia died"   -- globally uninformative
         #     
         
-        
-        
+def test_2():
+    parser_obj = DrtParser()
+    #parser = LogicParser().parse
+    #expression = parser(r'((p -> q) & ((p & q) -> m)) <-> ((p -> q) & (p -> (m & q)))')
+    #expression = parser_obj.parse(r'DRS([n,e,x,t],[Mia(x),die(e),AGENT(e,x),include(t,e),earlier(t,n),-DRS([t02,e01],[die(e01),AGENT(e01,x),include(t02,e01),earlier(t02,n)]) ])')
+    expression = parser_obj.parse(r'([n,t,e,x],[-([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])')
+    #expression = parser(r'DRS([],[die(Mia),-(DRS([],[die(Mia)])])')
+    print expression
+    #expression = parser('m')
+    #assumption = parser('m')
+    prover = Prover9Command(NegatedExpression(expression),timeout=60)
+    print prover.prove()
+      
+
+def test_3():
+           
+    parser_obj = DrtParser()       
+    expression = parser_obj.parse(r'([n,t,e,x],[-([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])')
+    print expression
+    print ParallelProverBuilderCommand(Prover9(), Mace(),expression).build_model()
+    
 if __name__ == "__main__":
     test_1()
      
