@@ -1,5 +1,5 @@
-from temporaldrt import DrtFeatureExpression, AnaphoraResolutionException
-from anaphora import DrtParser
+from temporaldrt import AnaphoraResolutionException
+from temporaldrt import DrtParser
 from util import Tester
 import nltkfixtemporal
 
@@ -19,22 +19,22 @@ def main():
     (4, "Jones loves Charlotte but Bill loves her and he asked him.", "DRS([n,s,s043,t051,e,x,z37,z42],[Jones{sg,m}(x), Charlotte{sg,f}(z37), love(s), AGENT(s,x), PATIENT(s,z37), overlap(n,s), Bill{sg,m}(z42), love(s043), AGENT(s043,z42), PATIENT(s043,z37), overlap(n,s043), overlap(s,s043), earlier(t051,n), ask(e), AGENT(e,z42), PATIENT(e,x), include(t051,e), include(s043,e)])", None),
     (5, "Jones loves Charlotte but Bill loves her and himself asked him.", None, AnaphoraResolutionException),
     (6, "Jones likes a picture of himself.", "DRS([n,z79,e,x],[Jones{sg,m}(x), REL(z79,x), picture{sg,n}(z79), like(e), AGENT(e,x), PATIENT(e,z79), include(n,e)])", None),
-    (7, "Jones likes a picture of him.", "DRS([x,z66,z64,e],[Jones{sg,m}(x), PRO{sg,m}(z64), THEME(z66,z64), picture{sg,n}(z66), like(e), AGENT(e,x), THEME(e,z66)])", AnaphoraResolutionException),
-    (8, "Bill likes Jones's picture of himself", "DRS([x,z92,z,z91,e],[Bill{sg,m}(x), Jones{sg,m}(z92), POSSESSOR(z,z92), (z91 = z92), THEME(z,z91), picture{sg,n}(z), like(e), AGENT(e,x), THEME(e,z)])", None),
-    (9, "Bill likes Jones's picture of him", "DRS([x,z97,z,z96,e],[Bill{sg,m}(x), Jones{sg,m}(z97), POSSESSOR(z,z97), (z96 = x), THEME(z,z96), picture{sg,n}(z), like(e), AGENT(e,x), THEME(e,z)])", None),
-    (10,"Jones shows Bill his room. He likes it", "DRS([x,z3,e,y,z,z6,z5,e07],[Jones{sg,m}(x), Bill{sg,m}(z3), show(e), AGENT(e,x), PATIENT(e,z3), POSPRO{sg,m}(y), POSSESSOR(z,y), room{sg,n}(z), THEME(e,z), PRO{sg,m}(z6), PRO{sg,n}(z5), like(e07), AGENT(e07,z6), THEME(e07,z5)])", None),
-    (11, "If Jones is at work, he will be late for dinner.", None, None),
-    (12, "No one dates Charlotte and she is upset.", None, None),
-    (13, "Everyone who thinks that Jones is stupid clearly underestimates him.", None, None),
-    (14, "Jones owns a porsche. He likes it.", "([n,z89,s,e,x],[Jones{sg,m}(x), porsche{sg,n}(z89), own(s), AGENT(s,x), PATIENT(s,z89), overlap(n,s), like(e), AGENT(e,x), PATIENT(e,z89), include(n,e), include(s,e)])", None),
-    (15, "Jones does not own a porsche . He likes it.", None, None),
-    (16, "Every farmer who owns a donkey beats it.", None, None),
-    (17, "Every farmer owns a donkey. He beats it.", None, None),
-    (18, "Jones owns a car or he commutes.", "DRS([],[(([x,z2,e],[Jones{sg,m}(x), car{sg,n}(z2), own(e), AGENT(e,x), THEME(e,z2)]) | ([x,e],[PRO{sg,m}(x), commute(e), AGENT(e,x)]))])", None),
+    (7, "Jones likes a picture of him.", None, AnaphoraResolutionException),
+    (8, "Bill likes Jones's picture of himself", "DRS([n,e,x,z98,y],[Bill{sg,m}(x), POSS(y,z98), REL(y,z98), picture{sg,n}(y), Jones{sg,m}(z98), like(e), AGENT(e,x), PATIENT(e,y), include(n,e)])", None),
+    (9, "Bill likes Jones's picture of him", "DRS([n,e,x,z111,y],[Bill{sg,m}(x), POSS(y,z111), REL(y,x), picture{sg,n}(y), Jones{sg,m}(z111), like(e), AGENT(e,x), PATIENT(e,y), include(n,e)])", None),
+    (10,"Jones shows Bill his room. He likes it", "DRS([n,e,e0122,x,z115,z116],[Jones{sg,m}(x), POSS(z115,x), room{sg,n}(z115), Bill{sg,m}(z116), show(e), AGENT(e,x), PATIENT(e,z115), RECIP(e,z116), include(n,e), like(e0122), AGENT(e0122,x), PATIENT(e0122,z115), include(n,e0122), earlier(e,e0122)])", None),
+    (11, "If Jones is not dead, he will die.", None, None),
+    (12, "No one dates Charlotte and she is upset.", "DRS([n,s,z118],[-([x,e],[human{sg,m}(x), date(e), AGENT(e,x), PATIENT(e,z118), include(n,e), include(s,e)]), Charlotte{sg,f}(z118), broken(s), THEME(s,z118), overlap(n,s)])", None),
+    (13, "If Jones is stupid everyone underestimates him.", None, None),
+    (14, "Jones owns a porsche. He likes it.", "DRS([n,z89,s,e,x],[Jones{sg,m}(x), porsche{sg,n}(z89), own(s), AGENT(s,x), PATIENT(s,z89), overlap(n,s), like(e), AGENT(e,x), PATIENT(e,z89), include(n,e), include(s,e)])", None),
+    (15, "Jones does not own a porsche . He likes it.", None, AnaphoraResolutionException),
+    (16, "Every farmer who owns a donkey beats it.", "DRS([n],[(([x,z151,s],[donkey{sg,n}(z151), own(s), AGENT(s,x), PATIENT(s,z151), overlap(n,s), farmer{sg,m}(x)]) -> ([e],[beat(e), AGENT(e,x), PATIENT(e,z151), include(n,e), include(s,e)]))])", None),
+    (17, "Every farmer owns a donkey. He beats it.", None, AnaphoraResolutionException),
+    (18, "Jones owns a car or he commutes.", "DRS([n,x],[(([z135,s],[car{sg,n}(z135), own(s), AGENT(s,x), PATIENT(s,z135), overlap(n,s)]) | ([e],[commute(e), AGENT(e,x), include(n,e)])), Jones{sg,m}(x)])", None),
     (19, "Jones owns a porsche or Brown owns it", None, AnaphoraResolutionException),
     (20, "Jones owns it or Brown owns a porsche", None, AnaphoraResolutionException),
-    (21, "Jones does not own a car or he hides it.", None, None),
-    (22, "Jones loves the baroness and Bill loves her.", None, None),
+#    (21, "Either Jones does not own a car or he hides it.", None, None),
+    (22, "Jones loves the baroness and Bill loves her.", "DRS([n,s,s0175,x,z169,z174],[Jones{sg,m}(x), baroness{sg,f}(z169), love(s), AGENT(s,x), PATIENT(s,z169), overlap(n,s), Bill{sg,m}(z174), love(s0175), AGENT(s0175,z174), PATIENT(s0175,z169), overlap(n,s0175), overlap(s,s0175)])", None),
     (23, "Jones loves her and Bill loves the baroness.", None, AnaphoraResolutionException)
 
     ]
@@ -43,11 +43,13 @@ def main():
     tester.test(cases)
 
 #    tester = Tester('file:../data/grammar.fcfg', DrtParser)
-#    drs = tester.parse("Jones owns a car or he commutes.")
+#    drs = tester.parse("Bill likes Jones's picture of him.")
 #    print drs
 #    readings = drs.readings(True)
 #    print readings
 #    for reading in readings:
+#        for cond in reading.conds:
+#            print type(cond), cond
 #        reading.draw()
 
 if __name__ == '__main__':
