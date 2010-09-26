@@ -1,4 +1,4 @@
-#from nltk.inference.prover9 import Prover9Command, Prover9
+from nltk.inference.prover9 import Prover9Command, Prover9
 #from nltk.inference.mace import MaceCommand, Mace
 from presuppositions import DrtParser
 from nltk.sem.drt import AbstractDrs
@@ -115,15 +115,7 @@ def inference_check(expr, background_knowledge=False):
             elif isinstance(cond, drt.DrtBooleanExpression) and \
                 isinstance(cond.first, drt.DRS) and isinstance(cond.second, drt.DRS): 
                 remove_temporal_conds(cond.first)
-                remove_temporal_conds(cond.second)
-#    
-#    class InferenceTool():
-#        def __init__(self, expression):
-#            self.tool = ParallelProverBuilderCommand(Prover(), ModelBuilder())
-#        
-#        def run(self):
-#            return self.tool.build_model(True)
-#            
+                remove_temporal_conds(cond.second)           
 
     def check(expression):
         #os.system('killall mace4')
@@ -154,7 +146,6 @@ def inference_check(expr, background_knowledge=False):
             
             m.builder._modelbuilder.terminate()
             return not p.result
-#            os.system('killall mace4')
             """If builder returned, return its value"""
 
         print "builder check:",m, m.builder.valuation
@@ -171,15 +162,6 @@ def inference_check(expr, background_knowledge=False):
 #            expr = NegatedExpression(expression)
 #            
 #        return ParallelProverBuilderCommand(Prover9(), Mace(),expr).build_model()
-
-
-#    def check(expression):
-#        if background_knowledge:
-#            inference_tool = InferenceTool(NegatedExpression(AndExpression(expression,background_knowledge)))
-#        else:
-#            inference_tool = InferenceTool(NegatedExpression(expression),True)
-#    
-#        return inference_tool.run()
       
     
     def consistency_check(expression):
@@ -395,8 +377,6 @@ def interpret(expr_1, expr_2, bk=False):
                 #new_discourse = parser_obj.parse(r'DRS([n,e,t,x],[Mia(x),AGENT(e,x),die(e),earlier(e,n),DRS([e01],[AGENT(e01,x),die(e01),earlier(e01,n)]) ])')
                 #([n,t,e,x],[([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])
                 
-                
-                
                 background_knowledge = None
                 
                 lp = LogicParser().parse
@@ -410,7 +390,7 @@ def interpret(expr_1, expr_2, bk=False):
      
                     interpretations = []
                     try:
-                        for reading in new_discourse.readings(True):
+                        for reading in new_discourse.readings():
                             interpretation = inference_check(reading, background_knowledge)
                             if interpretation:
                                 interpretations.append(interpretation)
@@ -454,8 +434,8 @@ def test_1():
     bk_1 = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
           'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
           'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
-          'live' : r'all x y z v.((overlap(x,y) & live(y) & AGENT(x,z)) <-> -(overlap(x,v) & dead(v) & THEME(v,z)))',
-          'dead' : r'all x y z.((die(x) & AGENT(x,z) & abut(x,y)) -> (dead(y) & THEME(y,z)))',
+          #'live' : r'all x y z v.((overlap(x,y) & live(y) & AGENT(x,z)) <-> -(overlap(x,v) & dead(v) & THEME(v,z)))',
+          'dead' : r'all x y z v.((die(x) & AGENT(x,z) & abut(x,y) & dead(v) & THEME(v,z)) -> y = v)',
           'married' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))',
           'husband' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))'}
   
@@ -476,47 +456,92 @@ def test_1():
             #interpret.draw()
     
     
-    for interpretation in interpret("Mia died", "Mia died", bk_1):
+    for interpretation in interpret("Mia has died", "Mia is not dead", bk_1):
         if not isinstance(interpretation, str):
             print interpretation
             #interpretation.draw()
-    
-            """
-            Consistency check: Try "Mia died" and "Mia will die"
-            
-            Global informativity check: Try "Mia owns a red car" and "Mia owns a car"
-            
-            Local admissibility check: Try "Mia has died" and "If Mia is dead Angus lives"
-                or "Mia is dead or Angus lives" or "If Mia is not dead Angus lives"        
-            """
-        #TODO: As it goes deep into DRS it hits unresolved presuppositional DRS and if
-        #a name is repeated twice, it will prove uninformativity, as encoded.
-        #Presuppositional DRS should be resolved to have a reasonable inference check.
-        #Quick fix added.
+          
+        # No background knowledge attached:
+        ###################################
+        #
+        #"Mia is away", "Mia is away" -- uninformative
+        #
+        #"Mia is away", "Mia is not away" -- inconsistent
+        #
+        #"Mia is away", "If Mia is away Angus walked" -- inadmissible
+        #
+        #"Mia is away", "If Mia is not away Angus walked" -- uninformative (short freeze)
+        #
+        #"Mia is away", "If Angus walked Mia is away" -- uninformative
+        #
+        #"Mia is away", "If Angus walked Mia is not away" -- inadmissible
+        #
+        #"Mia is away", "Angus walked or Mia is away" -- uninformative (short freeze)
+        #
+        #"Mia is away", "Angus walked or Mia is not away" -- inadmissible
         
-        #TODO: Temporal conditions linking clauses break down informativity check!
-        #Something needs to be done...
-        #
-        #If I comment the readings method of FindEventualityExpression class, the following 
-        #discourses come out as expected:
-        #
-        #"Mia died", "If Mia died Angus walked"   -- locally inadmissible
-        #
-        #"Mia died", "If Angus walked Mia died"   -- globally uninformative
-        #     
+        ##################################################################
         
-#def test_2():
-#    parser_obj = DrtParser()
-#    #parser = LogicParser().parse
-#    #expression = parser(r'((p -> q) & ((p & q) -> m)) <-> ((p -> q) & (p -> (m & q)))')
-#    #expression = parser_obj.parse(r'DRS([n,e,x,t],[Mia(x),die(e),AGENT(e,x),include(t,e),earlier(t,n),-DRS([t02,e01],[die(e01),AGENT(e01,x),include(t02,e01),earlier(t02,n)]) ])')
-#    expression = parser_obj.parse(r'([n,t,e,x],[-([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])')
-#    #expression = parser(r'DRS([],[die(Mia),-(DRS([],[die(Mia)])])')
-#    print expression
-#    #expression = parser('m')
-#    #assumption = parser('m')
-#    prover = Prover9Command(NegatedExpression(expression),timeout=60)
-#    print prover.prove()
+        # Background knowledge (not temporal):
+        ######################################
+        #
+        #"Mia owns a husband", "Mia is married" -- uninformative
+        #
+        #"Mia owns a husband", "Mia is not married" -- inconsistent
+        #
+        #"Mia owns a husband", "If Mia is married Angus walked" -- inadmissible
+        #
+        #"Mia owns a husband", "If Mia is not married Angus walked" -- uninformative
+        #
+        #"Mia owns a husband", "If Angus walked Mia is married" -- uninformative (freeze)
+        #
+        #"Mia owns a husband", "If Angus walked Mia is not married" -- inadmissible
+        #
+        #"Mia owns a husband", "Angus walked or Mia is married" -- uninformative
+        #
+        #"Mia owns a husband", "Angus walked or Mia is not married" -- inadmissible
+        
+        ###################################################################
+
+        # Background knowledge (temporal):
+        ######################################
+        #
+        #"Mia died", "Mia will die" -- inconsistent
+        #
+        #"Mia died", "Mia will not die" -- ok
+        #
+        #"Mia died", "If Angus lives Mia will die" -- inadmissible 
+        #
+        #"Mia died", "If Angus lives Mia will not die" -- ok
+        #
+        #"Mia died", "Angus lives or Mia will die" -- inadmissible
+        #
+        #"Mia died", "Angus lives or Mia will not die" -- ok
+        #
+        #
+        #
+        #
+        #
+        #
+        #
+        
+        ####################################################################
+        ############################# TEST #################################
+        ####################################################################
+        
+def test_2():
+    parser_obj = DrtParser()
+    #parser = LogicParser().parse
+    #expression = parser(r'((p -> q) & ((p & q) -> m)) <-> ((p -> q) & (p -> (m & q)))')
+    #expression = parser_obj.parse(r'DRS([n,e,x,t],[Mia(x),die(e),AGENT(e,x),include(t,e),earlier(t,n),-DRS([t02,e01],[die(e01),AGENT(e01,x),include(t02,e01),earlier(t02,n)]) ])')
+    expression = parser_obj.parse(r'([n,s,e,z10],[-([s09],[dead(s09), THEME(s09,z10), overlap(n,s09)]), Mia{sg,f}(z10), include(s,n), die(e), AGENT(e,z10), abut(e,s)])')
+    #expression = parser(r'DRS([],[die(Mia),-(DRS([],[die(Mia)])])')
+    #expression = parser(r'(p & -(-p -> q))')
+    print expression
+    #expression = parser('m')
+    #assumption = parser('m')
+    prover = Prover9Command(NegatedExpression(expression),timeout=60)
+    print prover.prove()
 #      
 #
 #def test_3():
