@@ -20,14 +20,16 @@ VP[FORM=?f,SEM=?v] -> V[SUBCAT=iv,FORM=?f,SEM=?v]
 
 VP[FORM=?f,SEM=<?v(?obj)>] -> V[SUBCAT=tv,FORM=?f,SEM=?v] NP[SEM=?obj]
 
-RC[NUM=?n,SEM=<?rpro(?ibar)>] -> Rpro[SEM=?rpro] Ibar[NUM=?n,SEM=?ibar]
+VP[FORM=?f,SEM=<?v(?obj1,?obj2)>] -> V[SUBCAT=dv,FORM=?f,SEM=?v] NP[SEM=?obj1] NP[SEM=?obj2]
+
+RC[NUM=?n,GEN=?g,SEM=<?rpro(?ibar)>] -> Rpro[GEN=?g,SEM=?rpro] Ibar[NUM=?n,SEM=?ibar]
 
 # Nominal Rules:
 ################
 
 NP[NUM=?n,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  Nbar[NUM=?n,SEM=?nom]
 
-Nbar[NUM=?n,SEM=<?rc(?nom)>] -> N[NUM=?n,SEM=?nom] RC[NUM=?n,SEM=?rc]
+Nbar[NUM=?n,SEM=<?rc(?nom)>] -> N[NUM=?n,GEN=?g,SEM=?nom] RC[NUM=?n,GEN=?g,SEM=?rc]
 
 Nbar[NUM=?n,SEM=<?nom>] -> N[NUM=?n,SEM=?nom]
 
@@ -108,6 +110,11 @@ V[SUBCAT=tv,FORM=perf,SEM=<\X x.X(\y.DRS([e],[?lv(e),AGENT(e,x),PATIENT(e,y),PER
 V[SUBCAT=tv,FORM=perf,SEM=<\X x.X(\y.DRS([s],[?lv(s),AGENT(s,x),PATIENT(s,y),PERF(s)]))>] -> LexV[SUBCAT=tv,FORM=perf,TYPE=s,SEM=?lv]
 
 
+# Bare infinitives: Ditransitive Events / States
+##############################################
+
+V[SUBCAT=dv,FORM=inf,SEM=<\Z X x.X(\y.Z(\z.DRS([e,t],[?lv(e),AGENT(e,x),PATIENT(e,y),RECIP(e,z),LOCPRO(t)])))>] -> LexV[SUBCAT=dv,FORM=inf,TYPE=e,SEM=?lv]
+
 #############################
 # Lexicon
 #############################
@@ -167,6 +174,8 @@ PosMarker[SEM=<\O P Q.(DRS([],[(O(\x.(DEF([y],[POSS(y,x)])))+P(y))])+Q(y))>] -> 
 ###################
 
 Rpro[SEM=<\P Q x.(P(\D.D(x))+Q(x))>] -> 'that'
+Rpro[GEN=m,SEM=<\P Q x.(P(\D.D(x))+Q(x))>] -> 'who'
+Rpro[GEN=f,SEM=<\P Q x.(P(\D.D(x))+Q(x))>] -> 'who'
 
 # Adjectives:
 #############
