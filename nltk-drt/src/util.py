@@ -16,12 +16,13 @@ class local_DrtParser(temporaldrt.DrtParser):
 
 class Tester(object):
 
-    EXCLUDED = re.compile("^(does|ha[sd]|[h]is|red|[a-z]+ness)$")
+    EXCLUDED_NEXT = re.compile("^ha[sd]|is|not$")
+    EXCLUDED = re.compile("^does|h?is|red|[a-z]+ness$")
     SUBSTITUTIONS = [
     (re.compile("^died$"), ("did", "die")),
      (re.compile("^([A-Z][a-z]+)'s?$"),   lambda m: (m.group(1), "s")),
      (re.compile("^(?P<stem>[a-z]+)s$"),  lambda m: ("does", m.group("stem"))),
-     (re.compile("^(?P<stem>[a-z]+)ed$"), lambda m: ("did", m.group("stem"))),
+     (re.compile("^([a-z]+[^cv])ed|([a-z]+[cv]e)d$"), lambda m: ("did", m.group(1) if m.group(1) else m.group(2))),
      (re.compile("^([A-Z]?[a-z]+)one$"), lambda m: (m.group(1), "one")),
      (re.compile("^([A-Z]?[a-z]+)thing$"), lambda m: (m.group(1), "thing")),
       (re.compile("^bit$"), ("did", "bite")),
@@ -37,17 +38,25 @@ class Tester(object):
 
     def _split(self, sentence):
         words = []
+        exlude_next = False
         for word in sentence.split():
             match = None
-            if not Tester.EXCLUDED.match(word):
-                for pattern, replacement in Tester.SUBSTITUTIONS:
-                    match = pattern.match(word)
-                    if match:
-                        if isinstance(replacement, LambdaType):
-                            words.extend(replacement(match))
-                        else:
-                            words.extend(replacement)
-                        break
+            if Tester.EXCLUDED_NEXT.match(word):
+                exlude_next = True
+                words.append(word)
+                continue
+            if exlude_next or Tester.EXCLUDED.match(word):
+                exlude_next = False
+                words.append(word)
+                continue
+            for pattern, replacement in Tester.SUBSTITUTIONS:
+                match = pattern.match(word)
+                if match:
+                    if isinstance(replacement, LambdaType):
+                        words.extend(replacement(match))
+                    else:
+                        words.extend(replacement)
+                    break
 
             if not match:
                 words.append(word)
@@ -110,7 +119,7 @@ class Tester(object):
 
 def main():
     tester = Tester('file:../data/grammar.fcfg', temporaldrt.DrtParser)
-    sentences = ["Bill likes Jones's picture of him", "Bill has Jones's picture of him"]
+    sentences = ["If Mia danced Angus lived", "Bill owned Jones's picture of him"]
     for sentence in sentences:
         print tester._split(sentence)
 
