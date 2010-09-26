@@ -74,7 +74,7 @@ NP[NUM=?n,GEN=?g,SEM=<\P.(DRS([],[PROP([x],[?lexn{?n,?g}(x)])])+P(x))>] -> LexPr
 
 ADJ[SEM=<\P x.(DRS([],[?ladj(x)])+P(x))>] -> LexADJ[SEM=?ladj]
 
-Det[SEM=<\P Q.(DRS([],[(DEF([x],[POSS(y,x), PRON([y],[?lexp{?n,?g}(y)])])+P(x))])+Q(x))>] -> LexPos[NUM=?n,GEN=?g,SEM=?lexp]
+Det[SEM=<\P Q.(DRS([],[(DEF([x],[POSS(x,y), PRON([y],[?lexp{?n,?g}(y)])])+P(x))])+Q(x))>] -> LexPos[NUM=?n,GEN=?g,SEM=?lexp]
 
 
 # Predicative NPs, adjectives, adverbs
@@ -160,7 +160,7 @@ Not[SEM=<\ Q P Z.(DRS([],[-Q(P,Z)]))>] -> 'not' | 'Not'
 
 Det[SEM=<\P Q.(DRS([],[(DEF([x],[])+P(x))])+Q(x))>] -> 'the' | 'The'
 
-PosMarker[SEM=<\O P Q.(DRS([],[(O(\x.(DEF([y],[POSS(x,y)])))+P(y))])+Q(y))>] -> 's'
+PosMarker[SEM=<\O P Q.(DRS([],[(O(\x.(DEF([y],[POSS(y,x)])))+P(y))])+Q(y))>] -> 's'
 
 
 # Relative Pronoun: (substitutes for SubjNP of the relative clause)
