@@ -23,12 +23,12 @@ def main():
     (8, "Bill likes Jones's picture of himself", "DRS([n,e,x,z98,y],[Bill{sg,m}(x), POSS(y,z98), REL(y,z98), picture{sg,n}(y), Jones{sg,m}(z98), like(e), AGENT(e,x), PATIENT(e,y), include(n,e)])", None),
     (9, "Bill likes Jones's picture of him", "DRS([n,e,x,z111,y],[Bill{sg,m}(x), POSS(y,z111), REL(y,x), picture{sg,n}(y), Jones{sg,m}(z111), like(e), AGENT(e,x), PATIENT(e,y), include(n,e)])", None),
     (10,"Jones shows Bill his room. He likes it", "DRS([n,e,e0122,x,z115,z116],[Jones{sg,m}(x), POSS(z115,x), room{sg,n}(z115), Bill{sg,m}(z116), show(e), AGENT(e,x), PATIENT(e,z115), RECIP(e,z116), include(n,e), like(e0122), AGENT(e0122,x), PATIENT(e0122,z115), include(n,e0122), earlier(e,e0122)])", None),
-    (11, "If Jones is not dead, he will die.", None, None),
+    (11, "If Jones is not dead, he will die.", "DRS([n,x],[(([],[-([s],[dead(s), THEME(s,x), overlap(n,s)])]) -> ([t0128,e],[earlier(n,t0128), die(e), AGENT(e,x), include(t0128,e)])), Jones{sg,m}(x)])", None),
     (12, "No one dates Charlotte and she is upset.", "DRS([n,s,z118],[-([x,e],[human{sg,m}(x), date(e), AGENT(e,x), PATIENT(e,z118), include(n,e), include(s,e)]), Charlotte{sg,f}(z118), broken(s), THEME(s,z118), overlap(n,s)])", None),
-    (13, "If Jones is stupid everyone underestimates him.", None, None),
+    (13, "If Jones is stupid, everyone underestimates him.", None, None),
     (14, "Jones owns a porsche. He likes it.", "DRS([n,z89,s,e,x],[Jones{sg,m}(x), porsche{sg,n}(z89), own(s), AGENT(s,x), PATIENT(s,z89), overlap(n,s), like(e), AGENT(e,x), PATIENT(e,z89), include(n,e), include(s,e)])", None),
     (15, "Jones does not own a porsche . He likes it.", None, AnaphoraResolutionException),
-    (16, "Every farmer who owns a donkey beats it.", "DRS([n],[(([x,z151,s],[donkey{sg,n}(z151), own(s), AGENT(s,x), PATIENT(s,z151), overlap(n,s), farmer{sg,m}(x)]) -> ([e],[beat(e), AGENT(e,x), PATIENT(e,z151), include(n,e), include(s,e)]))])", None),
+    (16, "Every farmer who owns a donkey beats it.", "DRS([n],[(([x,z164,s],[donkey{sg,n}(z164), own(s), AGENT(s,x), PATIENT(s,z164), overlap(n,s), farmer{sg,m}(x)]) -> ([e],[beat(e), AGENT(e,x), PATIENT(e,z164), include(n,e), include(s,e)]))])", None),
     (17, "Every farmer owns a donkey. He beats it.", None, AnaphoraResolutionException),
     (18, "Jones owns a car or he commutes.", "DRS([n,x],[(([z135,s],[car{sg,n}(z135), own(s), AGENT(s,x), PATIENT(s,z135), overlap(n,s)]) | ([e],[commute(e), AGENT(e,x), include(n,e)])), Jones{sg,m}(x)])", None),
     (19, "Jones owns a porsche or Brown owns it", None, AnaphoraResolutionException),
@@ -43,7 +43,7 @@ def main():
     tester.test(cases)
 
 #    tester = Tester('file:../data/grammar.fcfg', DrtParser)
-#    drs = tester.parse("Bill likes Jones's picture of him.")
+#    drs = tester.parse("If Jones is stupid, everyone underestimates him.")
 #    print drs
 #    readings = drs.readings(True)
 #    print readings
