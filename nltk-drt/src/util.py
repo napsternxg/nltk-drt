@@ -6,7 +6,7 @@ from temporaldrt import DRS
 import nltk.sem.drt as drt
 import temporaldrt
 import re
-
+from types import LambdaType
 
 class local_DrtParser(temporaldrt.DrtParser):
     
@@ -14,44 +14,20 @@ class local_DrtParser(temporaldrt.DrtParser):
         drs = drt.DrtParser.handle_DRS(self, tok, context)
         return DRS(drs.refs, drs.conds)
 
-
-
-
-
-
-
 class Tester(object):
-    subs = [#(re.compile("^(?P<stem>[a-z]+)ed$"), lambda m: "did %s" % m.group("stem")),
-            (re.compile("^([A-Z][a-z]+)'s?$"), lambda m: "%s s" % m.group(1)),
-            #(re.compile("^([a-z]+)s$"), lambda m: "does %s" % m.group(1)),
-            (re.compile("^commutes$"), "does commute"),
-            (re.compile("^shows$"), "does show"),
-            (re.compile("^likes$"), "does like"),
-            (re.compile("^invites$"), "does invite"),
-            (re.compile("^needs$"), "does need"),
-            (re.compile("^wants$"), "does want"),
-            (re.compile("^loves$"), "does love"),
-            (re.compile("^owns$"), "does own"),
-            (re.compile("^owned$"), "did own"),
-            (re.compile("^lives$"), "does live"),
-            (re.compile("^asked$"), "did ask"),
-            (re.compile("^lived$"), "did live"),
-            (re.compile("^died$"), "did die"),
-            (re.compile("^smiled$"), "did smile"),
-            (re.compile("^bought$"), "did buy"),
-            (re.compile("^walked$"), "did walk"),
-            (re.compile("^danced$"), "did dance"),
-            (re.compile("^kissed$"), "did kiss"),
-            (re.compile("^bit$"), "did bite"),
-            (re.compile("^wrote$"), "did write"),
-            (re.compile("^everyone$"), "every one"),
-            (re.compile("^Everyone$"), "every one"),
-            (re.compile("^Everything$"), "every thing"),
-            (re.compile("^everything"), "every thing"),
-            (re.compile("^no-one"), "no one"),
-            (re.compile("^No-one$"), "no one"),
-            (re.compile("^nothing$"), "no thing"),
-            (re.compile("^Nothing$"), "no thing")]
+
+    EXCLUDED = re.compile("^(does|ha[sd]|[h]is|red|[a-z]+ness)$")
+    SUBSTITUTIONS = [
+    (re.compile("^died$"), ("did", "die")),
+     (re.compile("^([A-Z][a-z]+)'s?$"),   lambda m: (m.group(1), "s")),
+     (re.compile("^(?P<stem>[a-z]+)s$"),  lambda m: ("does", m.group("stem"))),
+     (re.compile("^(?P<stem>[a-z]+)ed$"), lambda m: ("did", m.group("stem"))),
+     (re.compile("^([A-Z]?[a-z]+)one$"), lambda m: (m.group(1), "one")),
+     (re.compile("^([A-Z]?[a-z]+)thing$"), lambda m: (m.group(1), "thing")),
+      (re.compile("^bit$"), ("did", "bite")),
+      (re.compile("^bought$"), ("did", "buy")),
+      (re.compile("^wrote$"), ("did", "write")),
+    ]
     
     def __init__(self, grammar, logic_parser):
         assert isinstance(grammar, str) and grammar.endswith('.fcfg'), \
@@ -59,63 +35,63 @@ class Tester(object):
         self.logic_parser = logic_parser()
         self.parser = load_parser(grammar, logic_parser=self.logic_parser) 
 
+    def _split(self, sentence):
+        words = []
+        for word in sentence.split():
+            match = None
+            if not Tester.EXCLUDED.match(word):
+                for pattern, replacement in Tester.SUBSTITUTIONS:
+                    match = pattern.match(word)
+                    if match:
+                        if isinstance(replacement, LambdaType):
+                            words.extend(replacement(match))
+                        else:
+                            words.extend(replacement)
+                        break
+
+            if not match:
+                words.append(word)
+
+        return words
+
     def parse(self, text, **args):
         sentences = text.split('.')
         utter = args.get("utter", True)
-        show_interim = args.get("show_interim", False)
+        verbose = args.get("verbose", False)
         drs = (utter and self.logic_parser.parse('DRS([n],[])')) or []
         
         for sentence in sentences:
             sentence = sentence.lstrip()
             if sentence:
-                new_words = []
-                split = sentence.split()
-                for word in split:
-                    is_written = False
-                    if not ((split[split.index(word)-1] == 'has' or
-                        split[split.index(word)-1] == 'had' or
-                        (split[split.index(word)-1] == 'not' and
-                        (split[split.index(word)-2] == 'has' or
-                        split[split.index(word)-2] == 'had')))):
-                        """should not break down past participles"""
-                        
-                        for pattern, repl in self.subs:
-                            word_list = pattern.sub(repl, word)
-                            word_list = word_list.split(" ")
-                            if len(word_list)>1:
-                                new_words.extend(word_list)
-                                is_written = True
-                                break
-
-                    if not is_written:
-                        new_words.append(word)
-    
-                print new_words
-                trees = self.parser.nbest_parse(new_words)
+                words = self._split(sentence)
+                if verbose:
+                    print words
+                trees = self.parser.nbest_parse(words)
                 new_drs = trees[0].node['SEM'].simplify()
-                if show_interim:
+                if verbose:
                     print(new_drs)
                 if drs:
                     drs = (drs + new_drs).simplify()
                 else:
                     drs = new_drs
     
-        if show_interim:
+        if verbose:
             print drs
         return drs
 
     def test(self, cases, **args):
+        verbose = args.get("verbose", False)
         for number, sentence, expected, error in cases:
             if expected is not None:
-                expected_drs = local_DrtParser().parse(expected).readings()[0]
+                expected_drs = local_DrtParser().parse(expected).readings(verbose)[0]
             else:
                 expected_drs = None
 
             drs_list = []
             readings = []
             try:
-                drs_list.append(self.parse(sentence, utter=True))
-                readings.append(drs_list[-1].readings()[0])
+                drs_list.append(self.parse(sentence, **args))
+                readings.append(drs_list[-1].readings(verbose)[0])
                 if error:
                     print("%s. !error: expected %s" % (number, str(error)))
                 else:
@@ -131,3 +107,12 @@ class Tester(object):
                     #    print("%s. !comparison failed %s != %s" % (number, readings[-1], expected_drs))
                 else:
                     print("%s. !unexpected error: %s" % (number, e))
+
+def main():
+    tester = Tester('file:../data/grammar.fcfg', temporaldrt.DrtParser)
+    sentences = ["Bill likes Jones's picture of him", "Bill has Jones's picture of him"]
+    for sentence in sentences:
+        print tester._split(sentence)
+
+if __name__ == '__main__':
+    main()
