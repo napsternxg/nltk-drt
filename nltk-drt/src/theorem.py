@@ -2,6 +2,7 @@ import nltk.inference.prover9 as prover9
 import nltk.inference.mace as mace
 import subprocess
 import nltk.inference.api as api
+from threading import Thread
 
 class Prover9Parent(prover9.Prover9Parent):
     """
@@ -79,3 +80,24 @@ class Prover9Command(prover9.Prover9Command):
 
 class MaceCommand(mace.MaceCommand):
     pass
+
+    class Prover(Thread):
+        """Wrapper class for Prover9"""
+        def __init__(self,expression):
+            Thread.__init__(self)
+            self.prover = Prover9Command(expression,timeout=60)
+            self.result = None
+        
+        def run(self):
+            self.result = self.prover.prove(verbose=False)
+            
+        
+    class Builder(Thread):
+        """Wrapper class for Mace"""
+        def __init__(self,expression):
+            Thread.__init__(self)              
+            self.builder = MaceCommand(None,[expression],max_models=50)
+            self.result = None 
+        
+        def run(self):
+            self.result = self.builder.build_model(verbose=True)
