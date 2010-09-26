@@ -186,8 +186,9 @@ LexADJ[SEM=<married>] -> 'married'
 LexADJ[SEM=<away>] -> 'away'
 LexADJ[SEM=<dead>] -> 'dead'
 LexADJ[SEM=<broken>] -> 'broken'
-LexADJ[SEM=<broken>] -> 'upset'
-LexADJ[SEM=<broken>] -> 'late'
+LexADJ[SEM=<upset>] -> 'upset'
+LexADJ[SEM=<late>] -> 'late'
+LexADJ[SEM=<stupid>] -> 'stupid'
 
 # Common Nouns:
 ###############
@@ -288,6 +289,7 @@ LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<like>] -> 'like'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<hide>] -> 'hide'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<date>] -> 'date'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<beat>] -> 'beat'
+LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<underestimate>] -> 'underestimate'
 
 LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<write>] -> 'written'
 LexV[SUBCAT=tv,FORM=perf,TYPE=s,SEM=<own>] -> 'owned'
