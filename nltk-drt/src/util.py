@@ -16,6 +16,7 @@ class local_DrtParser(temporaldrt.DrtParser):
 
 class Tester(object):
 
+    WORD_SPLIT = re.compile(" |, |,")
     EXCLUDED_NEXT = re.compile("^ha[sd]|is|was|not|will$")
     EXCLUDED = re.compile("^does|h?is|red|[a-z]+ness$")
     SUBSTITUTIONS = [
@@ -39,7 +40,7 @@ class Tester(object):
     def _split(self, sentence):
         words = []
         exlude_next = False
-        for word in sentence.split():
+        for word in Tester.WORD_SPLIT.split(sentence):
             match = None
             if Tester.EXCLUDED_NEXT.match(word):
                 exlude_next = True
