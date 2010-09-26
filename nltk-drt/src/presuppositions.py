@@ -806,11 +806,6 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
             drs.refs.remove(self.var)
             return drs.__class__(drs.refs, [cond.replace(self.var, self.new_var, False) for cond in drs.conds])
 
-
-
-
-
-
 class DrtFindUtterTimeExpression(DrtApplicationExpression):
     """Type of application expression looking to equate its argument with utterance time"""
     def _readings(self, trail=[]):
@@ -1197,7 +1192,10 @@ class WNCorpusReader(object):
         # we probably need just its first sense)
         synset_second = self._noun_synset(second, ind=1)
         for i in range(num_of_senses_first):
-            if synset_second in self._noun_synset(first, i).common_hypernyms(synset_second): return True
+            print synset_second, self._noun_synset(first, i).common_hypernyms(synset_second)
+            if synset_second in self._noun_synset(first, i).common_hypernyms(synset_second):
+                print "+++ first", first, "second", second, True
+                return True
             
     def is_adjective(self, word):
         try: 
@@ -1721,10 +1719,32 @@ def integration_test(tester):
     expr_readings=expr.readings()[0]
     expr_readings.draw()
     
+def alex_anaphora_test_main():
+    #parser = load_parser('file:../data/featuredrt_test.fcfg', logic_parser=DrtParser())
+    cases = [
+    (1, "He wants a car. Jones needs it.", None, AnaphoraResolutionException),
+    (2, "He invites Jones.", None, AnaphoraResolutionException),
+    (3, "Jones loves Charlotte but Bill loves her and he asked himself.", "DRS([n,s,s024,t032,e,x,z18,z23],[Jones{sg,m}(x), Charlotte{sg,f}(z18), love(s), AGENT(s,x), PATIENT(s,z18), overlap(n,s), Bill{sg,m}(z23), love(s024), AGENT(s024,z23), PATIENT(s024,z18), overlap(n,s024), overlap(s,s024), earlier(t032,n), ask(e), AGENT(e,z23), PATIENT(e,z23), include(t032,e), include(s024,e)])", None),
+    (4, "Jones loves Charlotte but Bill loves her and he asked him.", "DRS([n,s,s043,t051,e,x,z37,z42],[Jones{sg,m}(x), Charlotte{sg,f}(z37), love(s), AGENT(s,x), PATIENT(s,z37), overlap(n,s), Bill{sg,m}(z42), love(s043), AGENT(s043,z42), PATIENT(s043,z37), overlap(n,s043), overlap(s,s043), earlier(t051,n), ask(e), AGENT(e,z42), PATIENT(e,x), include(t051,e), include(s043,e)])", None),
+    (5, "Jones loves Charlotte but Bill loves her and himself asked him.", None, AnaphoraResolutionException),
+    (6, "Jones likes a picture of himself.", "DRS([n,z79,e,x],[Jones{sg,m}(x), REL(z79,x), picture{sg,n}(z79), like(e), AGENT(e,x), PATIENT(e,z79), include(n,e)])", None),
+    (7, "Jones likes a picture of him.", "DRS([x,z66,z64,e],[Jones{sg,m}(x), PRO{sg,m}(z64), THEME(z66,z64), picture{sg,n}(z66), like(e), AGENT(e,x), THEME(e,z66)])", AnaphoraResolutionException),
+    (8, "Bill likes Jones's picture of himself", "DRS([x,z92,z,z91,e],[Bill{sg,m}(x), Jones{sg,m}(z92), POSSESSOR(z,z92), (z91 = z92), THEME(z,z91), picture{sg,n}(z), like(e), AGENT(e,x), THEME(e,z)])", None),
+    (9, "Bill likes Jones's picture of him", "DRS([x,z97,z,z96,e],[Bill{sg,m}(x), Jones{sg,m}(z97), POSSESSOR(z,z97), (z96 = x), THEME(z,z96), picture{sg,n}(z), like(e), AGENT(e,x), THEME(e,z)])", None),
+    (10,"Jones shows Bill his room. He likes it", "DRS([x,z3,e,y,z,z6,z5,e07],[Jones{sg,m}(x), Bill{sg,m}(z3), show(e), AGENT(e,x), PATIENT(e,z3), POSPRO{sg,m}(y), POSSESSOR(z,y), room{sg,n}(z), THEME(e,z), PRO{sg,m}(z6), PRO{sg,n}(z5), like(e07), AGENT(e07,z6), THEME(e07,z5)])", None),
+    (14,"Jones owns a porsche. He likes it.", "([n,z89,s,e,x],[Jones{sg,m}(x), porsche{sg,n}(z89), own(s), AGENT(s,x), PATIENT(s,z89), overlap(n,s), like(e), AGENT(e,x), PATIENT(e,z89), include(n,e), include(s,e)])", None),
+    (18,"Jones owns a car or he commutes.", "DRS([],[(([x,z2,e],[Jones{sg,m}(x), car{sg,n}(z2), own(e), AGENT(e,x), THEME(e,z2)]) | ([x,e],[PRO{sg,m}(x), commute(e), AGENT(e,x)]))])", None),
+    (19,"Jones owns a porsche or Brown owns it", None, AnaphoraResolutionException)
+
+    ]
+
+    tester = Tester('file:../data/grammar.fcfg', DrtParser)
+    tester.test(cases)
+    
 def anaphora_main(tester):
-    sentences = [ "If Mia died the girl walked", "The boy kissed his room", "John kissed a hammer. He kissed a flower. John liked the tool"
+    sentences = [ "If Mia died the girl walked", "The boy kissed his room", "John kissed a hammer. He kissed a letter. John bought the tool.", "Jones owns a porsche. He likes it.", "Bill likes Jones's picture of himself"
                  ]
-    for sentence in sentences:
+    for sentence in sentences[-1:]:
         drs = tester.parse(sentence, utter=True)
         print drs
         drs.draw()

@@ -12,4 +12,5 @@ AbstractDrs.get_refs = gr
 if __name__ == '__main__':
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
     #presuppositions.presuppositions_sentences(tester)
-    presuppositions.anaphora_main(tester)
+    #presuppositions.anaphora_main(tester)
+    presuppositions.alex_anaphora_test_main()
