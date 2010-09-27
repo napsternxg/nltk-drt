@@ -1,13 +1,13 @@
 from nltk.inference.prover9 import Prover9Command, Prover9
 #from nltk.inference.mace import MaceCommand, Mace
-from presuppositions import DrtParser
+from temporaldrt import DrtParser
 from nltk.sem.drt import AbstractDrs
 from nltk import LogicParser
 from nltk.sem.logic import AndExpression, NegatedExpression
 #from nltk.inference.api import ParallelProverBuilderCommand, Prover, ModelBuilder
 #import temporaldrt as drt
 from theorem import Builder, Prover 
-import presuppositions as drt
+import temporaldrt as drt
 import util
 #from threading import Thread
 #import os
@@ -174,7 +174,7 @@ def inference_check(expr, background_knowledge=False):
         """2. Global informativity check"""
         print "informativity check initiated"
         local_check = []
-        for cond in expression.conds:
+        for cond in drt.ReverseIterator(expression.conds):
             if isinstance(cond, drt.DRS) and \
             not isinstance(cond, drt.PresuppositionDRS):
                 """New discourse in the previous discourse"""
@@ -227,12 +227,12 @@ def inference_check(expr, background_knowledge=False):
             if not check(main.__class__(main.refs,main.conds+[drt.DrtNegatedExpression(sub)])):
                 print "main %s entails sub %s" % (main,sub)
                 #return False
-                raise Inference_check("New discourse is inadmissible due to local uninformativity:\n\n%s entails %s" % (main, sub))
+                raise InferenceCheckException("New discourse is inadmissible due to local uninformativity:\n\n%s entails %s" % (main, sub))
                 
             elif not check(main.__class__(main.refs,main.conds+[sub])):
                 print "main %s entails neg of sub %s" % (main,sub)
                 #return False
-                raise Inference_check("New discourse is inadmissible due to local uninformativity:\n\n%s entails the negation of %s" % (main, sub))
+                raise InferenceCheckException("New discourse is inadmissible due to local uninformativity:\n\n%s entails the negation of %s" % (main, sub))
                 
         print "main %s does not entail sub %s nor its negation" % (main,sub)
         return True                
@@ -243,13 +243,13 @@ def inference_check(expr, background_knowledge=False):
     if not consistency_check(expression):
             print "Expression %s is inconsistent" % expression
             #return None
-            raise Inference_check("New discourse is inconsistent on the following interpretation:\n\n%s" % expression)
+            raise InferenceCheckException("New discourse is inconsistent on the following interpretation:\n\n%s" % expression)
     
     if not informativity_check(expression):
             print "Expression %s is uninformative" % expression
             #return None
             
-            raise Inference_check("New expression is uninformative on the following interpretation:\n\n%s" % expression)
+            raise InferenceCheckException("New expression is uninformative on the following interpretation:\n\n%s" % expression)
  
     
     for cond in expr.conds:
@@ -261,7 +261,7 @@ def inference_check(expr, background_knowledge=False):
     return expr
 
 
-class Inference_check(Exception):
+class InferenceCheckException(Exception):
     def __init__(self, value):
         self.value = value
         
@@ -332,18 +332,18 @@ def interpret(expr_1, expr_2, bk=False):
     
     Could be enlarged to take a grammar argument and a parser argument"""
     
-    try:
-        assert isinstance(expr_1, str), "Expression %s is not a string" % expr_1
-        assert isinstance(expr_2, str), "Expression %s is not a string" % expr_2
-        if not bk:
-            assert isinstance(bk, dict), "Background knowledge is not in dictionary format"
-    except AssertionError as e:
-        print e
-        return "\nDiscourse uninterpretable"
+    if not isinstance(expr_1, str):
+        return "\nDiscourse uninterpretable. Expression %s is not a string" % expr_1
+    elif not isinstance(expr_2, str):
+        return "\nDiscourse uninterpretable. Expression %s is not a string" % expr_2
+    elif not bk and not isinstance(bk, dict):
+        return "\nDiscourse uninterpretable. Background knowledge is not in dictionary format"
+        
     else:
             
         parser_obj = DrtParser()
-        buffer = parser_obj.parse(r'\Q P.(DRS([],[P])+Q)')
+        buffer = parser_obj.parse(r'\Q P.(Q+DRS([],[P]))')
+        #buffer = parser_obj.parse(r'\Q P.(NEWINFO([],[P])+Q)')
         tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
         try:
             try:
@@ -389,17 +389,22 @@ def interpret(expr_1, expr_2, bk=False):
                             background_knowledge = lp(formula)
      
                     interpretations = []
-                    try:
-                        for reading in new_discourse.readings():
-                            interpretation = inference_check(reading, background_knowledge)
-                            if interpretation:
-                                interpretations.append(interpretation)
-                        
-                        return interpretations
                     
-                    except Inference_check as e:
-                        print "Note:", e.value
-                        
+                    index = 1
+                    for reading in new_discourse.readings():
+                        print index
+                        index = index + 1
+                        interpretation = None
+                        try:
+                            interpretation = inference_check(reading, background_knowledge)
+                        except InferenceCheckException as e:
+                            print "Note:", e.value
+                        if interpretation:
+                            interpretations.append(interpretation)
+                    
+                    print "Return interpretations:"
+                    return interpretations
+                    
                 except AssertionError as e:
                     print e
                 
@@ -437,7 +442,9 @@ def test_1():
           #'live' : r'all x y z v.((overlap(x,y) & live(y) & AGENT(x,z)) <-> -(overlap(x,v) & dead(v) & THEME(v,z)))',
           'dead' : r'all x y z v.((die(x) & AGENT(x,z) & abut(x,y) & dead(v) & THEME(v,z)) -> y = v)',
           'married' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))',
-          'husband' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))'}
+          'husband' : r'all z y v.((own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)) <-> (POSS(v,y) & husband(v)))',
+          'child' : r'all z y v.((own(z) & AGENT(z,y) & PATIENT(z,v) & child(v)) <-> (POSS(v,y) & child(v)))',
+          'POSS' : r'all z v.(POSS(z,v) <-> -(z=v))'}
   
     #parser_obj = DrtParser()
     #buffer = parser_obj.parse(r'\Q P.(DRS([],[P])+Q)')
@@ -456,10 +463,14 @@ def test_1():
             #interpret.draw()
     
     
-    for interpretation in interpret("Mia has died", "Mia is not dead", bk_1):
+    for interpretation in interpret("Mia walked", "If John owns a child his child is away", bk_1):
         if not isinstance(interpretation, str):
             print interpretation
             #interpretation.draw()
+            
+        #TODO: Double referents of same name (because of buffer)
+        #TODO: Double outer accommodation readings because of NewInfroDRS
+        #TODO: POSS(x,x) should be ruled out
           
         # No background knowledge attached:
         ###################################
@@ -517,10 +528,15 @@ def test_1():
         #"Mia died", "Angus lives or Mia will die" -- inadmissible
         #
         #"Mia died", "Angus lives or Mia will not die" -- ok
+        
+        ###################################################################
+        
+        # Background knowledge (not temporal), multiple readings:
+        #########################################################
         #
+        #"Mia is away", "If Mia is married Mia's husband is away"
         #
-        #
-        #
+        #global - inadmissible, local - uninformative, intermediate - ok
         #
         #
         #
@@ -531,16 +547,18 @@ def test_1():
         
 def test_2():
     parser_obj = DrtParser()
-    #parser = LogicParser().parse
-    #expression = parser(r'((p -> q) & ((p & q) -> m)) <-> ((p -> q) & (p -> (m & q)))')
+    parser = LogicParser().parse
+    expression_1 = parser(r'all v y.(((POSS(v,y) & husband(v)) -> exists s.(married(s) & THEME(s,y))))')
     #expression = parser_obj.parse(r'DRS([n,e,x,t],[Mia(x),die(e),AGENT(e,x),include(t,e),earlier(t,n),-DRS([t02,e01],[die(e01),AGENT(e01,x),include(t02,e01),earlier(t02,n)]) ])')
-    expression = parser_obj.parse(r'([n,s,e,z10],[-([s09],[dead(s09), THEME(s09,z10), overlap(n,s09)]), Mia{sg,f}(z10), include(s,n), die(e), AGENT(e,z10), abut(e,s)])')
+    #expression = parser_obj.parse(r'([n,t,e,x,y],[-([s],[married(s), THEME(s,x), overlap(n,s)]), POSS(y,x), husband{sg,m}(y), Mia{sg,f}(x), earlier(t,n), walk(e), AGENT(e,x), include(t,e)])')
+    expression = parser_obj.parse(r'([e,x,y],[-([s],[married(s), THEME(s,x)]), POSS(y,x), husband(y), Mia(x)])')
     #expression = parser(r'DRS([],[die(Mia),-(DRS([],[die(Mia)])])')
     #expression = parser(r'(p & -(-p -> q))')
-    print expression
+    parsed = NegatedExpression(AndExpression(expression.fol(),expression_1))
+    print parsed
     #expression = parser('m')
     #assumption = parser('m')
-    prover = Prover9Command(NegatedExpression(expression),timeout=60)
+    prover = Prover9Command(parsed,timeout=60)
     print prover.prove()
 #      
 #
