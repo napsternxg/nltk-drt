@@ -145,7 +145,7 @@ class DrtTokens(drt.DrtTokens):
     PUNCT = [OPEN_BRACE, CLOSE_BRACE]
     SYMBOLS = drt.DrtTokens.SYMBOLS + PUNCT
     TOKENS = drt.DrtTokens.TOKENS + PUNCT
-    LOCATION_TIME = 'LOCPRO'
+    NEWINFO_DRS = 'NEWINFO'
     PROPER_NAME_DRS = 'PROP'
     DEFINITE_DESCRIPTION_DRS = 'DEF'
     PRONOUN_DRS = 'PRON'
@@ -155,6 +155,7 @@ class DrtTokens(drt.DrtTokens):
     
     ################ Some temporal rubbish ##############
     
+    LOCATION_TIME = 'LOCPRO'
     UTTER_TIME = 'UTTER'
     REFER_TIME = 'REFER'
     PERF = 'PERF'
@@ -938,7 +939,8 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
         that has another DrtEventualityApplicationExpression as its functor"""
         return DrtEventualityApplicationExpression(DrtEventualityApplicationExpression(self.make_ConstantExpression(cond),arg1),arg2)
 
-
+class NewInfoDRS(DRS):
+    pass
 
 class DrtParser(drt.DrtParser):
     """DrtParser producing conditions and referents for temporal logic"""
@@ -953,7 +955,15 @@ class DrtParser(drt.DrtParser):
         """We add new types of DRS to represent presuppositions"""
         if tok.upper() in DrtTokens.PRESUPPOSITION_DRS:
             return self.handle_PRESUPPOSITION_DRS(tok.upper(), context)
+        elif tok == DrtTokens.NEWINFO_DRS:
+            return self.handle_NEWINFO_DRS(tok, context)
         else: return super(DrtParser, self).handle(tok, context)
+     
+    def handle_NEWINFO_DRS(self, tok, context):
+        """DRS for linking previous discourse with new discourse"""
+        self.assertNextToken(DrtTokens.OPEN)
+        drs = self.handle_DRS(tok, context)
+        return NewInfoDRS(drs.refs, drs.conds)
         
     def handle_PRESUPPOSITION_DRS(self, tok, context):
         """Parse new types of DRS: presuppositon DRSs.
