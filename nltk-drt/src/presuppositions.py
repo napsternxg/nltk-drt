@@ -22,6 +22,9 @@ from nltk.sem.logic import Expression
 from nltk.sem.logic import ParseException
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
 
+from nltk.corpus.reader.wordnet import WordNetCorpusReader
+
+import nltk
 import nltk.sem.drt as drt
 
 
@@ -142,7 +145,7 @@ class DrtTokens(drt.DrtTokens):
     PUNCT = [OPEN_BRACE, CLOSE_BRACE]
     SYMBOLS = drt.DrtTokens.SYMBOLS + PUNCT
     TOKENS = drt.DrtTokens.TOKENS + PUNCT
-    LOCATION_TIME = 'LOCPRO'
+    NEWINFO_DRS = 'NEWINFO'
     PROPER_NAME_DRS = 'PROP'
     DEFINITE_DESCRIPTION_DRS = 'DEF'
     PRONOUN_DRS = 'PRON'
@@ -152,6 +155,7 @@ class DrtTokens(drt.DrtTokens):
     
     ################ Some temporal rubbish ##############
     
+    LOCATION_TIME = 'LOCPRO'
     UTTER_TIME = 'UTTER'
     REFER_TIME = 'REFER'
     PERF = 'PERF'
@@ -661,8 +665,9 @@ class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
                 newvar = DrtVariableExpression(unique_variable(ref))
                 second = second.replace(ref, newvar, True)
             
-            """DRS type is derived from the first member"""
-            return first.__class__(first.refs + second.refs, first.conds + second.conds)
+            """DRS type is derived from the first member or from the second one"""
+            drs_type = first.__class__ if isinstance(first, PresuppositionDRS) else second.__class__
+            return drs_type(first.refs + second.refs, first.conds + second.conds)
         else:
             return self.__class__(first,second)
 
@@ -735,24 +740,6 @@ class ReverseIterator:
         while i > 0:
             i = i - 1
             yield self.sequence[i]
-
-def get_drss(trail=[]):
-    """Take a trail (a list of all previously visited DRSs and expressions) 
-    and return the local, intermediate and outer DRSs"""
-    drss = {}
-    outer_drs = trail[0]
-    assert isinstance(outer_drs, DRS)
-    drss['global'] = outer_drs
-    inner_drs = trail[-1]
-    if inner_drs is not outer_drs:
-        assert isinstance(inner_drs, DRS)
-        drss['local'] = inner_drs
-    for ancestor in ReverseIterator(trail,-2):
-        if isinstance(ancestor, DRS):
-            if ancestor is not outer_drs: 
-                drss['intermediate'] = ancestor
-            break
-    return drss
 
 class LocationTimeResolutionException(Exception):
     pass
@@ -952,7 +939,8 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
         that has another DrtEventualityApplicationExpression as its functor"""
         return DrtEventualityApplicationExpression(DrtEventualityApplicationExpression(self.make_ConstantExpression(cond),arg1),arg2)
 
-
+class NewInfoDRS(DRS):
+    pass
 
 class DrtParser(drt.DrtParser):
     """DrtParser producing conditions and referents for temporal logic"""
@@ -967,7 +955,15 @@ class DrtParser(drt.DrtParser):
         """We add new types of DRS to represent presuppositions"""
         if tok.upper() in DrtTokens.PRESUPPOSITION_DRS:
             return self.handle_PRESUPPOSITION_DRS(tok.upper(), context)
+        elif tok == DrtTokens.NEWINFO_DRS:
+            return self.handle_NEWINFO_DRS(tok, context)
         else: return super(DrtParser, self).handle(tok, context)
+        
+    def handle_NEWINFO_DRS(self, tok, context):
+        """DRS for linking previous discourse with new discourse"""
+        self.assertNextToken(DrtTokens.OPEN)
+        drs = self.handle_DRS(tok, context)
+        return NewInfoDRS(drs.refs, drs.conds)
         
     def handle_PRESUPPOSITION_DRS(self, tok, context):
         """Parse new types of DRS: presuppositon DRSs.
@@ -1140,89 +1136,6 @@ class DrtParser(drt.DrtParser):
     def make_LambdaExpression(self, variables, term):
         return DrtLambdaExpression(variables, term)
 
-""" End of temporaldrt
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"""
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-from nltk.corpus.reader.wordnet import WordNetCorpusReader
-import nltk
-
-class Singleton(type): # From Wikipedia
-    def __init__(cls, name, bases, dict):
-        super(Singleton, cls).__init__(name, bases, dict)
-        cls.instance = None
-    
-    # __call__ gets a cls argument, not 'self'
-    def __call__(cls, *args, **kw):
-        if cls.instance is None:
-            cls.instance = super(Singleton, cls).__call__(*args, **kw)
-        return cls.instance
-    
-class WNCorpusReader(object):
-    __metaclass__ = Singleton
-    
-    def __init__(self, wordnetfile = 'corpora/wordnet'):
-        self.wn = WordNetCorpusReader(nltk.data.find(wordnetfile))
-        
-    def issuperclasssof(self, first, second):
-        "Is the second noun the superclass of the first one?"
-        # We cannot guarantee it is a noun. By the time we deal with DRSs, this is just a condition, and could have easily
-        # come from an adjective (if the user does not provide features for nouns, as we do in our grammar)
-        try:
-            num_of_senses_first = self._num_of_senses(first)
-            self._num_of_senses(second) # just checking that it is a noun
-        except: return False
-        # At first I wanted to take the first senses of both words, but the first sense is not always the basic meaning of the word, e.g.:
-        # S('hammer.n.1').definition: the part of a gunlock that strikes the percussion cap when the trigger is pulled'
-        # S('hammer.n.2').definition: 'a hand tool with a heavy rigid head and a handle; used to deliver an impulsive force by striking'
-        # Let us iterate over the senses of the first word and hope for the best (since the second word is a more general term,
-        # we probably need just its first sense)
-        synset_second = self._noun_synset(second, ind=1)
-        for i in range(num_of_senses_first):
-            print synset_second, self._noun_synset(first, i).common_hypernyms(synset_second)
-            if synset_second in self._noun_synset(first, i).common_hypernyms(synset_second):
-                print "+++ first", first, "second", second, True
-                return True
-            
-    def is_adjective(self, word):
-        try: 
-            self._num_of_senses(word, 'a')
-            return True
-        except: return False
-
-    def _noun_synset(self, noun, ind=1):
-        return self.wn.synset("%s.n.%s" % (noun, ind))
-    
-    def _num_of_senses (self, word, pos='n'):
-        return len(self.wn._lemma_pos_offset_map[word][pos])
-
-from util import Tester
-#from temporaldrt import DrtApplicationExpression, DrtIndividualVariableExpression, DrtFeatureConstantExpression, \
-#DrtConstantExpression, DRS, DrtAbstractVariableExpression, DrtTokens, Reading
-#from temporaldrt import DrtParser as TemporaldrtDrtParser
-#from temporaldrt import DRS as TemporaldrtDRS
-#from nltk.sem.drt import AnaphoraResolutionException
-
-## Nltk fix
-#import nltkfixtemporal
-#from nltk.sem.drt import AbstractDrs
-#def gr(s, recursive=False):
-#    return []
-#AbstractDrs.get_refs = gr
-
 class PresuppositionDRS(DRS):
     class Remover(object):
         def __init__(self, cond_index):
@@ -1274,11 +1187,16 @@ class PresuppositionDRS(DRS):
                     # There can be more than one DrtFeatureConstantExpression on the conditions on list, e.g.
                     # "Tom, a kind boy, took her hand", or "Tom, who is a kind boy,...", or "Linguist Grimm suggested ...", 
                     # or "The distinguished physicist Einstein ...". But 'check' helps us find the right one.
-                    return cond.argument.variable, cond.function.features, cond.function.variable.name
+                    self.variable = cond.argument.variable
+                    self.features = cond.function.features
+                    self.funcname = cond.function.variable.name
+                    return
                 else: unary_predicates.add(cond.function.variable.name)
         # No DrtFeatureConstantExpression means we don't know what was the head of NP
         if not unary_predicates: raise Exception("No presupposition condition found in the presuppositional DRS %s" % self)
-        return self.refs[0], None, unary_predicates
+        self.variable = self.refs[0]
+        self.features = None
+        self.funcname = unary_predicates
     
     @staticmethod
     def _one_cond(presupp_data):
@@ -1337,19 +1255,19 @@ class PronounDRS(PresuppositionDRS):
     
     def _get_presupp_data(self):
         def check(cond): return cond.function.variable.name in PronounDRS.PRONOUNS
-        return PresuppositionDRS._one_cond(super(PronounDRS, self)._get_presupp_data(check))
+        PresuppositionDRS._one_cond(super(PronounDRS, self)._get_presupp_data(check))
 
     def _presupposition_readings(self, trail=[]):
-        pro_variable, pro_features, pro_type = self._get_presupp_data()
-        self._collect_antecedents(trail, pro_features)
+        self._get_presupp_data()
+        self._collect_antecedents(trail, self.features)
         #print "events", self.events
         #filter by events
         #in case pronoun participates in only one event, which has no other participants,
         #try to extend it with interlinked events
         #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
         #will be extended to participate in e, but only if z5 has only one participant
-        if pro_variable in self.events and len(self.events[pro_variable]) == 1:
-            for e in self.events[pro_variable]:
+        if self.variable in self.events and len(self.events[self.variable]) == 1:
+            for e in self.events[self.variable]:
                 event = e
             participant_count = 0
             for event_set in self.events.itervalues():
@@ -1357,12 +1275,12 @@ class PronounDRS(PresuppositionDRS):
                     participant_count+=1
             if participant_count == 1:
                 try:
-                    self.events[pro_variable] = self.events[pro_variable].union(self.events[event.variable])
+                    self.events[self.variable] = self.events[self.variable].union(self.events[event.variable])
                 except KeyError:
                     pass
                 
-        antecedents = self._antecedent_ranking(pro_variable, pro_type)
-        return [Reading([(trail[-1], PronounDRS.VariableReplacer(pro_variable, var))]) for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)], True
+        antecedents = self._antecedent_ranking(self.variable, self.funcname)
+        return [Reading([(trail[-1], PronounDRS.VariableReplacer(self.variable, var))]) for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)], True
 
     class VariableReplacer(object):
         def __init__(self, pro_var, new_var):
@@ -1374,7 +1292,7 @@ class PronounDRS(PresuppositionDRS):
     def _is_possible_antecedent(self, variable, pro_variable, pro_type):
         #non reflexive pronouns can not resolve to variables having a role in the same event
         if pro_type == DrtTokens.PRONOUN:
-            return self.events[variable].isdisjoint(self.events[pro_variable])
+            return variable not in self.events or self.events[variable].isdisjoint(self.events[pro_variable])
         elif pro_type == DrtTokens.REFLEXIVE_PRONOUN:
             return not self.events[variable].isdisjoint(self.events[pro_variable])
         else:
@@ -1457,28 +1375,28 @@ class NonPronPresuppositionDRS(PresuppositionDRS):
 class ProperNameDRS(NonPronPresuppositionDRS):
     def _get_presupp_data(self):
         def check(cond): return cond.is_propername()
-        return PresuppositionDRS._one_cond(super(ProperNameDRS, self)._get_presupp_data(check))
+        PresuppositionDRS._one_cond(super(ProperNameDRS, self)._get_presupp_data(check))
     
     def _presupposition_readings(self, trail=[]):
         """A proper name always yields one reading: it is either global binding 
         or global accommodation (if binding is not possible)"""
         # Find the proper name application expression.
-        presupp_variable, presupp_features, presupp_funcname = self._get_presupp_data()
+        self._get_presupp_data()
         outer_drs = trail[0]
         inner_drs = trail[-1]
         inner_is_outer = inner_drs is outer_drs
         ########
         # Try binding in the outer DRS
         ########
-        self._collect_antecedents(trail, presupp_funcname, presupp_features)
+        self._collect_antecedents(trail, self.funcname, self.features)
         antecedent_ref = self.possible_antecedents[0][0] if self.possible_antecedents else None
         condition_index = self._get_condition_index(outer_drs, trail)
         if antecedent_ref:           
             # Return the reading
             if inner_is_outer:
-                return [Reading([(inner_drs, NonPronPresuppositionDRS.InnerReplace(self, presupp_variable, presupp_funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
-            return [Reading([(outer_drs, NonPronPresuppositionDRS.Binding(self, presupp_variable, presupp_funcname, antecedent_ref, condition_index)),
-                     (inner_drs, NonPronPresuppositionDRS.InnerReplace(self, presupp_variable, presupp_funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
+                return [Reading([(inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
+            return [Reading([(outer_drs, NonPronPresuppositionDRS.Binding(self, self.variable, self.funcname, antecedent_ref, condition_index)),
+                     (inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
         # If no suitable antecedent has been found in the outer DRS,
         # binding is not possible, so we go for accommodation instead.
         return [Reading([(outer_drs, NonPronPresuppositionDRS.Accommodation(self, condition_index))])], True
@@ -1505,8 +1423,12 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         def accommodation(drs):
             condition_index = self._get_condition_index(drs, trail)
             return Reading([(drs, NonPronPresuppositionDRS.Accommodation(self, condition_index))])
+        
+        self.variable
+        self.features
+        self.funcname
             
-        presupp_variable, presupp_features, presupp_funcname = self._get_presupp_data()
+        self._get_presupp_data()
         
         """'A car is going down the road. If Mia is married, then the car that her husband drives is black.'
         'A car is going down the road. If Mia is married, then the car of her neighbours is black.'
@@ -1521,7 +1443,7 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
             if isinstance(cond.function, DrtApplicationExpression) and \
                 (isinstance(cond.function.argument, DrtStateVariableExpression) or 
                 isinstance(cond.function.argument, DrtEventVariableExpression)) and \
-                cond.argument.variable == presupp_variable:
+                cond.argument.variable == self.variable:
                 # This will give us conditions like AGENT(s,x), PATIENT(e,x)
                 # TODO: will add() perform the equals check correctly? After all, even though they will be variables of the same name,
                 # they will be different objects 
@@ -1552,7 +1474,7 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
             # This means that this will work for 'if', but not for sentences like 
             # "If a woman is married or she has a dog, then her car is black or her boss is mean."
             for drs in trail:
-                if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression):
+                if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression) and not isinstance(drs, NewInfoDRS):
                     accommodations.append(accommodation(drs))
             return accommodations, True
         # No restrictive clause or PP -> try binding
@@ -1611,14 +1533,14 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         # (not by van der Sand's algorithm, though). Return it.
         inner_drs = trail[-1]
         for drs in trail:
-            if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression):
-                antecedent_ref = self._binding_check(drs, presupp_features, presupp_funcname)
+            if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression) and not isinstance(drs, NewInfoDRS):
+                antecedent_ref = self._binding_check(drs)
             if antecedent_ref:
                 condition_index = self._get_condition_index(drs, trail)
                 if inner_drs == drs:
-                    return [Reading([(inner_drs, NonPronPresuppositionDRS.InnerReplace(self, presupp_variable, presupp_funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
-                return [Reading([(drs, NonPronPresuppositionDRS.Binding(self, presupp_variable, presupp_funcname, antecedent_ref, condition_index)),
-                                 (inner_drs, NonPronPresuppositionDRS.InnerReplace(self, presupp_variable, presupp_funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
+                    return [Reading([(inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
+                return [Reading([(drs, NonPronPresuppositionDRS.Binding(self, self.variable, self.funcname, antecedent_ref, condition_index)),
+                                 (inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
         # We have gone through all boxes in the trail, and nowhere did we find an unambiguous antecedent
         # self.possible_antecedents is a list of lists (but those lists can be empty)
         # Return all the readings (binding + accommodation), prefer global binding.
@@ -1636,13 +1558,13 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         binding = False
         i = 0
         for drs in trail:
-            if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression):
+            if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression) and not isinstance(drs, NewInfoDRS):
                 antecedents = self.possible_antecedents[i]
                 i += 1
                 for antecedent in antecedents:
-                    if inner_drs == drs: r = Reading([(inner_drs, NonPronPresuppositionDRS.InnerReplace(self, presupp_variable, presupp_funcname, antecedent, NonPronPresuppositionDRS.Binding, condition_index))])
-                    else: r = Reading([(drs, NonPronPresuppositionDRS.Binding(self, presupp_variable, presupp_funcname, antecedent, condition_index)),
-                                 (inner_drs, NonPronPresuppositionDRS.InnerReplace(self, presupp_variable, presupp_funcname, antecedent, NonPronPresuppositionDRS.Binding, condition_index))])
+                    if inner_drs == drs: r = Reading([(inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent, NonPronPresuppositionDRS.Binding, condition_index))])
+                    else: r = Reading([(drs, NonPronPresuppositionDRS.Binding(self, self.variable, self.funcname, antecedent, condition_index)),
+                                 (inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent, NonPronPresuppositionDRS.Binding, condition_index))])
                     readings.append(r)
                     binding = True
                 if not binding:
@@ -1651,25 +1573,25 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         return readings, True
                 
         
-    def _binding_check(self, drs, presupp_features, presupp_funcname):
+    def _binding_check(self, drs):
         # Iterate over unary predicates from the conditions of the drs
         possible_antecedents = []
         for cond in drs.conds:
-            if self.unary_predicate(cond) and self._features_are_equal(cond, presupp_features):
-                for funcname in presupp_funcname:
-                    if (cond.function.variable.name == funcname or WNCorpusReader().issuperclasssof(cond.function.variable.name, funcname)) \
-                        and not WNCorpusReader().is_adjective(cond.function.variable.name):
-                        # either equal, or second is a superclass of the first, and they are not adjectives
-                        # (Because if they are adjectives, we could bind 'blue(x)' and 'blue(x)', and we don't want that.)
-                        return cond.argument.variable
-                    elif (WNCorpusReader().issuperclasssof(cond.function.variable.name, 'person') and 
-                         WNCorpusReader().issuperclasssof(funcname, 'person')) or \
-                         (WNCorpusReader().issuperclasssof(cond.function.variable.name, 'animal') and 
-                         WNCorpusReader().issuperclasssof(funcname, 'animal')):
+            if self.unary_predicate(cond) and self._features_are_equal(cond, self.features):
+                for funcname in self.funcname:
+#                    if (cond.function.variable.name == funcname or issuperclasssof(cond.function.variable.name, funcname)) \
+#                        and not is_adjective(cond.function.variable.name):
+#                        # either equal, or second is a superclass of the first, and they are not adjectives
+#                        # (Because if they are adjectives, we could bind 'blue(x)' and 'blue(x)', and we don't want that.)
+#                        return cond.argument.variable
+#                    elif (issuperclasssof(cond.function.variable.name, 'person') and 
+#                         issuperclasssof(funcname, 'person')) or \
+#                         (issuperclasssof(cond.function.variable.name, 'animal') and 
+#                          issuperclasssof(funcname, 'animal')):
                         possible_antecedents.append(self.make_VariableExpression(cond.argument.variable))
         self.possible_antecedents.append(possible_antecedents)
         # TODO:
-        """WNCorpusReader().issuperclasssof(cond.function.variable.name, funcname).
+        """issuperclasssof(cond.function.variable.name, funcname).
         Is binding possible only when the second is the superclass of the first? What if it is the other way round?
         (1) A car is going down the road. The vehicle is black.
         (2) A vehicle is going down the road. The car is black.
@@ -1683,6 +1605,7 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         """
         return None
         
+from util import Tester
 #################################
 ## Demo, tests
 #################################
