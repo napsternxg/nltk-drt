@@ -1422,10 +1422,6 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         def accommodation(drs):
             condition_index = self._get_condition_index(drs, trail)
             return Reading([(drs, NonPronPresuppositionDRS.Accommodation(self, condition_index))])
-        
-        self.variable
-        self.features
-        self.funcname
             
         self._get_presupp_data()
         
