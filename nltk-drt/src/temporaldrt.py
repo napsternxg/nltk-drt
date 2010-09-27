@@ -1198,18 +1198,15 @@ class PresuppositionDRS(DRS):
         self.features = None
         self.funcname = unary_predicates
     
-    @staticmethod
-    def _one_cond(presupp_data):
+    def _one_cond(self):
         """Some subclasses of PresuppositionalDrs (e.g. PronounDrs, ProperNameDrs)
         will expect only one presuppositional condition, while for other subclasses
         it may be the case that we can't find the head of the presuppositional NP,
         e.g. sad(x) and boy(x) will look the same to us if no features are used.
         For the former type of subclasses, use this method"""
-        presupp_data = list(presupp_data)
-        if not isinstance (presupp_data[2], str):
-            assert isinstance(presupp_data[2], set) and len(presupp_data[2]) == 1
-            presupp_data[2] = presupp_data[2].pop()
-        return tuple(presupp_data)
+        if not isinstance (self.funcname, str):
+            assert isinstance(self.funcname, set) and len(self.funcname) == 1
+            self.funcname = self.funcname.pop()
 
     def _collect_antecedents(self, trail, presupp_features):
         for drs in (ancestor for ancestor in trail if isinstance(ancestor, DRS)):
