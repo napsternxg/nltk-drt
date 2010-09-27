@@ -1252,7 +1252,8 @@ class PronounDRS(PresuppositionDRS):
     
     def _get_presupp_data(self):
         def check(cond): return cond.function.variable.name in PronounDRS.PRONOUNS
-        PresuppositionDRS._one_cond(super(PronounDRS, self)._get_presupp_data(check))
+        super(PronounDRS, self)._get_presupp_data(check)
+        self._one_cond()
 
     def _presupposition_readings(self, trail=[]):
         self._get_presupp_data()
@@ -1372,7 +1373,8 @@ class NonPronPresuppositionDRS(PresuppositionDRS):
 class ProperNameDRS(NonPronPresuppositionDRS):
     def _get_presupp_data(self):
         def check(cond): return cond.is_propername()
-        PresuppositionDRS._one_cond(super(ProperNameDRS, self)._get_presupp_data(check))
+        super(ProperNameDRS, self)._get_presupp_data(check)
+        self._one_cond()
     
     def _presupposition_readings(self, trail=[]):
         """A proper name always yields one reading: it is either global binding 
