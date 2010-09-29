@@ -1144,25 +1144,38 @@ class PresuppositionDRS(DRS):
             #assert isinstance(drs.conds[self.cond_index], PresuppositionDRS)
             drs.conds.pop(self.cond_index)
             return drs
-
-    def __init__(self, refs, conds):
-        #print "call init", refs, conds
-        DRS.__init__(self, refs, conds)
-        self.possible_antecedents = []
-        self.roles = {}
-        self.events = {}
         
     def _readings(self, trail=[]):
-        return (DRS._readings(self, trail) or
-        self._presupposition_readings(trail))
+        inner_readings = DRS._readings(self, trail)
+        if inner_readings:
+            return inner_readings
+        else:
+            self._init_presupp_data()
+            return self._presupposition_readings(trail)
     
-    @staticmethod
-    def unary_predicate(cond):
-        # TODO: Should cond.function be a DrtAbstractVariableExpression or a DrtConstantExpressions?
-        return isinstance(cond, DrtApplicationExpression) and isinstance(cond.function, DrtAbstractVariableExpression) and \
-        isinstance(cond.argument, DrtIndividualVariableExpression)
+    def filter_trail(self, trail):
+        """A generator that iterates over the drss in the trail and filters out PresuppositionDrs and NewInfoDrs objects"""
+        return (drs for drs in trail  if isinstance (drs, DRS) and\
+                 not isinstance(drs, PresuppositionDRS) and\
+                  not isinstance(drs, DrtBooleanExpression) and\
+                   not isinstance(drs, NewInfoDRS))
         
-    def _get_presupp_data(self, check=None):
+    def _find_outer_drs(self, trail):
+        for drs in self.filter_trail(trail): return drs
+    
+    def is_possible_binding(self, cond):
+        return self.is_unary_predicate(cond) and self.has_same_features(cond, self.features) and cond.argument.__class__ is DrtIndividualVariableExpression
+                
+    def find_bindings(self, drs_list):
+        return [cond for drs in drs_list for cond in drs.conds if self.is_possible_binding(cond)] 
+    
+    def is_unary_predicate(self, cond):
+        return isinstance(cond, DrtApplicationExpression) and isinstance(cond.function, DrtAbstractVariableExpression)
+        
+    def is_presupposition_cond(self, cond):
+        return True
+        
+    def _init_presupp_data(self):
         """ Return the referent, features and function name of the presupposition condition. Make sure it passes the check.
         @param check: a boolean function; a check that the presupposition condition must pass.""" 
         """In DRSs representing sentences like 'John, who owns a dog, feeds it',
@@ -1179,125 +1192,27 @@ class PresuppositionDRS(DRS):
         # The referent we are looking for is always the first on the list of referents of the presuppositional DRS.
         # The head of the presuppositional NP, however, doesn't have to be the first on the list of conditions.
         # It depends on how the lambda terms are written (e.g. for adjective, for complementizers).
-        unary_predicates = set() # If there are no agreement features in the grammar, we have to consider all unary predicates 
+        # If there are no agreement features in the grammar, we have to consider all unary predicates 
         # with this referent potential heads of the NP.
-        for cond in self.conds:
-            if self.unary_predicate(cond) and cond.argument.variable == self.refs[0] and ((not check) or check(cond)):
-                if isinstance(cond.function, DrtFeatureConstantExpression): # this is the one
-                    # There can be more than one DrtFeatureConstantExpression on the conditions on list, e.g.
-                    # "Tom, a kind boy, took her hand", or "Tom, who is a kind boy,...", or "Linguist Grimm suggested ...", 
-                    # or "The distinguished physicist Einstein ...". But 'check' helps us find the right one.
-                    self.variable = cond.argument.variable
-                    self.features = cond.function.features
-                    self.funcname = cond.function.variable.name
-                    return
-                else: unary_predicates.add(cond.function.variable.name)
-        # No DrtFeatureConstantExpression means we don't know what was the head of NP
-        if not unary_predicates: raise Exception("No presupposition condition found in the presuppositional DRS %s" % self)
+        presupp_cond_list = [cond for cond in self.conds if self.is_unary_predicate(cond) and cond.argument.variable == self.refs[0] and self.is_presupposition_cond(cond)]
+        for cond in presupp_cond_list:
+            if isinstance(cond.function, DrtFeatureConstantExpression): # this is the one
+                # There can be more than one DrtFeatureConstantExpression on the conditions on list, e.g.
+                # "Tom, a kind boy, took her hand", or "Tom, who is a kind boy,...", or "Linguist Grimm suggested ...", 
+                # or "The distinguished physicist Einstein ...". But 'check' helps us find the right one.
+                self.variable = cond.argument.variable
+                self.features = cond.function.features
+                self.function_name = cond.function.variable.name
+                return
+
         self.variable = self.refs[0]
         self.features = None
-        self.funcname = unary_predicates
+        self.function_name = presupp_cond_list[0].variable.name
     
-    def _one_cond(self):
-        """Some subclasses of PresuppositionalDrs (e.g. PronounDrs, ProperNameDrs)
-        will expect only one presuppositional condition, while for other subclasses
-        it may be the case that we can't find the head of the presuppositional NP,
-        e.g. sad(x) and boy(x) will look the same to us if no features are used.
-        For the former type of subclasses, use this method"""
-        if not isinstance (self.funcname, str):
-            assert isinstance(self.funcname, set) and len(self.funcname) == 1
-            self.funcname = self.funcname.pop()
-
-    def _collect_antecedents(self, trail, presupp_features):
-        for drs in (ancestor for ancestor in trail if isinstance(ancestor, DRS)):
-            for cond in drs.conds:
-                if isinstance(cond, DrtApplicationExpression) and\
-                    cond.argument.__class__ is DrtIndividualVariableExpression:
-                    var = cond.argument.variable
-                    # nouns/proper names
-                    if isinstance(cond.function, DrtConstantExpression):
-                        #filter out the variable itself
-                        #filter out the variables with non-matching features
-                        #allow only backward resolution
-                        if self._features_are_equal(cond, presupp_features):
-                            self.possible_antecedents.append((self.make_VariableExpression(var), 0))
-                    # role application
-                    if isinstance(cond.function, DrtApplicationExpression) and\
-                        isinstance(cond.function.argument, DrtIndividualVariableExpression):
-                            self.roles.setdefault(var,set()).add(cond.function.function)
-                            self.events.setdefault(var,set()).add(cond.function.argument)
-    
-    @staticmethod
-    def _features_are_equal(cond, features):
-        return (not isinstance(cond.function, DrtFeatureConstantExpression or\
-                                 not features) or cond.function.features == features)
-    
-    def _antecedent_ranking(self, presupp_variable, presupp_type):
-        antecedents = [(var, rank) for var, rank in self.possible_antecedents if self._is_possible_antecedent(var.variable, presupp_variable, presupp_type)]
-        #ranking system
-        #increment ranking for matching roles and map the positions of antecedents
-        if len(antecedents) > 1:
-            for index, (var, rank) in enumerate(antecedents):
-                antecedents[index] = (var, rank + index + len(self.roles[var.variable].intersection(self.roles[presupp_variable])))
-        if len(antecedents) == 0:
-            raise AnaphoraResolutionException("Variable '%s' does not "
-                                "resolve to anything." % presupp_variable)
-        #print "antecedents", antecedents 
-        return antecedents
-                            
-class PronounDRS(PresuppositionDRS):
-    """A superclass for DRSs for personal, reflexive, 
-    and possessive pronouns"""
-    PRONOUNS = [DrtTokens.PRONOUN, DrtTokens.REFLEXIVE_PRONOUN, DrtTokens.POSSESSIVE_PRONOUN]
-    
-    def _get_presupp_data(self):
-        def check(cond): return cond.function.variable.name in PronounDRS.PRONOUNS
-        super(PronounDRS, self)._get_presupp_data(check)
-        self._one_cond()
-
-    def _presupposition_readings(self, trail=[]):
-        self._get_presupp_data()
-        self._collect_antecedents(trail, self.features)
-        #print "events", self.events
-        #filter by events
-        #in case pronoun participates in only one event, which has no other participants,
-        #try to extend it with interlinked events
-        #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
-        #will be extended to participate in e, but only if z5 has only one participant
-        if self.variable in self.events and len(self.events[self.variable]) == 1:
-            for e in self.events[self.variable]:
-                event = e
-            participant_count = 0
-            for event_set in self.events.itervalues():
-                if event in event_set:
-                    participant_count+=1
-            if participant_count == 1:
-                try:
-                    self.events[self.variable] = self.events[self.variable].union(self.events[event.variable])
-                except KeyError:
-                    pass
+    def has_same_features(self, cond):
+        return (not isinstance(cond.function, DrtFeatureConstantExpression) and not self.features) \
+                or cond.function.features == self.features
                 
-        antecedents = self._antecedent_ranking(self.variable, self.funcname)
-        return [Reading([(trail[-1], PronounDRS.VariableReplacer(self.variable, var))]) for var, rank in sorted(antecedents, key=lambda e: e[1], reverse=True)], True
-
-    class VariableReplacer(object):
-        def __init__(self, pro_var, new_var):
-            self.pro_var = pro_var
-            self.new_var = new_var
-        def __call__(self, drs):
-            return drs.__class__(drs.refs, [cond.replace(self.pro_var, self.new_var, False) for cond in drs.conds])
-
-    def _is_possible_antecedent(self, variable, pro_variable, pro_type):
-        #non reflexive pronouns can not resolve to variables having a role in the same event
-        if pro_type == DrtTokens.PRONOUN:
-            return variable not in self.events or self.events[variable].isdisjoint(self.events[pro_variable])
-        elif pro_type == DrtTokens.REFLEXIVE_PRONOUN:
-            return not self.events[variable].isdisjoint(self.events[pro_variable])
-        else:
-            return True
-
-class NonPronPresuppositionDRS(PresuppositionDRS):
-    
     class Binding(object):
         def __init__(self, presupp_drs, presupp_variable, presupp_funcname, antecedent_ref, condition_index):
             self.presupp_drs = presupp_drs
@@ -1309,13 +1224,14 @@ class NonPronPresuppositionDRS(PresuppositionDRS):
             """Put all conditions from the presupposition DRS
             (if presupposition condition is a proper name: except the proper name itself) into the drs, 
             and replace the presupposition condition referent in them with antecedent_ref"""
+            #print "BINDING, drs", drs
             newdrs = self.presupp_drs.replace(self.presupp_variable, self.antecedent_ref, True)
             # There will be referents and conditions to move 
             # if there is a relative clause modifying the noun that has triggered the presuppositon
             drs.refs.extend([ref for ref in newdrs.refs \
                              if ref != self.antecedent_ref.variable])
             conds_to_move = [cond for cond in newdrs.conds \
-                            if cond.function.variable.name != self.presupp_funcname]
+                            if not self.is_unary_predicate(cond) or cond.function.variable.name != self.presupp_funcname]
             # Put the conditions at the position of the original presupposition DRS
             if self.condition_index is None: # it is an index, it can be zero
                 drs.conds.extend(conds_to_move)
@@ -1369,51 +1285,109 @@ class NonPronPresuppositionDRS(PresuppositionDRS):
                     if cond is look_for:
                         return i # condition_index
         return None
-
-class ProperNameDRS(NonPronPresuppositionDRS):
-    def _get_presupp_data(self):
-        def check(cond): return cond.is_propername()
-        super(ProperNameDRS, self)._get_presupp_data(check)
-        self._one_cond()
+                            
+class PronounDRS(PresuppositionDRS):
+    """A superclass for DRSs for personal, reflexive, 
+    and possessive pronouns"""
+    PRONOUNS = [DrtTokens.PRONOUN, DrtTokens.REFLEXIVE_PRONOUN, DrtTokens.POSSESSIVE_PRONOUN]
     
+    def __init__(self, refs, conds):
+        PresuppositionDRS.__init__(self, refs, conds)
+        self.roles = {}
+        self.events = {}
+        
+    def is_presupposition_cond(self, cond):
+        return cond.function.variable.name in PronounDRS.PRONOUNS
+    
+    def _presupposition_readings(self, trail=[]):
+        possible_bindings = self.find_bindings(self.filter_trail(trail))
+        #print "events", self.events
+        #filter by events
+        #in case pronoun participates in only one event, which has no other participants,
+        #try to extend it with interlinked events
+        #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
+        #will be extended to participate in e, but only if z5 has only one participant
+        if self.variable in self.events and len(self.events[self.variable]) == 1:
+            for e in self.events[self.variable]:
+                event = e
+            participant_count = 0
+            for event_set in self.events.itervalues():
+                if event in event_set:
+                    participant_count+=1
+            if participant_count == 1:
+                try:
+                    self.events[self.variable] = self.events[self.variable].union(self.events[event.variable])
+                except KeyError:
+                    pass
+                
+        bindings = self._filter_bindings(possible_bindings)
+        return [Reading([(trail[-1], PronounDRS.VariableReplacer(self.variable, var))]) for var, rank in sorted(bindings, key=lambda e: e[1], reverse=True)], True
+
+    def is_possible_binding(self, cond):
+        if PresuppositionDRS.is_possible_binding(self, cond):
+            return True
+        elif isinstance(cond.function, DrtApplicationExpression) and\
+              isinstance(cond.function.argument, DrtIndividualVariableExpression):
+            self.roles.setdefault(cond.argument.variable,set()).add(cond.function.function)
+            self.events.setdefault(cond.argument.variable,set()).add(cond.function.argument)
+    
+    def _filter_bindings(self, possible_bindings):
+        bindings = [(var, rank) for var, rank in possible_bindings if self._is_binding(var.variable, self.variable, self.function_name)]
+        #ranking system
+        #increment ranking for matching roles and map the positions of antecedents
+        if len(bindings) > 1:
+            for index, (var, rank) in enumerate(bindings):
+                bindings[index] = (var, rank + index + len(self.roles[var.variable].intersection(self.roles[self.variable])))
+        if len(bindings) == 0:
+            raise AnaphoraResolutionException("Variable '%s' does not "
+                                "resolve to anything." % self.variable)
+        #print "antecedents", antecedents 
+        return bindings
+
+    def _is_binding(self, variable):
+        #non reflexive pronouns can not resolve to variables having a role in the same event
+        if self.function_name == DrtTokens.PRONOUN:
+            return variable not in self.events or self.events[variable].isdisjoint(self.events[self.variable])
+        elif self.function_name == DrtTokens.REFLEXIVE_PRONOUN:
+            return not self.events[variable].isdisjoint(self.events[self.variable])
+        else:
+            return True
+
+    class VariableReplacer(object):
+        def __init__(self, pro_var, new_var):
+            self.pro_var = pro_var
+            self.new_var = new_var
+        def __call__(self, drs):
+            return drs.__class__(drs.refs, [cond.replace(self.pro_var, self.new_var, False) for cond in drs.conds])
+
+class ProperNameDRS(PresuppositionDRS):
+
     def _presupposition_readings(self, trail=[]):
         """A proper name always yields one reading: it is either global binding 
         or global accommodation (if binding is not possible)"""
-        # Find the proper name application expression.
-        self._get_presupp_data()
-        outer_drs = trail[0]
+        outer_drs = self._find_outer_drs(trail)
         inner_drs = trail[-1]
-        inner_is_outer = inner_drs is outer_drs
-        ########
-        # Try binding in the outer DRS
-        ########
-        self._collect_antecedents(trail, self.funcname, self.features)
-        antecedent_ref = self.possible_antecedents[0][0] if self.possible_antecedents else None
+        possible_bindings = self.find_bindings(self, [outer_drs])
+        assert len(possible_bindings) <= 1
         condition_index = self._get_condition_index(outer_drs, trail)
-        if antecedent_ref:           
+        if possible_bindings:           
             # Return the reading
-            if inner_is_outer:
-                return [Reading([(inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
-            return [Reading([(outer_drs, NonPronPresuppositionDRS.Binding(self, self.variable, self.funcname, antecedent_ref, condition_index)),
-                     (inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
+            antecedent_ref = possible_bindings[0].argument.variable
+            if inner_drs is outer_drs:
+                return [Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
+            return [Reading([(outer_drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent_ref, condition_index)),
+                     (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
         # If no suitable antecedent has been found in the outer DRS,
         # binding is not possible, so we go for accommodation instead.
-        return [Reading([(outer_drs, NonPronPresuppositionDRS.Accommodation(self, condition_index))])], True
-
-    def _collect_antecedents(self, trail, presupp_funcname, presupp_features):
-        """Return the antecedent of the proper name. 
-        Binding is only possible if there is a condition with the 
-        same functor (proper name) at the global level"""
-        for cond in trail[0].conds:
-            if isinstance(cond, DrtApplicationExpression) and cond.is_propername() \
-            and cond.function.variable.name == presupp_funcname:
-                # If the two conditions have features, the two lists of features must be equal
-                assert self._features_are_equal(cond, presupp_features)
-                self.possible_antecedents.append((self.make_VariableExpression(cond.argument.variable), 0))
-        assert len(self.possible_antecedents) <= 1
-        # If no antecedent has been found, we will try accommodation
+        return [Reading([(outer_drs, PresuppositionDRS.Accommodation(self, condition_index))])], True
+       
+    def is_possible_binding(self, cond):
+        return self.has_same_features(cond) and cond.is_propername() and cond.function.variable.name == self.function_name
+       
+    def is_presupposition_cond(self, cond):
+        return cond.is_propername()
     
-class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
+class DefiniteDescriptionDRS(PresuppositionDRS):
         
     def __init__(self, refs, conds):
         super(DefiniteDescriptionDRS, self).__init__(refs, conds)
@@ -1421,9 +1395,9 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
     def _presupposition_readings(self, trail=[]):
         def accommodation(drs):
             condition_index = self._get_condition_index(drs, trail)
-            return Reading([(drs, NonPronPresuppositionDRS.Accommodation(self, condition_index))])
+            return Reading([(drs, PresuppositionDRS.Accommodation(self, condition_index))])
             
-        self._get_presupp_data()
+        self._init_presupp_data()
         
         """'A car is going down the road. If Mia is married, then the car that her husband drives is black.'
         'A car is going down the road. If Mia is married, then the car of her neighbours is black.'
@@ -1468,8 +1442,7 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
             # but can we just accommodate anywhere we want? I don't think so.
             # This means that this will work for 'if', but not for sentences like 
             # "If a woman is married or she has a dog, then her car is black or her boss is mean."
-            for drs in trail:
-                if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression) and not isinstance(drs, NewInfoDRS):
+            for drs in self.filter_trail(trail):
                     accommodations.append(accommodation(drs))
             return accommodations, True
         # No restrictive clause or PP -> try binding
@@ -1527,15 +1500,15 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         # First, try global binding. If we can bind globally, it will be our preferred reading
         # (not by van der Sand's algorithm, though). Return it.
         inner_drs = trail[-1]
-        for drs in trail:
-            if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression) and not isinstance(drs, NewInfoDRS):
-                antecedent_ref = self._binding_check(drs)
+        candidate_trail = self.filter_trail_list(trail)
+        for drs in candidate_trail:
+            antecedent_ref = self._binding_check(drs)
             if antecedent_ref:
                 condition_index = self._get_condition_index(drs, trail)
                 if inner_drs == drs:
-                    return [Reading([(inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
-                return [Reading([(drs, NonPronPresuppositionDRS.Binding(self, self.variable, self.funcname, antecedent_ref, condition_index)),
-                                 (inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent_ref, NonPronPresuppositionDRS.Binding, condition_index))])], True
+                    return [Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
+                return [Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent_ref, condition_index)),
+                                 (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
         # We have gone through all boxes in the trail, and nowhere did we find an unambiguous antecedent
         # self.possible_antecedents is a list of lists (but those lists can be empty)
         # Return all the readings (binding + accommodation), prefer global binding.
@@ -1552,28 +1525,27 @@ class DefiniteDescriptionDRS(NonPronPresuppositionDRS):
         # If we bind at some level, there will be no accommodation at this level or below (van der Sandt)
         binding = False
         i = 0
-        for drs in trail:
-            if not isinstance(drs, PresuppositionDRS) and not isinstance(drs, DrtBooleanExpression) and not isinstance(drs, NewInfoDRS):
-                antecedents = self.possible_antecedents[i]
-                i += 1
-                for antecedent in antecedents:
-                    if inner_drs == drs: r = Reading([(inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent, NonPronPresuppositionDRS.Binding, condition_index))])
-                    else: r = Reading([(drs, NonPronPresuppositionDRS.Binding(self, self.variable, self.funcname, antecedent, condition_index)),
-                                 (inner_drs, NonPronPresuppositionDRS.InnerReplace(self, self.variable, self.funcname, antecedent, NonPronPresuppositionDRS.Binding, condition_index))])
-                    readings.append(r)
-                    binding = True
-                if not binding:
-                    # If global accommodation passes acceptability check, all other accommodations will be eliminated
-                    readings.append(accommodation(drs))
+        for drs in candidate_trail:
+            antecedents = self.possible_antecedents[i]
+            i += 1
+            for antecedent in antecedents:
+                condition_index = self._get_condition_index(drs, trail)
+                if inner_drs == drs: r = Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
+                else: r = Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent, condition_index)),
+                             (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
+                readings.append(r)
+                binding = True
+            if not binding:
+                # If global accommodation passes acceptability check, all other accommodations will be eliminated
+                readings.append(accommodation(drs))
         return readings, True
-                
-        
+             
     def _binding_check(self, drs):
         # Iterate over unary predicates from the conditions of the drs
         possible_antecedents = []
         for cond in drs.conds:
-            if self.unary_predicate(cond) and self._features_are_equal(cond, self.features):
-                for funcname in self.funcname:
+            if self.is_unary_predicate(cond) and self.has_same_features(cond, self.features):
+                for funcname in self.function_name:
 #                    if (cond.function.variable.name == funcname or issuperclasssof(cond.function.variable.name, funcname)) \
 #                        and not is_adjective(cond.function.variable.name):
 #                        # either equal, or second is a superclass of the first, and they are not adjectives
