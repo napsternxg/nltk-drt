@@ -1136,6 +1136,9 @@ class DrtParser(drt.DrtParser):
     
     def make_LambdaExpression(self, variables, term):
         return DrtLambdaExpression(variables, term)
+    
+def is_unary_predicate(cond):
+    return isinstance(cond, DrtApplicationExpression) and isinstance(cond.function, DrtAbstractVariableExpression)
 
 class PresuppositionDRS(DRS):
     class Remover(object):
@@ -1165,7 +1168,7 @@ class PresuppositionDRS(DRS):
         for drs in self.filter_trail(trail): return drs
     
     def is_possible_binding(self, cond):
-        return self.is_unary_predicate(cond) and self.has_same_features(cond) and cond.argument.__class__ is DrtIndividualVariableExpression
+        return is_unary_predicate(cond) and self.has_same_features(cond) and cond.argument.__class__ is DrtIndividualVariableExpression
                 
     def find_bindings(self, drs_list, collect_event_data=False):
         bindings = []
@@ -1192,9 +1195,6 @@ class PresuppositionDRS(DRS):
               isinstance(cond.function, DrtApplicationExpression) and\
               isinstance(cond.function.argument, DrtIndividualVariableExpression):
             return (cond.function.argument, cond.function.function)
-    
-    def is_unary_predicate(self, cond):
-        return isinstance(cond, DrtApplicationExpression) and isinstance(cond.function, DrtAbstractVariableExpression)
         
     def is_presupposition_cond(self, cond):
         return True
@@ -1218,7 +1218,7 @@ class PresuppositionDRS(DRS):
         # It depends on how the lambda terms are written (e.g. for adjective, for complementizers).
         # If there are no agreement features in the grammar, we have to consider all unary predicates 
         # with this referent potential heads of the NP.
-        presupp_cond_list = [cond for cond in self.conds if self.is_unary_predicate(cond) and cond.argument.variable == self.refs[0] and self.is_presupposition_cond(cond)]
+        presupp_cond_list = [cond for cond in self.conds if is_unary_predicate(cond) and cond.argument.variable == self.refs[0] and self.is_presupposition_cond(cond)]
         for cond in presupp_cond_list:
             if isinstance(cond.function, DrtFeatureConstantExpression): # this is the one
                 # There can be more than one DrtFeatureConstantExpression on the conditions on list, e.g.
@@ -1255,7 +1255,7 @@ class PresuppositionDRS(DRS):
             drs.refs.extend([ref for ref in newdrs.refs \
                              if ref != self.antecedent_ref.variable])
             conds_to_move = [cond for cond in newdrs.conds \
-                            if not self.is_unary_predicate(cond) or cond.function.variable.name != self.presupp_funcname]
+                            if not is_unary_predicate(cond) or cond.function.variable.name != self.presupp_funcname]
             # Put the conditions at the position of the original presupposition DRS
             if self.condition_index is None: # it is an index, it can be zero
                 drs.conds.extend(conds_to_move)
@@ -1388,12 +1388,13 @@ class ProperNameDRS(PresuppositionDRS):
         or global accommodation (if binding is not possible)"""
         outer_drs = self._find_outer_drs(trail)
         inner_drs = trail[-1]
-        possible_bindings = self.find_bindings(self, [outer_drs])
+        possible_bindings = self.find_bindings([outer_drs])
+        
         assert len(possible_bindings) <= 1
         condition_index = self._get_condition_index(outer_drs, trail)
         if possible_bindings:           
             # Return the reading
-            antecedent_ref = possible_bindings[0].argument.variable
+            antecedent_ref = possible_bindings[0].argument
             if inner_drs is outer_drs:
                 return [Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
             return [Reading([(outer_drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent_ref, condition_index)),
@@ -1530,9 +1531,28 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
         """
         # First, try global binding. If we can bind globally, it will be our preferred reading
         # (not by van der Sand's algorithm, though). Return it.
+        # TODO: THERE CAN BE MORE THAN ONE POSSIBILITIES FOR GLOBAL BINDING. EITHER RANK THEM OR FILTER THEM (or both)
+        # TODO: Even if we find a perfect binding candidate, e.g. hammer-tool, do we return this binding as the only reading?
+        # A dog is outside. If a cat hisses, the animal is afraid.
+        # For this to be a coherent discourse, animal should refer to the dog, but the other binding is also possible (no discourse coherence, though).
+        # At least, if we extend the discourse, the binding to cat may be justified.
+        # A dog is outside. If a cat hisses, the animal is afraid. The dog meets a hissing cat. Or: the dog meets a cat. The cat hisses.
+
+        # Note that 'cat' does not introduce a new individual as such (though it does put the referent on the referents list of the 
+        # antecedent of the implicative condition), like 'dog' does.
+        # If we bind 'animal' to 'cat', 'the animal' still won't refer to an individual, it will refer to a group of individuals that are cats.
+        # This means that the if-sentence just puts some irrelevant background information in the middle of our discourse. 
+        # Naturally, we want to exclde this reading.  
+        
+        # But if we introduce a referent that is a cat (before or after the if-sentence), this background information gets relevant to
+        # our discourse. So maybe, for the future: as long as the bg info is irrelevant, consider only the first reading,
+        # but keep the second reading as a possibility. If after n sentences the info is still irrelevant, throw the 2nd reading away.
+        
+        #-----------------
+        # "The cat is black or the cat is fat", "The cat is black. The cat is fat". Both seem to require binding and sound weird.
+         
         inner_drs = trail[-1]
-        candidate_trail = self.filter_trail_list(trail)
-        for drs in candidate_trail:
+        for drs in self.filter_trail(trail):
             antecedent_ref = self._binding_check(drs)
             if antecedent_ref:
                 condition_index = self._get_condition_index(drs, trail)
@@ -1575,7 +1595,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
         # Iterate over unary predicates from the conditions of the drs
         possible_antecedents = []
         for cond in drs.conds:
-            if self.is_unary_predicate(cond) and self.has_same_features(cond, self.features):
+            if is_unary_predicate(cond) and self.has_same_features(cond, self.features):
                 for funcname in self.function_name:
 #                    if (cond.function.variable.name == funcname or issuperclasssof(cond.function.variable.name, funcname)) \
 #                        and not is_adjective(cond.function.variable.name):
