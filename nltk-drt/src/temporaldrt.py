@@ -150,6 +150,7 @@ class DrtTokens(drt.DrtTokens):
     DEFINITE_DESCRIPTION_DRS = 'DEF'
     PRONOUN_DRS = 'PRON'
     PRESUPPOSITION_DRS = [PROPER_NAME_DRS, DEFINITE_DESCRIPTION_DRS, PRONOUN_DRS]
+    PRONOUN = 'PRO'
     REFLEXIVE_PRONOUN = 'RPRO'
     POSSESSIVE_PRONOUN = 'PPRO'
     
@@ -1323,47 +1324,52 @@ class PronounDRS(PresuppositionDRS):
     
     def _presupposition_readings(self, trail=[]):
         possible_bindings, event_data = self.find_bindings(self.filter_trail(trail), True)
-        #print "events", self.events
-        #filter by events
+        bindings = [cond for cond in possible_bindings if self._is_binding(cond, _get_pro_events(event_data), event_data)]
+        ranked_bindings = self._rank_bindings(bindings, event_data)
+        return [Reading([(trail[-1], PronounDRS.VariableReplacer(self.variable, var))]) for var, rank in sorted(ranked_bindings, key=lambda e: e[1], reverse=True)], True
+
+    def _get_pro_events(self, event_data):
         #in case pronoun participates in only one event, which has no other participants,
         #try to extend it with interlinked events
         #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
         #will be extended to participate in e, but only if z5 has only one participant
-        if self.variable in self.events and len(self.events[self.variable]) == 1:
-            for e in self.events[self.variable]:
-                event = e
-            participant_count = 0
-            for event_set in self.events.itervalues():
-                if event in event_set:
-                    participant_count+=1
-            if participant_count == 1:
-                try:
-                    self.events[self.variable] = self.events[self.variable].union(self.events[event.variable])
-                except KeyError:
-                    pass
+        pro_events = [event for event_list in event_data.get(self.variable, ()) for event, role in event_list]
+        if len(pro_events) == 1:
+            pro_event = pro_events[0]
+            #number of participants in the pro_event
+            participant_count = reduce(operator.add, (for event_list in event_data.itervalues() for event, role in event_list if event == pro_event), 0)
+            # if there is only one participant in the pro_event and pro_event itself participates in other events
+            if participant_count == 1 and pro_event.variable in event_data:
+                pro_events.extend((event for event, role in self.events[event.variable]))
                 
-        bindings = self._filter_bindings(possible_bindings)
-        return [Reading([(trail[-1], PronounDRS.VariableReplacer(self.variable, var))]) for var, rank in sorted(bindings, key=lambda e: e[1], reverse=True)], True
-    
-    def _filter_bindings(self, possible_bindings):
-        bindings = [(var, rank) for var, rank in possible_bindings if self._is_binding(var.variable, self.variable, self.function_name)]
+        return set(pro_events)
+
+    def _rank_bindings(self, bindings, event_data):
         #ranking system
         #increment ranking for matching roles and map the positions of antecedents
-        if len(bindings) > 1:
-            for index, (var, rank) in enumerate(bindings):
-                bindings[index] = (var, rank + index + len(self.roles[var.variable].intersection(self.roles[self.variable])))
         if len(bindings) == 0:
             raise AnaphoraResolutionException("Variable '%s' does not "
                                 "resolve to anything." % self.variable)
-        #print "antecedents", antecedents 
+        elif len(bindings) == 1:
+            bindings[0] = (bindings[0], 0)
+        else:
+            pro_roles = set((role for event_list in event_data.get(self.variable, ()) for event, role in event_list))
+            for index, variable in enumerate(bindings):
+                var_roles = set((role for event_list in event_data.get(variable, ()) for event, role in event_list))
+                bindings[index] = (variable, index + len(var_roles.intersection(pro_roles)))
         return bindings
 
-    def _is_binding(self, variable):
+    def _is_binding(self, cond, pro_events, event_data):
         #non reflexive pronouns can not resolve to variables having a role in the same event
+        if self.function_name == DrtTokens.POSSESSIVE_PRONOUN:
+            return True
+        else:  
+            variable = cond.argument.variable
+            variable_events = set((event for event_list in event_data.get(variable,()) for event, role in event_list))
         if self.function_name == DrtTokens.PRONOUN:
-            return variable not in self.events or self.events[variable].isdisjoint(self.events[self.variable])
+            return variable_events.isdisjoint(pro_events)
         elif self.function_name == DrtTokens.REFLEXIVE_PRONOUN:
-            return not self.events[variable].isdisjoint(self.events[self.variable])
+            return not variable_events.isdisjoint(pro_events)
         else:
             return True
 
