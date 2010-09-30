@@ -1176,7 +1176,7 @@ class PresuppositionDRS(DRS):
             event_data_map = {}
         is_bindable = True # do not allow forward binding
         for drs in drs_list:
-            for cond in drs.conds:
+            for cond in (c for c in drs.conds if isinstance(c, DrtApplicationExpression)):
                 # Ignore conditions following the presupposition DRS
                 if cond is self:
                     if not collect_event_data: 
@@ -1191,8 +1191,7 @@ class PresuppositionDRS(DRS):
         return (bindings, event_data_map) if collect_event_data else bindings
     
     def collect_event_data(self, cond):
-        if isinstance(cond, DrtApplicationExpression) and\
-              isinstance(cond.function, DrtApplicationExpression) and\
+        if isinstance(cond.function, DrtApplicationExpression) and\
               isinstance(cond.function.argument, DrtIndividualVariableExpression):
             return (cond.function.argument, cond.function.function)
         
@@ -1404,221 +1403,221 @@ class ProperNameDRS(PresuppositionDRS):
         return [Reading([(outer_drs, PresuppositionDRS.Accommodation(self, condition_index))])], True
        
     def is_possible_binding(self, cond):
-        return self.has_same_features(cond) and cond.is_propername() and cond.function.variable.name == self.function_name
+        return PresuppositionDRS.is_possible_binding(self, cond) and cond.is_propername() and cond.function.variable.name == self.function_name
        
     def is_presupposition_cond(self, cond):
         return cond.is_propername()
     
-class DefiniteDescriptionDRS(PresuppositionDRS):
-    
-    def _presupposition_readings(self, trail=[]):
-        def accommodation(drs):
-            condition_index = self._get_condition_index(drs, trail)
-            return Reading([(drs, PresuppositionDRS.Accommodation(self, condition_index))])
-        
-        """'A car is going down the road. If Mia is married, then the car that her husband drives is black.'
-        'A car is going down the road. If Mia is married, then the car of her neighbours is black.'
-        'A car is going down the road. If Mia is married, then the car at home is black.'
-        From these sentences we see that a _restrictive_ relative clause and adjunct PPs 
-        require accommodation of the presuppositional NP as the only way of presupposition resolution.
-        It seems that no binding to referents from the DRSs up along the trail can take place.
-        """
-        # If there is a restrictive clause or an adjunct PP, accommodate the presupposition locally
-        events_states = set()
-        # Are there any states/events in this presuppositional drs that the presupposition referent takes part in?
-        for cond in self.conds:
-            if isinstance(cond.function, DrtApplicationExpression) and \
-                (isinstance(cond.function.argument, DrtStateVariableExpression) or 
-                isinstance(cond.function.argument, DrtEventVariableExpression)) and \
-                cond.argument.variable == self.variable:
-                # This will give us conditions like AGENT(s,x), PATIENT(e,x)
-                # TODO: will add() perform the equals check correctly? After all, even though they will be variables of the same name,
-                # they will be different objects 
-                events_states.add(cond.function.argument.variable)
-        
-        if events_states:
-            # Only accommodation is possible.
-            # Global accommodation will be preferred over all other accommodations. But we can't guarantee that 
-            # the most preferred reading won't violate acceptability constraints, so we have to keep all of the readings for now.  
-            """(1)'If a woman is married, then her car is black or her boss is mean.'
-            (2)'If Mia is married, then her car is black or her boss is mean.'
-            Global accommodation in (2), intermediate (preferred, according to van der Sandt) or local accommodation in (1).
-            Focus: linguistic, cognitive, and computational perspectives. Peter Bosch, Rob A. van der Sandt. P. 281
-            
-            David Beaver (Accommodating Topics, When Variables Don't Vary Enough) 
-            argues that local accommodation should be preferred over intermediate, but see Bosch & van der Sandt, p. 282-283
-            """
-            # TODO:
-            """I think that there are some cases when it makes more sense to prefer local accommodation over intermediate
-            (if global accommodation is not possible).
-            (1) 'Every woman likes her hands'
-            Have a look at wordnet in nltk: >>> S('person.n.01'). part_meronyms()
-            [Synset('human_body.n.01'), Synset('personality.n.01')]
-            """
-            
-            # TODO:
-            """
-            Always accommodate when there are any events or states in the presuppositional DRS that the referent takes part in?
-            No.
-            (1) Mia wins a prize. The prize that her neighbours win is a car.
-            (2) Mia wins a prize, The prize that her neighbours make fun of is a car.
-            (3) If Mia wins a prize, the prize that Mia wins is a car.
-            (4) Mia wins a prize. The prize that Mia wins is a car.
-            In (1), global accommodation is the only reading. In (2), binding is preferred to accommodation.
-            In (3), binding is the only reading; local accommodation will be ruled out by acceptability constraints, 
-            but what about intermediate accommodation?
-            In (4), binding is the only reading. Will acceptability constraints let the accommodation reading through? 
-            """
-            accommodations = []
-            # TODO: the loop for finding the global, intermediate and local DRSs will find all DRSs on the trail,
-            # but can we just accommodate anywhere we want? I don't think so.
-            # This means that this will work for 'if', but not for sentences like 
-            # "If a woman is married or she has a dog, then her car is black or her boss is mean."
-            for drs in self.filter_trail(trail):
-                    accommodations.append(accommodation(drs))
-            return accommodations, True
-        # No restrictive clause or PP -> try binding
-        """ Van der Sandt's algorithm would favour closest binding. But consider this sentence:
-        (1) 'Mary is at the concert. If a singer kisses John, the woman is happy.'
-        I think, for a discourse to remain coherent, the listener will always try to look for referents in the global DRS.
-        Other readings will be dispreferred. Only if no referent in the global DRS is found could (but does it?) van der Sand's heuristics 
-        come into play: the lower the level of binding, the better.
-        
-        Even then, we should ask ourselves why we used a definite description in the first place.
-        Here are a couple of examples showing that anaphoric pronouns and definite descriptions do not behave in the same way.
-        
-        I.
-        (2) Butch picks up a hammer. Then he picks up a flower. He puts it back on the shelf.
-        In (2), there is some ambiguity as to the antecedent of 'it', but since 'flower' is the closest referent in the topic focus,
-        it will be preferred. Compare (2) to:
-        (3) Butch picks up a hammer. Then he picks up a flower. He puts the tool back on the shelf.
-        The definite description lifts the ambiguity.
-        
-        II.
-        (4) 'If a girl plays piano, then the child is happy'.
-        If we wanted to refer to the girl, it would have been more economical to say 'she is happy'.
-        'The child' is a resource-consuming, marked way. In this sentence, there was no ambiguity that a pronoun could have introduced
-        (then a definite description would have help us stick to the maxim of manner).
-        The referent isn't too far away from the presupposition, either. But (the listener will think) the definite description 
-        was used for some reason. This is why global accommodation will be at least as preferred as the binding to the referent 
-        from the antecendent of the implicative condition.
-        
-        III.
-        With definite descriptions, binding is very tricky.
-        If condition functors are the same, the two referents will be bound (and indeed, this is the only way to do binding for proper names).
-        Since pronouns have little semantic content, we can find referents by simply going through possible antecedents and comparing
-        their features (number and gender) to those of the pronoun. But,
-        (5) The garage is empty. The car is in the driveway.
-        'The garage' and 'the car' are both inanimate singular nouns, but it is clear that these features are an insufficient basis
-        for binding. We have to use ontologies.
-        FOR INANIMATE NOUNS:
-        First, we find the presupposition condition (the head of the presuppositional NP). If the antecedent is a subclass of the
-        presupposition condition synset, there will be binding with little ambiguity.
-        FOR ANIMATE NOUNS:
-        This is even trickier. First of all, the presupposition condition has to be a subclass of 'person' or 'animal'. But how do we
-        account for the gender?
-        (6) Mia plays with John. The mother is happy.
-        In wordnet, 'mother' is not a subclass of 'woman' or 'female'. The same is true for all gender-specific noun, like
-        'seamstress', 'husband', 'bull', etc. We probably have to specify noun gender in the grammar, then.
-        We do this, but we don't restrict the user in any way, for example gender doesn't have to be {m,f,n}, and these letters
-        can be used for other features than gender, too.
-        >>> S('singer.n.1').common_hypernyms(S('person.n.1'))
-        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
-        >>> S('mother.n.1').common_hypernyms(S('person.n.1'))
-        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
-        >>> S('dog.n.1').common_hypernyms(S('animal.n.1'))
-        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('animal.n.01'), Synset('entity.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
-        """
-        # First, try global binding. If we can bind globally, it will be our preferred reading
-        # (not by van der Sand's algorithm, though). Return it.
-        # TODO: THERE CAN BE MORE THAN ONE POSSIBILITIES FOR GLOBAL BINDING. EITHER RANK THEM OR FILTER THEM (or both)
-        # TODO: Even if we find a perfect binding candidate, e.g. hammer-tool, do we return this binding as the only reading?
-        # A dog is outside. If a cat hisses, the animal is afraid.
-        # For this to be a coherent discourse, animal should refer to the dog, but the other binding is also possible (no discourse coherence, though).
-        # At least, if we extend the discourse, the binding to cat may be justified.
-        # A dog is outside. If a cat hisses, the animal is afraid. The dog meets a hissing cat. Or: the dog meets a cat. The cat hisses.
-
-        # Note that 'cat' does not introduce a new individual as such (though it does put the referent on the referents list of the 
-        # antecedent of the implicative condition), like 'dog' does.
-        # If we bind 'animal' to 'cat', 'the animal' still won't refer to an individual, it will refer to a group of individuals that are cats.
-        # This means that the if-sentence just puts some irrelevant background information in the middle of our discourse. 
-        # Naturally, we want to exclde this reading.  
-        
-        # But if we introduce a referent that is a cat (before or after the if-sentence), this background information gets relevant to
-        # our discourse. So maybe, for the future: as long as the bg info is irrelevant, consider only the first reading,
-        # but keep the second reading as a possibility. If after n sentences the info is still irrelevant, throw the 2nd reading away.
-        
-        #-----------------
-        # "The cat is black or the cat is fat", "The cat is black. The cat is fat". Both seem to require binding and sound weird.
-         
-        inner_drs = trail[-1]
-        for drs in self.filter_trail(trail):
-            antecedent_ref = self._binding_check(drs)
-            if antecedent_ref:
-                condition_index = self._get_condition_index(drs, trail)
-                if inner_drs == drs:
-                    return [Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
-                return [Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent_ref, condition_index)),
-                                 (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
-        # We have gone through all boxes in the trail, and nowhere did we find an unambiguous antecedent
-        # self.possible_antecedents is a list of lists (but those lists can be empty)
-        # Return all the readings (binding + accommodation), prefer global binding.
-        # TODO:
-        """
-        If we can't use ontologies and there wasn't a restrictive clause / PP, we are not so sure about which reading is the right one.
-        Self.possible_antecedents holds antecedent candidates for binding, but we would probably need advanced lexical information
-        beyond the scope of this project to lift, or at least narrow down, the ambiguity.
-        So the best option would be to return all possible readings, with some preference order,
-        and maybe have a more sophisticated semantic component filter them later 
-        (In this project, these readings will be subjected to acceptability checks, but that's it.).
-        """
-        readings = []
-        # If we bind at some level, there will be no accommodation at this level or below (van der Sandt)
-        binding = False
-        i = 0
-        for drs in candidate_trail:
-            antecedents = self.possible_antecedents[i]
-            i += 1
-            for antecedent in antecedents:
-                condition_index = self._get_condition_index(drs, trail)
-                if inner_drs == drs: r = Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
-                else: r = Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent, condition_index)),
-                             (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
-                readings.append(r)
-                binding = True
-            if not binding:
-                # If global accommodation passes acceptability check, all other accommodations will be eliminated
-                readings.append(accommodation(drs))
-        return readings, True
-             
-    def _binding_check(self, drs):
-        # Iterate over unary predicates from the conditions of the drs
-        possible_antecedents = []
-        for cond in drs.conds:
-            if is_unary_predicate(cond) and self.has_same_features(cond, self.features):
-                for funcname in self.function_name:
-#                    if (cond.function.variable.name == funcname or issuperclasssof(cond.function.variable.name, funcname)) \
-#                        and not is_adjective(cond.function.variable.name):
-#                        # either equal, or second is a superclass of the first, and they are not adjectives
-#                        # (Because if they are adjectives, we could bind 'blue(x)' and 'blue(x)', and we don't want that.)
-#                        return cond.argument.variable
-#                    elif (issuperclasssof(cond.function.variable.name, 'person') and 
-#                         issuperclasssof(funcname, 'person')) or \
-#                         (issuperclasssof(cond.function.variable.name, 'animal') and 
-#                          issuperclasssof(funcname, 'animal')):
-                        possible_antecedents.append(self.make_VariableExpression(cond.argument.variable))
-        self.possible_antecedents.append(possible_antecedents)
-        # TODO:
-        """issuperclasssof(cond.function.variable.name, funcname).
-        Is binding possible only when the second is the superclass of the first? What if it is the other way round?
-        (1) A car is going down the road. The vehicle is black.
-        (2) A vehicle is going down the road. The car is black.
-        (3) Butch picks up a hammer. Then he puts the tool back on the shelf.
-        (4) Butch picks up a tool. Then he puts the hammer back on the shelf.
-        (5) The seamstress is at home. The woman is happy.
-        (6) The woman is happy. The seamstress is at home.
-        (7) If John has sons, his children are happy.
-        (8) If John has children, his sons are happy.
-        Somehow, with living beings 'the other way round' binding sounds impossible, with inanimate objects it's just very weird. 
-        """
-        return None
+class DefiniteDescriptionDRS(PresuppositionDRS): pass
+#    
+#    def _presupposition_readings(self, trail=[]):
+#        def accommodation(drs):
+#            condition_index = self._get_condition_index(drs, trail)
+#            return Reading([(drs, PresuppositionDRS.Accommodation(self, condition_index))])
+#        
+#        """'A car is going down the road. If Mia is married, then the car that her husband drives is black.'
+#        'A car is going down the road. If Mia is married, then the car of her neighbours is black.'
+#        'A car is going down the road. If Mia is married, then the car at home is black.'
+#        From these sentences we see that a _restrictive_ relative clause and adjunct PPs 
+#        require accommodation of the presuppositional NP as the only way of presupposition resolution.
+#        It seems that no binding to referents from the DRSs up along the trail can take place.
+#        """
+#        # If there is a restrictive clause or an adjunct PP, accommodate the presupposition locally
+#        events_states = set()
+#        # Are there any states/events in this presuppositional drs that the presupposition referent takes part in?
+#        for cond in self.conds:
+#            if isinstance(cond.function, DrtApplicationExpression) and \
+#                (isinstance(cond.function.argument, DrtStateVariableExpression) or 
+#                isinstance(cond.function.argument, DrtEventVariableExpression)) and \
+#                cond.argument.variable == self.variable:
+#                # This will give us conditions like AGENT(s,x), PATIENT(e,x)
+#                # TODO: will add() perform the equals check correctly? After all, even though they will be variables of the same name,
+#                # they will be different objects 
+#                events_states.add(cond.function.argument.variable)
+#        
+#        if events_states:
+#            # Only accommodation is possible.
+#            # Global accommodation will be preferred over all other accommodations. But we can't guarantee that 
+#            # the most preferred reading won't violate acceptability constraints, so we have to keep all of the readings for now.  
+#            """(1)'If a woman is married, then her car is black or her boss is mean.'
+#            (2)'If Mia is married, then her car is black or her boss is mean.'
+#            Global accommodation in (2), intermediate (preferred, according to van der Sandt) or local accommodation in (1).
+#            Focus: linguistic, cognitive, and computational perspectives. Peter Bosch, Rob A. van der Sandt. P. 281
+#            
+#            David Beaver (Accommodating Topics, When Variables Don't Vary Enough) 
+#            argues that local accommodation should be preferred over intermediate, but see Bosch & van der Sandt, p. 282-283
+#            """
+#            # TODO:
+#            """I think that there are some cases when it makes more sense to prefer local accommodation over intermediate
+#            (if global accommodation is not possible).
+#            (1) 'Every woman likes her hands'
+#            Have a look at wordnet in nltk: >>> S('person.n.01'). part_meronyms()
+#            [Synset('human_body.n.01'), Synset('personality.n.01')]
+#            """
+#            
+#            # TODO:
+#            """
+#            Always accommodate when there are any events or states in the presuppositional DRS that the referent takes part in?
+#            No.
+#            (1) Mia wins a prize. The prize that her neighbours win is a car.
+#            (2) Mia wins a prize, The prize that her neighbours make fun of is a car.
+#            (3) If Mia wins a prize, the prize that Mia wins is a car.
+#            (4) Mia wins a prize. The prize that Mia wins is a car.
+#            In (1), global accommodation is the only reading. In (2), binding is preferred to accommodation.
+#            In (3), binding is the only reading; local accommodation will be ruled out by acceptability constraints, 
+#            but what about intermediate accommodation?
+#            In (4), binding is the only reading. Will acceptability constraints let the accommodation reading through? 
+#            """
+#            accommodations = []
+#            # TODO: the loop for finding the global, intermediate and local DRSs will find all DRSs on the trail,
+#            # but can we just accommodate anywhere we want? I don't think so.
+#            # This means that this will work for 'if', but not for sentences like 
+#            # "If a woman is married or she has a dog, then her car is black or her boss is mean."
+#            for drs in self.filter_trail(trail):
+#                    accommodations.append(accommodation(drs))
+#            return accommodations, True
+#        # No restrictive clause or PP -> try binding
+#        """ Van der Sandt's algorithm would favour closest binding. But consider this sentence:
+#        (1) 'Mary is at the concert. If a singer kisses John, the woman is happy.'
+#        I think, for a discourse to remain coherent, the listener will always try to look for referents in the global DRS.
+#        Other readings will be dispreferred. Only if no referent in the global DRS is found could (but does it?) van der Sand's heuristics 
+#        come into play: the lower the level of binding, the better.
+#        
+#        Even then, we should ask ourselves why we used a definite description in the first place.
+#        Here are a couple of examples showing that anaphoric pronouns and definite descriptions do not behave in the same way.
+#        
+#        I.
+#        (2) Butch picks up a hammer. Then he picks up a flower. He puts it back on the shelf.
+#        In (2), there is some ambiguity as to the antecedent of 'it', but since 'flower' is the closest referent in the topic focus,
+#        it will be preferred. Compare (2) to:
+#        (3) Butch picks up a hammer. Then he picks up a flower. He puts the tool back on the shelf.
+#        The definite description lifts the ambiguity.
+#        
+#        II.
+#        (4) 'If a girl plays piano, then the child is happy'.
+#        If we wanted to refer to the girl, it would have been more economical to say 'she is happy'.
+#        'The child' is a resource-consuming, marked way. In this sentence, there was no ambiguity that a pronoun could have introduced
+#        (then a definite description would have help us stick to the maxim of manner).
+#        The referent isn't too far away from the presupposition, either. But (the listener will think) the definite description 
+#        was used for some reason. This is why global accommodation will be at least as preferred as the binding to the referent 
+#        from the antecendent of the implicative condition.
+#        
+#        III.
+#        With definite descriptions, binding is very tricky.
+#        If condition functors are the same, the two referents will be bound (and indeed, this is the only way to do binding for proper names).
+#        Since pronouns have little semantic content, we can find referents by simply going through possible antecedents and comparing
+#        their features (number and gender) to those of the pronoun. But,
+#        (5) The garage is empty. The car is in the driveway.
+#        'The garage' and 'the car' are both inanimate singular nouns, but it is clear that these features are an insufficient basis
+#        for binding. We have to use ontologies.
+#        FOR INANIMATE NOUNS:
+#        First, we find the presupposition condition (the head of the presuppositional NP). If the antecedent is a subclass of the
+#        presupposition condition synset, there will be binding with little ambiguity.
+#        FOR ANIMATE NOUNS:
+#        This is even trickier. First of all, the presupposition condition has to be a subclass of 'person' or 'animal'. But how do we
+#        account for the gender?
+#        (6) Mia plays with John. The mother is happy.
+#        In wordnet, 'mother' is not a subclass of 'woman' or 'female'. The same is true for all gender-specific noun, like
+#        'seamstress', 'husband', 'bull', etc. We probably have to specify noun gender in the grammar, then.
+#        We do this, but we don't restrict the user in any way, for example gender doesn't have to be {m,f,n}, and these letters
+#        can be used for other features than gender, too.
+#        >>> S('singer.n.1').common_hypernyms(S('person.n.1'))
+#        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
+#        >>> S('mother.n.1').common_hypernyms(S('person.n.1'))
+#        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
+#        >>> S('dog.n.1').common_hypernyms(S('animal.n.1'))
+#        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('animal.n.01'), Synset('entity.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
+#        """
+#        # First, try global binding. If we can bind globally, it will be our preferred reading
+#        # (not by van der Sand's algorithm, though). Return it.
+#        # TODO: THERE CAN BE MORE THAN ONE POSSIBILITIES FOR GLOBAL BINDING. EITHER RANK THEM OR FILTER THEM (or both)
+#        # TODO: Even if we find a perfect binding candidate, e.g. hammer-tool, do we return this binding as the only reading?
+#        # A dog is outside. If a cat hisses, the animal is afraid.
+#        # For this to be a coherent discourse, animal should refer to the dog, but the other binding is also possible (no discourse coherence, though).
+#        # At least, if we extend the discourse, the binding to cat may be justified.
+#        # A dog is outside. If a cat hisses, the animal is afraid. The dog meets a hissing cat. Or: the dog meets a cat. The cat hisses.
+#
+#        # Note that 'cat' does not introduce a new individual as such (though it does put the referent on the referents list of the 
+#        # antecedent of the implicative condition), like 'dog' does.
+#        # If we bind 'animal' to 'cat', 'the animal' still won't refer to an individual, it will refer to a group of individuals that are cats.
+#        # This means that the if-sentence just puts some irrelevant background information in the middle of our discourse. 
+#        # Naturally, we want to exclde this reading.  
+#        
+#        # But if we introduce a referent that is a cat (before or after the if-sentence), this background information gets relevant to
+#        # our discourse. So maybe, for the future: as long as the bg info is irrelevant, consider only the first reading,
+#        # but keep the second reading as a possibility. If after n sentences the info is still irrelevant, throw the 2nd reading away.
+#        
+#        #-----------------
+#        # "The cat is black or the cat is fat", "The cat is black. The cat is fat". Both seem to require binding and sound weird.
+#         
+#        inner_drs = trail[-1]
+#        for drs in self.filter_trail(trail):
+#            antecedent_ref = self._binding_check(drs)
+#            if antecedent_ref:
+#                condition_index = self._get_condition_index(drs, trail)
+#                if inner_drs == drs:
+#                    return [Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
+#                return [Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent_ref, condition_index)),
+#                                 (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
+#        # We have gone through all boxes in the trail, and nowhere did we find an unambiguous antecedent
+#        # self.possible_antecedents is a list of lists (but those lists can be empty)
+#        # Return all the readings (binding + accommodation), prefer global binding.
+#        # TODO:
+#        """
+#        If we can't use ontologies and there wasn't a restrictive clause / PP, we are not so sure about which reading is the right one.
+#        Self.possible_antecedents holds antecedent candidates for binding, but we would probably need advanced lexical information
+#        beyond the scope of this project to lift, or at least narrow down, the ambiguity.
+#        So the best option would be to return all possible readings, with some preference order,
+#        and maybe have a more sophisticated semantic component filter them later 
+#        (In this project, these readings will be subjected to acceptability checks, but that's it.).
+#        """
+#        readings = []
+#        # If we bind at some level, there will be no accommodation at this level or below (van der Sandt)
+#        binding = False
+#        i = 0
+#        for drs in candidate_trail:
+#            antecedents = self.possible_antecedents[i]
+#            i += 1
+#            for antecedent in antecedents:
+#                condition_index = self._get_condition_index(drs, trail)
+#                if inner_drs == drs: r = Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
+#                else: r = Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent, condition_index)),
+#                             (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
+#                readings.append(r)
+#                binding = True
+#            if not binding:
+#                # If global accommodation passes acceptability check, all other accommodations will be eliminated
+#                readings.append(accommodation(drs))
+#        return readings, True
+#             
+#    def _binding_check(self, drs):
+#        # Iterate over unary predicates from the conditions of the drs
+#        possible_antecedents = []
+#        for cond in drs.conds:
+#            if is_unary_predicate(cond) and self.has_same_features(cond, self.features):
+#                for funcname in self.function_name:
+##                    if (cond.function.variable.name == funcname or issuperclasssof(cond.function.variable.name, funcname)) \
+##                        and not is_adjective(cond.function.variable.name):
+##                        # either equal, or second is a superclass of the first, and they are not adjectives
+##                        # (Because if they are adjectives, we could bind 'blue(x)' and 'blue(x)', and we don't want that.)
+##                        return cond.argument.variable
+##                    elif (issuperclasssof(cond.function.variable.name, 'person') and 
+##                         issuperclasssof(funcname, 'person')) or \
+##                         (issuperclasssof(cond.function.variable.name, 'animal') and 
+##                          issuperclasssof(funcname, 'animal')):
+#                        possible_antecedents.append(self.make_VariableExpression(cond.argument.variable))
+#        self.possible_antecedents.append(possible_antecedents)
+#        # TODO:
+#        """issuperclasssof(cond.function.variable.name, funcname).
+#        Is binding possible only when the second is the superclass of the first? What if it is the other way round?
+#        (1) A car is going down the road. The vehicle is black.
+#        (2) A vehicle is going down the road. The car is black.
+#        (3) Butch picks up a hammer. Then he puts the tool back on the shelf.
+#        (4) Butch picks up a tool. Then he puts the hammer back on the shelf.
+#        (5) The seamstress is at home. The woman is happy.
+#        (6) The woman is happy. The seamstress is at home.
+#        (7) If John has sons, his children are happy.
+#        (8) If John has children, his sons are happy.
+#        Somehow, with living beings 'the other way round' binding sounds impossible, with inanimate objects it's just very weird. 
+#        """
+#        return None
