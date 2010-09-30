@@ -577,15 +577,12 @@ class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
         """When dealing with DRSs, it is good to have unique names for
         the referents bound by each DRS."""
         if isinstance(self.first, DRS) and isinstance(self.second, DRS):
-            
-            new_second = DRS(self.second.refs,self.second.conds)
-        
-            first_refs = self.first.get_refs()
-            for ref in (r for r in self.second.get_refs() if r in first_refs):
+            new_second = self.second
+            for ref in set(self.first.get_refs(True)) & set(self.second.get_refs(True)):
                 newref = DrtVariableExpression(unique_variable(ref))
-                new_second = new_second.replace(ref,newref,True)
+                new_second = self.second.replace(ref,newref,True)
 
-            return drt.DrtBooleanExpression.simplify(self.__class__(self.first,new_second))
+            return drt.DrtBooleanExpression.simplify(self.__class__(self.first, new_second))
         
         else: return drt.DrtBooleanExpression.simplify(self)
     
