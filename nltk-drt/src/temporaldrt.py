@@ -1165,7 +1165,7 @@ class PresuppositionDRS(DRS):
         for drs in self.filter_trail(trail): return drs
     
     def is_possible_binding(self, cond):
-        return self.is_unary_predicate(cond) and self.has_same_features(cond, self.features) and cond.argument.__class__ is DrtIndividualVariableExpression
+        return self.is_unary_predicate(cond) and self.has_same_features(cond) and cond.argument.__class__ is DrtIndividualVariableExpression
                 
     def find_bindings(self, drs_list, collect_event_data=False):
         bindings = []
@@ -1188,9 +1188,10 @@ class PresuppositionDRS(DRS):
         return (bindings, event_data_map) if collect_event_data else bindings
     
     def collect_event_data(self, cond):
-        if isinstance(cond.function, DrtApplicationExpression) and\
+        if isinstance(cond, DrtApplicationExpression) and\
+              isinstance(cond.function, DrtApplicationExpression) and\
               isinstance(cond.function.argument, DrtIndividualVariableExpression):
-            return (cond.function.function, cond.function.argument)
+            return (cond.function.argument, cond.function.function)
     
     def is_unary_predicate(self, cond):
         return isinstance(cond, DrtApplicationExpression) and isinstance(cond.function, DrtAbstractVariableExpression)
@@ -1234,7 +1235,7 @@ class PresuppositionDRS(DRS):
     
     def has_same_features(self, cond):
         return (not isinstance(cond.function, DrtFeatureConstantExpression) and not self.features) \
-                or cond.function.features == self.features
+                or (isinstance(cond.function, DrtFeatureConstantExpression) and cond.function.features == self.features)
                 
     class Binding(object):
         def __init__(self, presupp_drs, presupp_variable, presupp_funcname, antecedent_ref, condition_index):
@@ -1324,20 +1325,20 @@ class PronounDRS(PresuppositionDRS):
     
     def _presupposition_readings(self, trail=[]):
         possible_bindings, event_data = self.find_bindings(self.filter_trail(trail), True)
-        bindings = [cond for cond in possible_bindings if self._is_binding(cond, _get_pro_events(event_data), event_data)]
+        bindings = [cond for cond in possible_bindings if self._is_binding(cond, self._get_pro_events(event_data), event_data)]
         ranked_bindings = self._rank_bindings(bindings, event_data)
-        return [Reading([(trail[-1], PronounDRS.VariableReplacer(self.variable, var))]) for var, rank in sorted(ranked_bindings, key=lambda e: e[1], reverse=True)], True
+        return [Reading([(trail[-1], PronounDRS.VariableReplacer(self.variable, cond.argument))]) for cond, rank in sorted(ranked_bindings, key=lambda e: e[1], reverse=True)], True
 
     def _get_pro_events(self, event_data):
         #in case pronoun participates in only one event, which has no other participants,
         #try to extend it with interlinked events
         #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
-        #will be extended to participate in e, but only if z5 has only one participant
-        pro_events = [event for event_list in event_data.get(self.variable, ()) for event, role in event_list]
+        #will be extended to participate in e, but only in case z5 has one participant
+        pro_events = [event for event, role in event_data.get(self.variable, ())]
         if len(pro_events) == 1:
             pro_event = pro_events[0]
             #number of participants in the pro_event
-            participant_count = reduce(operator.add, (for event_list in event_data.itervalues() for event, role in event_list if event == pro_event), 0)
+            participant_count = sum((1 for event_list in event_data.itervalues() for item in event_list if event == pro_event))
             # if there is only one participant in the pro_event and pro_event itself participates in other events
             if participant_count == 1 and pro_event.variable in event_data:
                 pro_events.extend((event for event, role in self.events[event.variable]))
@@ -1353,7 +1354,7 @@ class PronounDRS(PresuppositionDRS):
         elif len(bindings) == 1:
             bindings[0] = (bindings[0], 0)
         else:
-            pro_roles = set((role for event_list in event_data.get(self.variable, ()) for event, role in event_list))
+            pro_roles = set((role for event, role in event_data.get(self.variable, ())))
             for index, variable in enumerate(bindings):
                 var_roles = set((role for event_list in event_data.get(variable, ()) for event, role in event_list))
                 bindings[index] = (variable, index + len(var_roles.intersection(pro_roles)))
@@ -1365,7 +1366,7 @@ class PronounDRS(PresuppositionDRS):
             return True
         else:  
             variable = cond.argument.variable
-            variable_events = set((event for event_list in event_data.get(variable,()) for event, role in event_list))
+            variable_events = set((event for event, role in event_data.get(variable,())))
         if self.function_name == DrtTokens.PRONOUN:
             return variable_events.isdisjoint(pro_events)
         elif self.function_name == DrtTokens.REFLEXIVE_PRONOUN:
