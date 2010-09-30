@@ -1166,8 +1166,30 @@ class PresuppositionDRS(DRS):
     def is_possible_binding(self, cond):
         return self.is_unary_predicate(cond) and self.has_same_features(cond, self.features) and cond.argument.__class__ is DrtIndividualVariableExpression
                 
-    def find_bindings(self, drs_list):
-        return [cond for drs in drs_list for cond in drs.conds if self.is_possible_binding(cond)] 
+    def find_bindings(self, drs_list, collect_event_data=False):
+        bindings = []
+        if collect_event_data:
+            event_data_map = {}
+        is_bindable = True # do not allow forward binding
+        for drs in drs_list:
+            for cond in drs.conds:
+                # Ignore conditions following the presupposition DRS
+                if cond is self:
+                    if not collect_event_data: 
+                        break
+                    is_bindable = False 
+                if is_bindable and self.is_possible_binding(cond): 
+                    bindings.append(cond)
+                elif collect_event_data:
+                    event_data = self.collect_event_data(cond)
+                    if event_data:
+                        event_data_map.setdefault(cond.argument.variable,[]).append(event_data)
+        return (bindings, event_data_map) if collect_event_data else bindings
+    
+    def collect_event_data(self, cond):
+        if isinstance(cond.function, DrtApplicationExpression) and\
+              isinstance(cond.function.argument, DrtIndividualVariableExpression):
+            return (cond.function.function, cond.function.argument)
     
     def is_unary_predicate(self, cond):
         return isinstance(cond, DrtApplicationExpression) and isinstance(cond.function, DrtAbstractVariableExpression)
@@ -1300,7 +1322,7 @@ class PronounDRS(PresuppositionDRS):
         return cond.function.variable.name in PronounDRS.PRONOUNS
     
     def _presupposition_readings(self, trail=[]):
-        possible_bindings = self.find_bindings(self.filter_trail(trail))
+        possible_bindings, event_data = self.find_bindings(self.filter_trail(trail), True)
         #print "events", self.events
         #filter by events
         #in case pronoun participates in only one event, which has no other participants,
@@ -1322,14 +1344,6 @@ class PronounDRS(PresuppositionDRS):
                 
         bindings = self._filter_bindings(possible_bindings)
         return [Reading([(trail[-1], PronounDRS.VariableReplacer(self.variable, var))]) for var, rank in sorted(bindings, key=lambda e: e[1], reverse=True)], True
-
-    def is_possible_binding(self, cond):
-        if PresuppositionDRS.is_possible_binding(self, cond):
-            return True
-        elif isinstance(cond.function, DrtApplicationExpression) and\
-              isinstance(cond.function.argument, DrtIndividualVariableExpression):
-            self.roles.setdefault(cond.argument.variable,set()).add(cond.function.function)
-            self.events.setdefault(cond.argument.variable,set()).add(cond.function.argument)
     
     def _filter_bindings(self, possible_bindings):
         bindings = [(var, rank) for var, rank in possible_bindings if self._is_binding(var.variable, self.variable, self.function_name)]
@@ -1388,16 +1402,11 @@ class ProperNameDRS(PresuppositionDRS):
         return cond.is_propername()
     
 class DefiniteDescriptionDRS(PresuppositionDRS):
-        
-    def __init__(self, refs, conds):
-        super(DefiniteDescriptionDRS, self).__init__(refs, conds)
     
     def _presupposition_readings(self, trail=[]):
         def accommodation(drs):
             condition_index = self._get_condition_index(drs, trail)
             return Reading([(drs, PresuppositionDRS.Accommodation(self, condition_index))])
-            
-        self._init_presupp_data()
         
         """'A car is going down the road. If Mia is married, then the car that her husband drives is black.'
         'A car is going down the road. If Mia is married, then the car of her neighbours is black.'
@@ -1407,7 +1416,8 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
         It seems that no binding to referents from the DRSs up along the trail can take place.
         """
         # If there is a restrictive clause or an adjunct PP, accommodate the presupposition locally
-        events_states = set() # how many states and events does the presupposition referent take part in?
+        events_states = set()
+        # Are there any states/events in this presuppositional drs that the presupposition referent takes part in?
         for cond in self.conds:
             if isinstance(cond.function, DrtApplicationExpression) and \
                 (isinstance(cond.function.argument, DrtStateVariableExpression) or 
@@ -1436,6 +1446,20 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
             (1) 'Every woman likes her hands'
             Have a look at wordnet in nltk: >>> S('person.n.01'). part_meronyms()
             [Synset('human_body.n.01'), Synset('personality.n.01')]
+            """
+            
+            # TODO:
+            """
+            Always accommodate when there are any events or states in the presuppositional DRS that the referent takes part in?
+            No.
+            (1) Mia wins a prize. The prize that her neighbours win is a car.
+            (2) Mia wins a prize, The prize that her neighbours make fun of is a car.
+            (3) If Mia wins a prize, the prize that Mia wins is a car.
+            (4) Mia wins a prize. The prize that Mia wins is a car.
+            In (1), global accommodation is the only reading. In (2), binding is preferred to accommodation.
+            In (3), binding is the only reading; local accommodation will be ruled out by acceptability constraints, 
+            but what about intermediate accommodation?
+            In (4), binding is the only reading. Will acceptability constraints let the accommodation reading through? 
             """
             accommodations = []
             # TODO: the loop for finding the global, intermediate and local DRSs will find all DRSs on the trail,
