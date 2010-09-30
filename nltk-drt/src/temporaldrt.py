@@ -1333,15 +1333,15 @@ class PronounDRS(PresuppositionDRS):
         #try to extend it with interlinked events
         #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
         #will be extended to participate in e, but only in case z5 has one participant
-        pro_events = [event for event, role in event_data.get(self.variable, ())]
+        pro_events = [item[0] for item in event_data.get(self.variable, ())]
         if len(pro_events) == 1:
             pro_event = pro_events[0]
             #number of participants in the pro_event
-            participant_count = sum((1 for event_list in event_data.itervalues() for item in event_list if event == pro_event))
+            participant_count = sum((1 for event_list in event_data.itervalues() for item in event_list if item[0] == pro_event))
             # if there is only one participant in the pro_event and pro_event itself participates in other events
             if participant_count == 1 and pro_event.variable in event_data:
-                pro_events.extend((event for event, role in self.events[event.variable]))
-                
+                pro_events.extend((item[0] for item in event_data[pro_event.variable]))
+
         return set(pro_events)
 
     def _rank_bindings(self, bindings, event_data):
