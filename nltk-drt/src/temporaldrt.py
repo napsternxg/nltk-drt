@@ -142,7 +142,7 @@ def is_unary_predicate(expr):
 
 class ReverseIterator:
     """A generator which yields the given sequence in a reverse order"""
-    def __init__(self, sequence, start=-1):
+    def __init__(self, sequence, start= -1):
         self.sequence = sequence
         self.start = start
     def __iter__(self):
@@ -173,6 +173,22 @@ class VariableReplacer(object):
         if self.remove_ref:
             drs.refs.remove(self.var)
         return drs.__class__(drs.refs, [cond.replace(self.var, self.new_var, False) for cond in drs.conds])
+
+class ConditionReplacer(object):
+    """
+    A generic condition replacer functor to be used in readings
+    replace the condition at the given index with any number of
+    conditions, optionally adds a referent
+    """
+    def __init__(self, index, conds, ref=None):
+        self.index = index
+        self.conds = conds
+        self.ref = ref
+    def __call__(self, drs):
+        if self.ref:
+            drs.refs.append(self.ref)
+        drs.conds[self.index:self.index + 1] = self.conds
+        return drs
 
 class ConditionRemover(object):
     """A generic condition remover functor to be used in readings"""
@@ -346,7 +362,7 @@ class DRS(AbstractDrs, drt.DRS):
             raise Exception("Cannot convert DRS with no conditions to FOL.")
         accum = reduce(AndExpression, [c.fol() for c in self.conds])
         for ref in ReverseIterator(self.refs):
-            accum = ExistsExpression(ref, AndExpression(accum,DRS._ref_type(ref).fol()))
+            accum = ExistsExpression(ref, AndExpression(accum, DRS._ref_type(ref).fol()))
         return accum
 
     @staticmethod
@@ -362,7 +378,7 @@ class DRS(AbstractDrs, drt.DRS):
         else:
             ref_cond = drt.DrtConstantExpression(Variable("individual"))
         
-        return DrtApplicationExpression(ref_cond,DrtAbstractVariableExpression(referent))
+        return DrtApplicationExpression(ref_cond, DrtAbstractVariableExpression(referent))
     
 
     def replace(self, variable, expression, replace_bound=False):
@@ -375,7 +391,7 @@ class DRS(AbstractDrs, drt.DRS):
             else:
                 if variable in self.refs:
                     i = self.refs.index(variable)
-                    refs = self.refs[:i]+[expression.variable]+self.refs[i+1:]
+                    refs = self.refs[:i] + [expression.variable] + self.refs[i + 1:]
                 else:
                     refs = self.refs
                 return self.__class__(refs,
@@ -390,7 +406,7 @@ class DRS(AbstractDrs, drt.DRS):
                 newvarex = DrtVariableExpression(newvar)
                 if ref in self.refs:
                     i = self.refs.index(ref)
-                    refs = self.refs[:i]+[newvar]+self.refs[i+1:]
+                    refs = self.refs[:i] + [newvar] + self.refs[i + 1:]
                 else:
                     refs = self.refs
                 self = self.__class__(refs,
@@ -404,14 +420,14 @@ class DRS(AbstractDrs, drt.DRS):
             
     def free(self, indvar_only=True):
         """@see: Expression.free()"""
-        conds_free = reduce(operator.or_, 
+        conds_free = reduce(operator.or_,
                             [c.free(indvar_only) for c in self.conds], set()) 
         return conds_free - (set(self.refs) | reduce(operator.or_, [set(c.refs) for c in self.conds if isinstance(c, PresuppositionDRS)], set()))
 
     def get_refs(self, recursive=False):
         """@see: AbstractExpression.get_refs()"""
         if recursive:
-            cond_refs = reduce(operator.add, 
+            cond_refs = reduce(operator.add,
                                [c.get_refs(True) for c in self.conds], [])
             return self.refs + cond_refs
         else:
@@ -504,13 +520,13 @@ class DrtFeatureConstantExpression(DrtConstantExpression):
 
     def replace(self, variable, expression, replace_bound=False):
         """@see: Expression.replace()"""
-        assert isinstance(variable, Variable), "%s is not an Variable" % variable
+        assert isinstance(variable, Variable), "%s is not a Variable" % variable
         assert isinstance(expression, Expression), "%s is not an Expression" % expression
         return self.__class__(DrtConstantExpression.replace(self, variable, expression, replace_bound).variable, [feature.replace(variable, expression, replace_bound) for feature in self.features])
 
     def visit(self, function, combinator, default):
         """@see: Expression.visit()"""
-        re = combinator(function(self.variable), reduce(combinator, 
+        re = combinator(function(self.variable), reduce(combinator,
                       [function(e) for e in self.features], default))
         return re
 
@@ -540,7 +556,7 @@ class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
         binder in the expression to @C{newvar}.
         @param newvar: C{Variable}, for the new variable
         """
-        return self.__class__(newvar, self.term.replace(self.variable, 
+        return self.__class__(newvar, self.term.replace(self.variable,
                           DrtVariableExpression(newvar), True))
 
     def replace(self, variable, expression, replace_bound=False):
@@ -594,11 +610,12 @@ class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
             new_second = self.second
             for ref in set(self.first.get_refs(True)) & set(self.second.get_refs(True)):
                 newref = DrtVariableExpression(unique_variable(ref))
-                new_second = self.second.replace(ref,newref,True)
+                new_second = self.second.replace(ref, newref, True)
 
             return drt.DrtBooleanExpression.simplify(self.__class__(self.first, new_second))
         
-        else: return drt.DrtBooleanExpression.simplify(self)
+        else:
+            return drt.DrtBooleanExpression.simplify(self)
     
 class DrtOrExpression(DrtBooleanExpression, drt.DrtOrExpression):
     pass
@@ -632,29 +649,29 @@ class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
         # If variable is bound by both first and second 
         if isinstance(first, DRS) and isinstance(second, DRS) and \
            variable in (set(first.get_refs(True)) & set(second.get_refs(True))):
-            first  = first.replace(variable, expression, True)
+            first = first.replace(variable, expression, True)
             second = second.replace(variable, expression, True)
             
         # If variable is bound by first
         elif isinstance(first, DRS) and variable in first.refs:
             if replace_bound: 
-                first  = first.replace(variable, expression, replace_bound)
+                first = first.replace(variable, expression, replace_bound)
                 second = second.replace(variable, expression, replace_bound)
 
         # If variable is bound by second
         elif isinstance(second, DRS) and variable in second.refs:
             if replace_bound:
-                first  = first.replace(variable, expression, replace_bound)
+                first = first.replace(variable, expression, replace_bound)
                 second = second.replace(variable, expression, replace_bound)
 
         else:
             # alpha convert every ref that is free in 'expression'
             for ref in (set(self.get_refs(True)) & expression.free()): 
                 v = DrtVariableExpression(unique_variable(ref))
-                first  = first.replace(ref, v, True)
+                first = first.replace(ref, v, True)
                 second = second.replace(ref, v, True)
 
-            first  = first.replace(variable, expression, replace_bound)
+            first = first.replace(variable, expression, replace_bound)
             second = second.replace(variable, expression, replace_bound)
             
         return self.__class__(first, second)
@@ -674,7 +691,7 @@ class ConcatenationDRS(DrtBooleanExpression, drt.ConcatenationDRS):
             drs_type = first.__class__ if isinstance(first, PresuppositionDRS) else second.__class__
             return drs_type(first.refs + second.refs, first.conds + second.conds)
         else:
-            return self.__class__(first,second)
+            return self.__class__(first, second)
 
 class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
     
@@ -683,10 +700,9 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
             return EqualityExpression(self.function.fol(),
                                       self.argument.fol())
                  
-        else: return ApplicationExpression(self.function.fol(), 
+        else: return ApplicationExpression(self.function.fol(),
                                            self.argument.fol())
-        
-        
+
     def is_propername(self):
         """
         A proper name is capitalised. We assume that John(x) uniquely
@@ -764,14 +780,6 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
                                 
         raise LocationTimeResolutionException("Variable '%s' does not "
                             "resolve to anything." % self.argument)
-        
-    class Replacer(object):
-        def __init__(self, index, new_cond):
-            self.index = index
-            self.new_cond = new_cond
-        def __call__(self, drs):
-            drs.conds[self.index] = self.new_cond
-            return drs
 
 class DrtFindUtterTimeExpression(DrtApplicationExpression):
     """Type of application expression looking to equate its argument with utterance time"""
@@ -813,8 +821,10 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
             search_list = drs.refs
                         
             if drs is trail[-1]:
-                """Described eventuality in the object's referents?
-                Take refs' list up to described eventuality"""
+                """
+                Described eventuality in the object's referents?
+                Take refs' list up to described eventuality
+                """
                 search_list = drs.refs[:drs.refs.index(self.argument.variable)]
                 
             for ref in ReverseIterator(search_list):
@@ -824,16 +834,16 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
                 if isinstance(refex, DrtEventVariableExpression) and \
                 not (refex == self.argument) and not self.function.variable.name == DrtTokens.PERF:
                     
-                    if isinstance(self.argument,DrtEventVariableExpression):
+                    if isinstance(self.argument, DrtEventVariableExpression):
                         """In case given eventuality is an event, return earlier"""
-                        return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index,
-                        self._combine(DrtTokens.EARLIER,refex,self.argument)))])], False               
+                        return [Reading([(trail[-1], ConditionReplacer(index,
+                        [self._combine(DrtTokens.EARLIER, refex, self.argument)]))])], False               
 
                     
                     elif isinstance(self.argument, DrtStateVariableExpression):
                         """In case given eventuality is a state, return include"""
-                        return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index,
-                        self._combine(DrtTokens.INCLUDE,self.argument,refex)))])], False               
+                        return [Reading([(trail[-1], ConditionReplacer(index,
+                        [self._combine(DrtTokens.INCLUDE, self.argument, refex)]))])], False               
      
                 
                 elif not state_reference_point and \
@@ -847,11 +857,12 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
             if self.function.variable.name == DrtTokens.PERF:
                 """in case we are dealing with PERF"""
                 if isinstance(self.argument, DrtEventVariableExpression):
-                    """Reference point is a state and described eventuality an event,
-                    return event abuts on state"""
-                    
-                    return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index,
-                    self._combine(DrtTokens.ABUT,self.argument,state_reference_point)))])], False                       
+                    """
+                    Reference point is a state and described eventuality an event,
+                    return event abuts on state
+                    """
+                    return [Reading([(trail[-1], ConditionReplacer(index,
+                    [self._combine(DrtTokens.ABUT, self.argument, state_reference_point)]))])], False                       
 
                     
                 elif isinstance(self.argument, DrtStateVariableExpression):
@@ -860,54 +871,35 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
                     that that event is the end of eventuality (function needed!!!) and
                     that event abuts on ref.state"""
                     termination_point = unique_variable(Variable("e"))
-                    conds = [DrtEqualityExpression(DrtEventVariableExpression(termination_point), DrtApplicationExpression(self.make_ConstantExpression(DrtTokens.END),self.argument)),
-                    self._combine(DrtTokens.ABUT,DrtEventVariableExpression(termination_point), state_reference_point)]
-                    return [Reading([(trail[-1], DrtFindEventualityExpression.PerfReplacer(termination_point, index, conds))])], False
+                    conds = [DrtEqualityExpression(DrtEventVariableExpression(termination_point), DrtApplicationExpression(self.make_ConstantExpression(DrtTokens.END), self.argument)),
+                    self._combine(DrtTokens.ABUT, DrtEventVariableExpression(termination_point), state_reference_point)]
+                    return [Reading([(trail[-1], DrtFindEventualityExpression.ConditionReplacer(index, conds, termination_point))])], False
                     
                 
             elif isinstance(self.argument, DrtStateVariableExpression):
                 """Reference point is a state and given eventuality is also a state,
                 return overlap"""
  
-                return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index,
-                self._combine(DrtTokens.OVERLAP, state_reference_point, self.argument)))])], False               
+                return [Reading([(trail[-1], ConditionReplacer(index,
+                [self._combine(DrtTokens.OVERLAP, state_reference_point, self.argument)]))])], False               
         
             elif isinstance(self.argument, DrtEventVariableExpression):
                 """Reference point is a state and given eventuality is an event,
                 return include"""
-                return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index, 
-                self._combine(DrtTokens.INCLUDE,state_reference_point,self.argument)))])], False               
+                return [Reading([(trail[-1], ConditionReplacer(index,
+                [self._combine(DrtTokens.INCLUDE, state_reference_point, self.argument)]))])], False               
                 
         else:
             """no suitable reference found"""
             return [Reading([(trail[-1], ConditionRemover(index))])], False
-        
-    class Replacer(object):
-        def __init__(self, index, new_cond):
-            self.index = index
-            self.new_cond = new_cond
-        def __call__(self, drs):
-            drs.conds[self.index] = self.new_cond
-            return drs
-        
-    class PerfReplacer(object):
-        def __init__(self, ref, index, conds):
-            self.conds = conds
-            self.index = index
-            self.ref = ref
-        def __call__(self, drs):
-            drs.refs.append(self.ref) 
-            drs.conds.remove(drs.conds[self.index])
-            drs.conds.extend(self.conds)
-            return drs
 
-    def make_ConstantExpression(self,name):
+    def make_ConstantExpression(self, name):
         return DrtConstantExpression(Variable(name))
     
     def _combine(self, cond, arg1, arg2):
         """Combines two arguments into a DrtEventualityApplicationExpression
         that has another DrtEventualityApplicationExpression as its functor"""
-        return DrtEventualityApplicationExpression(DrtEventualityApplicationExpression(self.make_ConstantExpression(cond),arg1),arg2)
+        return DrtEventualityApplicationExpression(DrtEventualityApplicationExpression(self.make_ConstantExpression(cond), arg1), arg2)
 
 class NewInfoDRS(DRS):
     pass
@@ -954,7 +946,7 @@ class PresuppositionDRS(DRS):
                 elif collect_event_data:
                     event_data = self.collect_event_data(cond)
                     if event_data:
-                        event_data_map.setdefault(cond.argument.variable,[]).append(event_data)
+                        event_data_map.setdefault(cond.argument.variable, []).append(event_data)
         return (bindings, event_data_map) if collect_event_data else bindings
     
     def collect_event_data(self, cond):
@@ -1026,7 +1018,7 @@ class PresuppositionDRS(DRS):
             if self.condition_index is None: # it is an index, it can be zero
                 drs.conds.extend(conds_to_move)
             else:
-                drs.conds = drs.conds[:self.condition_index+1]+conds_to_move+drs.conds[self.condition_index+1:]
+                drs.conds = drs.conds[:self.condition_index + 1] + conds_to_move + drs.conds[self.condition_index + 1:]
             return drs
             
     class InnerReplace(object):
@@ -1060,7 +1052,7 @@ class PresuppositionDRS(DRS):
             if self.condition_index is None:
                 drs.conds.extend(self.presupp_drs.conds)
             else:
-                drs.conds = drs.conds[:self.condition_index+1]+self.presupp_drs.conds+drs.conds[self.condition_index+1:]
+                drs.conds = drs.conds[:self.condition_index + 1] + self.presupp_drs.conds + drs.conds[self.condition_index + 1:]
             #print drs
             return drs
     
@@ -1070,7 +1062,7 @@ class PresuppositionDRS(DRS):
         for ind, trailee in enumerate(trail):
             if trailee is superordinate_drs:
                 # The condition might be not in superordinate_drs, but inside one of its conditions (however deep we might need to go)
-                look_for = trail[ind+1] if ind < len(trail) -1 else self
+                look_for = trail[ind + 1] if ind < len(trail) - 1 else self
                 for i, cond in enumerate(superordinate_drs.conds):
                     if cond is look_for:
                         return i # condition_index
@@ -1129,7 +1121,7 @@ class PronounDRS(PresuppositionDRS):
             return True
         else:  
             variable = cond.argument.variable
-            variable_events = set((event for event, role in event_data.get(variable,())))
+            variable_events = set((event for event, role in event_data.get(variable, ())))
         if self.function_name == DrtTokens.PRONOUN:
             return variable_events.isdisjoint(pro_events)
         elif self.function_name == DrtTokens.REFLEXIVE_PRONOUN:
@@ -1437,22 +1429,22 @@ class DrtParser(drt.DrtParser):
                 accum = DrtFeatureConstantExpression(accum.variable, features)
             #The predicate has arguments
             if isinstance(accum, drt.DrtIndividualVariableExpression):
-                raise ParseException(self._currentIndex, 
+                raise ParseException(self._currentIndex,
                                      '\'%s\' is an illegal predicate name.  '
                                      'Individual variables may not be used as '
                                      'predicates.' % tok)
             self.token() #swallow the Open Paren
             
             #curry the arguments
-            accum = self.make_ApplicationExpression(accum, 
+            accum = self.make_ApplicationExpression(accum,
                                                     self.parse_Expression('APP'))
             while self.inRange(0) and self.token(0) == DrtTokens.COMMA:
                 self.token() #swallow the comma
-                accum = self.make_ApplicationExpression(accum, 
+                accum = self.make_ApplicationExpression(accum,
                                                         self.parse_Expression('APP'))
             self.assertNextToken(DrtTokens.CLOSE)
         elif features:
-            accum = DrtFeatureConstantExpression(accum.variable, map(Variable,features))
+            accum = DrtFeatureConstantExpression(accum.variable, map(Variable, features))
         return accum
 
     def handle_DRS(self, tok, context):
@@ -1460,7 +1452,7 @@ class DrtParser(drt.DrtParser):
         location_time = None
         
         for cond in drs.conds:
-            if isinstance(cond,DrtFindEventualityExpression):
+            if isinstance(cond, DrtFindEventualityExpression):
                 """PERF(.) gives rise to a DrtFindEventualityExpression;
                 in case it is among the DRS-conditions, the eventuality carried by
                 this DRS does not give rise to a REFER(.) condition"""
@@ -1558,7 +1550,7 @@ class DrtParser(drt.DrtParser):
             return DrtApplicationExpression(function, argument)
 
     
-    def make_ConstantExpression(self,name):
+    def make_ConstantExpression(self, name):
         return DrtConstantExpression(Variable(name))
 
 
