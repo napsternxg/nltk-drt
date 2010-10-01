@@ -22,9 +22,6 @@ from nltk.sem.logic import Expression
 from nltk.sem.logic import ParseException
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
 
-from nltk.corpus.reader.wordnet import WordNetCorpusReader
-
-import nltk
 import nltk.sem.drt as drt
 
 
@@ -139,6 +136,52 @@ class StateVariableExpression(IndividualVariableExpression):
     's' character followed by zero or more digits."""
     type = STATE_TYPE
 
+def is_unary_predicate(expr):
+    """check whether the given expression is an unary predicate"""
+    return isinstance(expr, DrtApplicationExpression) and isinstance(expr.function, DrtAbstractVariableExpression)
+
+class ReverseIterator:
+    """A generator which yields the given sequence in a reverse order"""
+    def __init__(self, sequence, start=-1):
+        self.sequence = sequence
+        self.start = start
+    def __iter__(self):
+        if self.start > 0:
+            i = self.start + 1
+        else: 
+            i = len(self.sequence) + self.start + 1
+        while i > 0:
+            i -= 1
+            yield self.sequence[i]
+
+class Reading(list):
+    """
+    A single reading, consists of a list of operations
+    each operation is a tuple of a drs and a function,
+    where the function would be executed on the given drs
+    when the reading is generated
+    """
+    pass
+
+class VariableReplacer(object):
+    """A generic variable replacer functor to be used in readings"""
+    def __init__(self, var, new_var, remove_ref=True):
+        self.var = var
+        self.new_var = new_var
+        self.remove_ref = remove_ref
+    def __call__(self, drs):
+        if self.remove_ref:
+            drs.refs.remove(self.var)
+        return drs.__class__(drs.refs, [cond.replace(self.var, self.new_var, False) for cond in drs.conds])
+
+class ConditionRemover(object):
+    """A generic condition remover functor to be used in readings"""
+    def __init__(self, cond_index):
+        self.cond_index = cond_index
+    def __call__(self, drs):
+        drs.conds.pop(self.cond_index)
+        return drs
+
 class DrtTokens(drt.DrtTokens):
     OPEN_BRACE = '{'
     CLOSE_BRACE = '}'
@@ -174,12 +217,10 @@ class DrtTokens(drt.DrtTokens):
     FUT = "FUT"
     
     TENSE = [PAST, PRES, FUT]
-    
-    
 
 class AbstractDrs(drt.AbstractDrs):
     """
-    This is the base abstract Temproal DRT Expression from which every Temporal DRT 
+    This is the base abstract Temporal DRT Expression from which every Temporal DRT 
     Expression extends.
     """
 
@@ -256,19 +297,11 @@ class AbstractDrs(drt.AbstractDrs):
                                          'value into an expression: %r' % (val,))
                 expr = expr.replace(var, val)
         return expr.simplify()
-
-    def resolve(self, trail=[]):
-        """
-        resolve anaphora should not resolve individuals and events to time referents.
-
-        resolve location time picks out the nearest time referent other than the one in
-        LOCPRO(t), for which purpose the PossibleAntecedents class is not used.
-        """
-        raise NotImplementedError()
     
     def readings(self, verbose=False):
-        "This method does the whole job of collecting multiple readings."
-        """We aim to get new readings from the old ones by resolving
+        """
+        This method does the whole job of collecting multiple readings.
+        We aim to get new readings from the old ones by resolving
         presuppositional DRSs one by one. Every time one presupposition
         is resolved, new readings are created and replace the old ones,
         until there are no presuppositions left to resolve.
@@ -304,9 +337,6 @@ class AbstractDrs(drt.AbstractDrs):
     
     def _readings(self, trail=[]):
         raise NotImplementedError()
-
-class Reading(list):
-    pass
 
 class DRS(AbstractDrs, drt.DRS):
     """A Temporal Discourse Representation Structure."""
@@ -403,9 +433,6 @@ class DRS(AbstractDrs, drt.DRS):
     def simplify(self):
         return self.__class__(self.refs, [cond.simplify() for cond in self.conds])
 
-    def resolve(self, trail=[]):
-        return self.__class__(self.refs, [cond.resolve(trail + [self]) for cond in self.conds])
-    
     def _readings(self, trail=[]):
         """get the readings for this DRS"""
         for i, cond in enumerate(self.conds):
@@ -413,7 +440,7 @@ class DRS(AbstractDrs, drt.DRS):
             if readings:
                 if readings[1]:
                     for reading in readings[0]:
-                        reading.append((self, PresuppositionDRS.Remover(i)))
+                        reading.append((self, ConditionRemover(i)))
                 return readings[0], False
 
     def str(self, syntax=DrtTokens.NLTK):
@@ -446,10 +473,7 @@ def DrtVariableExpression(variable):
         return DrtConstantExpression(variable)
     
 
-class DrtAbstractVariableExpression(AbstractDrs, drt.DrtAbstractVariableExpression):
-    def resolve(self, trail=[]):
-        return self
-    
+class DrtAbstractVariableExpression(AbstractDrs, drt.DrtAbstractVariableExpression):   
     def _readings(self, trail=[]):
         return None
     
@@ -504,9 +528,6 @@ class DrtProperNameExpression(DrtConstantExpression):
     pass
 
 class DrtNegatedExpression(AbstractDrs, drt.DrtNegatedExpression):
-    def resolve(self, trail=[]):
-        return self.__class__(self.term.resolve(trail + [self]))
-
     def _readings(self, trail=[]):
         return self.term._readings(trail + [self])
 
@@ -545,9 +566,6 @@ class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
             return self.__class__(self.variable,
                                   self.term.replace(variable, expression, replace_bound))
 
-    def resolve(self, trail=[]):
-        return self.__class__(self.variable, self.term.resolve(trail + [self]))
-
     def _readings(self, trail=[]):
         return self.term._readings(trail + [self])
     
@@ -559,10 +577,6 @@ class DrtLambdaExpression(AbstractDrs, drt.DrtLambdaExpression):
         return []
 
 class DrtBooleanExpression(AbstractDrs, drt.DrtBooleanExpression):
-    def resolve(self, trail=[]):
-        return self.__class__(self.first.resolve(trail + [self]), 
-                              self.second.resolve(trail + [self]))
-        
     def _readings(self, trail=[]):
         first_readings = self.first._readings(trail + [self])
         if first_readings:
@@ -590,10 +604,6 @@ class DrtOrExpression(DrtBooleanExpression, drt.DrtOrExpression):
     pass
 
 class DrtImpExpression(DrtBooleanExpression, drt.DrtImpExpression):
-    def resolve(self, trail=[]):
-        return self.__class__(self.first.resolve(trail + [self]),
-                              self.second.resolve(trail + [self, self.first]))
-
     def _readings(self, trail=[]):
         first_readings = self.first._readings(trail + [self])
         if first_readings:
@@ -605,9 +615,6 @@ class DrtIffExpression(DrtBooleanExpression, drt.DrtIffExpression):
     pass
 
 class DrtEqualityExpression(AbstractDrs, drt.DrtEqualityExpression):
-    def resolve(self, trail=[]):
-        return self
-    
     def _readings(self, trail=[]):
         return None
     
@@ -690,10 +697,6 @@ class DrtApplicationExpression(AbstractDrs, drt.DrtApplicationExpression):
         """
         return isinstance(self.function, DrtConstantExpression) and\
         self.function.variable.name.istitle()
-   
-    def resolve(self, trail=[]):
-        return self.__class__(self.function.resolve(trail + [self]),
-                              self.argument.resolve(trail + [self]))
 
     def _readings(self, trail=[]):
         function_readings = self.function._readings(trail + [self])
@@ -726,19 +729,6 @@ class DrtUtterVariableExpression(DrtTimeVariableExpression):
     """Type of utterance time referent"""
     pass
 
-class ReverseIterator:
-    def __init__(self, sequence, start=-1):
-        self.sequence = sequence
-        self.start = start
-    def __iter__(self):
-        if self.start > 0:
-            i = self.start + 1
-        else: 
-            i = len(self.sequence) + self.start + 1
-        while i > 0:
-            i = i - 1
-            yield self.sequence[i]
-
 class LocationTimeResolutionException(Exception):
     pass
 
@@ -758,7 +748,7 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
                 if isinstance(refex, DrtUtterVariableExpression):
                     """In case there is no location time referent that has not yet been used
                     to relate some eventuality to utterance time, use utter time as loc time."""
-                    return [Reading([(trail[-1], DrtFindUtterTimeExpression.VariableReplacer(self.argument.variable, refex))])], True
+                    return [Reading([(trail[-1], VariableReplacer(self.argument.variable, refex))])], True
   
                 elif not utter_time_search and isinstance(refex, DrtTimeVariableExpression) and \
                    not (refex == self.argument):
@@ -770,7 +760,7 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
 
                     else:
                         """Return first suitable antecedent expression"""
-                        return [Reading([(trail[-1], DrtLocationTimeApplicationExpression.VariableReplacer(self.argument.variable, refex))])], True
+                        return [Reading([(trail[-1], VariableReplacer(self.argument.variable, refex))])], True
                                 
         raise LocationTimeResolutionException("Variable '%s' does not "
                             "resolve to anything." % self.argument)
@@ -782,14 +772,6 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
         def __call__(self, drs):
             drs.conds[self.index] = self.new_cond
             return drs
-        
-    class VariableReplacer(object):
-        def __init__(self, var, new_var):
-            self.var = var
-            self.new_var = new_var
-        def __call__(self, drs):
-            drs.refs.remove(self.var)
-            return drs.__class__(drs.refs, [cond.replace(self.var, self.new_var, False) for cond in drs.conds])
 
 class DrtFindUtterTimeExpression(DrtApplicationExpression):
     """Type of application expression looking to equate its argument with utterance time"""
@@ -799,23 +781,13 @@ class DrtFindUtterTimeExpression(DrtApplicationExpression):
                 refex = DrtVariableExpression(ref)
                 if isinstance(refex, DrtUtterVariableExpression):
                     
-                    return [Reading([(trail[-1], DrtFindUtterTimeExpression.VariableReplacer(self.argument.variable, refex))])], True                  
+                    return [Reading([(trail[-1], VariableReplacer(self.argument.variable, refex))])], True                  
         
         raise UtteranceTimeTimeResolutionException("Variable '%s' does not "
                             "resolve to anything." % self.argument)
-        
-    class VariableReplacer(object):
-        def __init__(self, var, new_var):
-            self.var = var
-            self.new_var = new_var
-        def __call__(self, drs):
-            drs.refs.remove(self.var)
-            return drs.__class__(drs.refs, [cond.replace(self.var, self.new_var, False) for cond in drs.conds])
 
-      
 class UtteranceTimeTimeResolutionException(Exception):
     pass
-
 
 class DrtFindEventualityExpression(DrtApplicationExpression):
     """Comprises reference point REFER condition and aspectual PERF condition.
@@ -855,13 +827,13 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
                     if isinstance(self.argument,DrtEventVariableExpression):
                         """In case given eventuality is an event, return earlier"""
                         return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index,
-                        self.combine(DrtTokens.EARLIER,refex,self.argument)))])], False               
+                        self._combine(DrtTokens.EARLIER,refex,self.argument)))])], False               
 
                     
                     elif isinstance(self.argument, DrtStateVariableExpression):
                         """In case given eventuality is a state, return include"""
                         return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index,
-                        self.combine(DrtTokens.INCLUDE,self.argument,refex)))])], False               
+                        self._combine(DrtTokens.INCLUDE,self.argument,refex)))])], False               
      
                 
                 elif not state_reference_point and \
@@ -879,7 +851,7 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
                     return event abuts on state"""
                     
                     return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index,
-                    self.combine(DrtTokens.ABUT,self.argument,state_reference_point)))])], False                       
+                    self._combine(DrtTokens.ABUT,self.argument,state_reference_point)))])], False                       
 
                     
                 elif isinstance(self.argument, DrtStateVariableExpression):
@@ -888,8 +860,8 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
                     that that event is the end of eventuality (function needed!!!) and
                     that event abuts on ref.state"""
                     termination_point = unique_variable(Variable("e"))
-                    conds = [DrtEqualityExpression(DrtEventVariableExpression(termination_point),DrtApplicationExpression(self.make_ConstantExpression(DrtTokens.END),self.argument)),
-                    self.combine(DrtTokens.ABUT,DrtEventVariableExpression(termination_point),state_reference_point)]
+                    conds = [DrtEqualityExpression(DrtEventVariableExpression(termination_point), DrtApplicationExpression(self.make_ConstantExpression(DrtTokens.END),self.argument)),
+                    self._combine(DrtTokens.ABUT,DrtEventVariableExpression(termination_point), state_reference_point)]
                     return [Reading([(trail[-1], DrtFindEventualityExpression.PerfReplacer(termination_point, index, conds))])], False
                     
                 
@@ -898,17 +870,17 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
                 return overlap"""
  
                 return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index,
-                self.combine(DrtTokens.OVERLAP,state_reference_point,self.argument)))])], False               
+                self._combine(DrtTokens.OVERLAP, state_reference_point, self.argument)))])], False               
         
             elif isinstance(self.argument, DrtEventVariableExpression):
                 """Reference point is a state and given eventuality is an event,
                 return include"""
                 return [Reading([(trail[-1], DrtFindEventualityExpression.Replacer(index, 
-                self.combine(DrtTokens.INCLUDE,state_reference_point,self.argument)))])], False               
+                self._combine(DrtTokens.INCLUDE,state_reference_point,self.argument)))])], False               
                 
         else:
             """no suitable reference found"""
-            return [Reading([(trail[-1],PresuppositionDRS.Remover(index))])], False
+            return [Reading([(trail[-1], ConditionRemover(index))])], False
         
     class Replacer(object):
         def __init__(self, index, new_cond):
@@ -932,13 +904,480 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
     def make_ConstantExpression(self,name):
         return DrtConstantExpression(Variable(name))
     
-    def combine(self,cond, arg1, arg2):
+    def _combine(self, cond, arg1, arg2):
         """Combines two arguments into a DrtEventualityApplicationExpression
         that has another DrtEventualityApplicationExpression as its functor"""
         return DrtEventualityApplicationExpression(DrtEventualityApplicationExpression(self.make_ConstantExpression(cond),arg1),arg2)
 
 class NewInfoDRS(DRS):
     pass
+
+class PresuppositionDRS(DRS):
+        
+    def _readings(self, trail=[]):
+        inner_readings = DRS._readings(self, trail)
+        if inner_readings:
+            return inner_readings
+        else:
+            self._init_presupp_data()
+            return self._presupposition_readings(trail)
+    
+    def filter_drs(self, expr_list):
+        """A generator that iterates over the drss in the trail and filters out PresuppositionDrs and NewInfoDrs objects"""
+        return (expr for expr in expr_list if isinstance (expr, DRS) and\
+                 not isinstance(expr, PresuppositionDRS) and\
+                   not isinstance(expr, NewInfoDRS))
+        
+    def _find_outer_drs(self, trail):
+        for drs in self.filter_drs(trail):
+            return drs
+    
+    def is_possible_binding(self, cond):
+        return is_unary_predicate(cond) and\
+                self.has_same_features(cond) and\
+                 cond.argument.__class__ is DrtIndividualVariableExpression
+                
+    def find_bindings(self, drs_list, collect_event_data=False):
+        bindings = []
+        if collect_event_data:
+            event_data_map = {}
+        is_bindable = True # do not allow forward binding
+        for drs in drs_list:
+            for cond in (c for c in drs.conds if isinstance(c, DrtApplicationExpression)):
+                # Ignore conditions following the presupposition DRS
+                if cond is self:
+                    if not collect_event_data: 
+                        break
+                    is_bindable = False 
+                if is_bindable and self.is_possible_binding(cond): 
+                    bindings.append(cond)
+                elif collect_event_data:
+                    event_data = self.collect_event_data(cond)
+                    if event_data:
+                        event_data_map.setdefault(cond.argument.variable,[]).append(event_data)
+        return (bindings, event_data_map) if collect_event_data else bindings
+    
+    def collect_event_data(self, cond):
+        if isinstance(cond.function, DrtApplicationExpression) and\
+              isinstance(cond.function.argument, DrtIndividualVariableExpression):
+            return (cond.function.argument, cond.function.function)
+        
+    def is_presupposition_cond(self, cond):
+        return True
+        
+    def _init_presupp_data(self):
+        """ Return the referent, features and function name of the presupposition condition. Make sure it passes the check.
+        @param check: a boolean function; a check that the presupposition condition must pass.""" 
+        """In DRSs representing sentences like 'John, who owns a dog, feeds it',
+        there will be more than one condition in the presupposition DRS, because the conditions from the relative clause
+        will be put in the same box as the presupposition condition (e.g. 'John' -> John(x); 'the boy' -> boy(x)).
+        This is also the case for presuppositions triggered by the definite article + noun,
+        where, apart from a relative clause, there can be an adjective / adjectives modifying the noun 
+        to complicate the matters.
+        If an adjective and a noun both turn into one-place predicates, how do we distinguish between them?
+        In our system, nouns are DrtFeatureConstantExpressions, and adjectives are simple DrtApplicationExpressions.
+        But this is not set in stone, as we do not require the user to define any syntactic nominal features.
+        """
+        
+        # The referent we are looking for is always the first on the list of referents of the presuppositional DRS.
+        # The head of the presuppositional NP, however, doesn't have to be the first on the list of conditions.
+        # It depends on how the lambda terms are written (e.g. for adjective, for complementizers).
+        # If there are no agreement features in the grammar, we have to consider all unary predicates 
+        # with this referent potential heads of the NP.
+        presupp_cond_list = [cond for cond in self.conds if is_unary_predicate(cond) and cond.argument.variable == self.refs[0] and self.is_presupposition_cond(cond)]
+        for cond in presupp_cond_list:
+            if isinstance(cond.function, DrtFeatureConstantExpression): # this is the one
+                # There can be more than one DrtFeatureConstantExpression on the conditions on list, e.g.
+                # "Tom, a kind boy, took her hand", or "Tom, who is a kind boy,...", or "Linguist Grimm suggested ...", 
+                # or "The distinguished physicist Einstein ...". But 'check' helps us find the right one.
+                self.variable = cond.argument.variable
+                self.features = cond.function.features
+                self.function_name = cond.function.variable.name
+                return
+
+        self.variable = self.refs[0]
+        self.features = None
+        self.function_name = presupp_cond_list[0].variable.name
+    
+    def has_same_features(self, cond):
+        return (not isinstance(cond.function, DrtFeatureConstantExpression) and not self.features) \
+                or (isinstance(cond.function, DrtFeatureConstantExpression) and cond.function.features == self.features)
+                
+    class Binding(object):
+        def __init__(self, presupp_drs, presupp_variable, presupp_funcname, antecedent_ref, condition_index):
+            self.presupp_drs = presupp_drs
+            self.presupp_variable = presupp_variable
+            self.presupp_funcname = presupp_funcname
+            self.antecedent_ref = antecedent_ref
+            self.condition_index = condition_index
+        def __call__(self, drs):
+            """Put all conditions from the presupposition DRS
+            (if presupposition condition is a proper name: except the proper name itself) into the drs, 
+            and replace the presupposition condition referent in them with antecedent_ref"""
+            #print "BINDING, drs", drs
+            newdrs = self.presupp_drs.replace(self.presupp_variable, self.antecedent_ref, True)
+            # There will be referents and conditions to move 
+            # if there is a relative clause modifying the noun that has triggered the presuppositon
+            drs.refs.extend([ref for ref in newdrs.refs \
+                             if ref != self.antecedent_ref.variable])
+            conds_to_move = [cond for cond in newdrs.conds \
+                            if not is_unary_predicate(cond) or cond.function.variable.name != self.presupp_funcname]
+            # Put the conditions at the position of the original presupposition DRS
+            if self.condition_index is None: # it is an index, it can be zero
+                drs.conds.extend(conds_to_move)
+            else:
+                drs.conds = drs.conds[:self.condition_index+1]+conds_to_move+drs.conds[self.condition_index+1:]
+            return drs
+            
+    class InnerReplace(object):
+        def __init__(self, presupp_drs, presupp_variable, presupp_funcname, antecedent_ref, class_to_call=None, condition_index=None):
+            self.presupp_drs = presupp_drs
+            self.presupp_variable = presupp_variable
+            self.presupp_funcname = presupp_funcname
+            self.antecedent_ref = antecedent_ref
+            self.class_to_call = class_to_call
+            self.condition_index = condition_index
+        def __call__(self, drs):
+                """In the conditions of the local DRS, replace the 
+                referent of the presupposition condition with antecedent_ref"""
+                if self.class_to_call:
+                    func = self.class_to_call(self.presupp_drs, self.presupp_variable, self.presupp_funcname, self.antecedent_ref, self.condition_index)
+                    drs = func(drs)
+                return drs.replace(self.presupp_variable, self.antecedent_ref, True)
+    
+    class Accommodation(object):
+        def __init__(self, presupp_drs, condition_index):
+            """We need the condition index so that the conditions are not just appended to the list of conditions of the DRS,
+            but inserted where the presuppositional DRS had been. The order of conditions is important, because it reflects
+            the proximity of a possible antecedent, which affects antecedent ranking (and our architecture does not allow us to use the 
+            index on the list of referents to reflect the proximity/focus)."""
+            self.presupp_drs = presupp_drs
+            self.condition_index = condition_index
+        def __call__(self, drs):
+            """Accommodation: put all referents and conditions from 
+            the presupposition DRS into the given DRS"""
+            drs.refs.extend(self.presupp_drs.refs)
+            if self.condition_index is None:
+                drs.conds.extend(self.presupp_drs.conds)
+            else:
+                drs.conds = drs.conds[:self.condition_index+1]+self.presupp_drs.conds+drs.conds[self.condition_index+1:]
+            #print drs
+            return drs
+    
+    def _get_condition_index(self, superordinate_drs, trail):
+        """Use a for loop and 'is' to find the condition. 
+        Do not use index(), because it calls a time-consuming equals method."""
+        for ind, trailee in enumerate(trail):
+            if trailee is superordinate_drs:
+                # The condition might be not in superordinate_drs, but inside one of its conditions (however deep we might need to go)
+                look_for = trail[ind+1] if ind < len(trail) -1 else self
+                for i, cond in enumerate(superordinate_drs.conds):
+                    if cond is look_for:
+                        return i # condition_index
+        return None
+                            
+class PronounDRS(PresuppositionDRS):
+    """
+    A superclass for DRSs for personal, reflexive, 
+    and possessive pronouns
+    """
+    PRONOUNS = [DrtTokens.PRONOUN, DrtTokens.REFLEXIVE_PRONOUN, DrtTokens.POSSESSIVE_PRONOUN]
+
+    def is_presupposition_cond(self, cond):
+        return cond.function.variable.name in PronounDRS.PRONOUNS
+    
+    def _presupposition_readings(self, trail=[]):
+        possible_bindings, event_data = self.find_bindings(self.filter_drs(trail), True)
+        bindings = [cond for cond in possible_bindings if self._is_binding(cond, self._get_pro_events(event_data), event_data)]
+        ranked_bindings = self._rank_bindings(bindings, event_data)
+        return [Reading([(trail[-1], VariableReplacer(self.variable, cond.argument, False))]) for cond, rank in sorted(ranked_bindings, key=lambda e: e[1], reverse=True)], True
+
+    def _get_pro_events(self, event_data):
+        #in case pronoun participates in only one event, which has no other participants,
+        #try to extend it with interlinked events
+        #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
+        #will be extended to participate in e, but only in case z5 has one participant
+        pro_events = [event for event, role in event_data.get(self.variable, ())]
+        if len(pro_events) == 1:
+            pro_event = pro_events[0]
+            #number of participants in the pro_event
+            participant_count = sum((1 for event_list in event_data.itervalues() for event, role in event_list if event == pro_event))
+            # if there is only one participant in the pro_event and pro_event itself participates in other events
+            if participant_count == 1 and pro_event.variable in event_data:
+                pro_events.extend((event for event, role in event_data[pro_event.variable]))
+
+        return set(pro_events)
+
+    def _rank_bindings(self, bindings, event_data):
+        #ranking system
+        #increment ranking for matching roles and map the positions of antecedents
+        if len(bindings) == 0:
+            raise AnaphoraResolutionException("Variable '%s' does not "
+                                "resolve to anything." % self.variable)
+        elif len(bindings) == 1:
+            bindings[0] = (bindings[0], 0)
+        else:
+            pro_roles = set((role for event, role in event_data.get(self.variable, ())))
+            for index, variable in enumerate(bindings):
+                var_roles = set((role for event_list in event_data.get(variable, ()) for event, role in event_list))
+                bindings[index] = (variable, index + len(var_roles.intersection(pro_roles)))
+        return bindings
+
+    def _is_binding(self, cond, pro_events, event_data):
+        #non reflexive pronouns can not resolve to variables having a role in the same event
+        if self.function_name == DrtTokens.POSSESSIVE_PRONOUN:
+            return True
+        else:  
+            variable = cond.argument.variable
+            variable_events = set((event for event, role in event_data.get(variable,())))
+        if self.function_name == DrtTokens.PRONOUN:
+            return variable_events.isdisjoint(pro_events)
+        elif self.function_name == DrtTokens.REFLEXIVE_PRONOUN:
+            return not variable_events.isdisjoint(pro_events)
+        else:
+            return True
+
+class ProperNameDRS(PresuppositionDRS):
+
+    def _presupposition_readings(self, trail=[]):
+        """A proper name always yields one reading: it is either global binding 
+        or global accommodation (if binding is not possible)"""
+        outer_drs = self._find_outer_drs(trail)
+        inner_drs = trail[-1]
+        possible_bindings = self.find_bindings([outer_drs])
+        
+        assert len(possible_bindings) <= 1
+        condition_index = self._get_condition_index(outer_drs, trail)
+        if possible_bindings:           
+            # Return the reading
+            antecedent_ref = possible_bindings[0].argument
+            if inner_drs is outer_drs:
+                return [Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
+            return [Reading([(outer_drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent_ref, condition_index)),
+                     (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
+        # If no suitable antecedent has been found in the outer DRS,
+        # binding is not possible, so we go for accommodation instead.
+        return [Reading([(outer_drs, PresuppositionDRS.Accommodation(self, condition_index))])], True
+       
+    def is_possible_binding(self, cond):
+        return PresuppositionDRS.is_possible_binding(self, cond) and cond.is_propername() and cond.function.variable.name == self.function_name
+       
+    def is_presupposition_cond(self, cond):
+        return cond.is_propername()
+    
+class DefiniteDescriptionDRS(PresuppositionDRS): pass
+#    
+#    def _presupposition_readings(self, trail=[]):
+#        def accommodation(drs):
+#            condition_index = self._get_condition_index(drs, trail)
+#            return Reading([(drs, PresuppositionDRS.Accommodation(self, condition_index))])
+#        
+#        """'A car is going down the road. If Mia is married, then the car that her husband drives is black.'
+#        'A car is going down the road. If Mia is married, then the car of her neighbours is black.'
+#        'A car is going down the road. If Mia is married, then the car at home is black.'
+#        From these sentences we see that a _restrictive_ relative clause and adjunct PPs 
+#        require accommodation of the presuppositional NP as the only way of presupposition resolution.
+#        It seems that no binding to referents from the DRSs up along the trail can take place.
+#        """
+#        # If there is a restrictive clause or an adjunct PP, accommodate the presupposition locally
+#        events_states = set()
+#        # Are there any states/events in this presuppositional drs that the presupposition referent takes part in?
+#        for cond in self.conds:
+#            if isinstance(cond.function, DrtApplicationExpression) and \
+#                (isinstance(cond.function.argument, DrtStateVariableExpression) or 
+#                isinstance(cond.function.argument, DrtEventVariableExpression)) and \
+#                cond.argument.variable == self.variable:
+#                # This will give us conditions like AGENT(s,x), PATIENT(e,x)
+#                # TODO: will add() perform the equals check correctly? After all, even though they will be variables of the same name,
+#                # they will be different objects 
+#                events_states.add(cond.function.argument.variable)
+#        
+#        if events_states:
+#            # Only accommodation is possible.
+#            # Global accommodation will be preferred over all other accommodations. But we can't guarantee that 
+#            # the most preferred reading won't violate acceptability constraints, so we have to keep all of the readings for now.  
+#            """(1)'If a woman is married, then her car is black or her boss is mean.'
+#            (2)'If Mia is married, then her car is black or her boss is mean.'
+#            Global accommodation in (2), intermediate (preferred, according to van der Sandt) or local accommodation in (1).
+#            Focus: linguistic, cognitive, and computational perspectives. Peter Bosch, Rob A. van der Sandt. P. 281
+#            
+#            David Beaver (Accommodating Topics, When Variables Don't Vary Enough) 
+#            argues that local accommodation should be preferred over intermediate, but see Bosch & van der Sandt, p. 282-283
+#            """
+#            # TODO:
+#            """I think that there are some cases when it makes more sense to prefer local accommodation over intermediate
+#            (if global accommodation is not possible).
+#            (1) 'Every woman likes her hands'
+#            Have a look at wordnet in nltk: >>> S('person.n.01'). part_meronyms()
+#            [Synset('human_body.n.01'), Synset('personality.n.01')]
+#            """
+#            
+#            # TODO:
+#            """
+#            Always accommodate when there are any events or states in the presuppositional DRS that the referent takes part in?
+#            No.
+#            (1) Mia wins a prize. The prize that her neighbours win is a car.
+#            (2) Mia wins a prize, The prize that her neighbours make fun of is a car.
+#            (3) If Mia wins a prize, the prize that Mia wins is a car.
+#            (4) Mia wins a prize. The prize that Mia wins is a car.
+#            In (1), global accommodation is the only reading. In (2), binding is preferred to accommodation.
+#            In (3), binding is the only reading; local accommodation will be ruled out by acceptability constraints, 
+#            but what about intermediate accommodation?
+#            In (4), binding is the only reading. Will acceptability constraints let the accommodation reading through? 
+#            """
+#            accommodations = []
+#            # TODO: the loop for finding the global, intermediate and local DRSs will find all DRSs on the trail,
+#            # but can we just accommodate anywhere we want? I don't think so.
+#            # This means that this will work for 'if', but not for sentences like 
+#            # "If a woman is married or she has a dog, then her car is black or her boss is mean."
+#            for drs in self.filter_drs(trail):
+#                    accommodations.append(accommodation(drs))
+#            return accommodations, True
+#        # No restrictive clause or PP -> try binding
+#        """ Van der Sandt's algorithm would favour closest binding. But consider this sentence:
+#        (1) 'Mary is at the concert. If a singer kisses John, the woman is happy.'
+#        I think, for a discourse to remain coherent, the listener will always try to look for referents in the global DRS.
+#        Other readings will be dispreferred. Only if no referent in the global DRS is found could (but does it?) van der Sand's heuristics 
+#        come into play: the lower the level of binding, the better.
+#        
+#        Even then, we should ask ourselves why we used a definite description in the first place.
+#        Here are a couple of examples showing that anaphoric pronouns and definite descriptions do not behave in the same way.
+#        
+#        I.
+#        (2) Butch picks up a hammer. Then he picks up a flower. He puts it back on the shelf.
+#        In (2), there is some ambiguity as to the antecedent of 'it', but since 'flower' is the closest referent in the topic focus,
+#        it will be preferred. Compare (2) to:
+#        (3) Butch picks up a hammer. Then he picks up a flower. He puts the tool back on the shelf.
+#        The definite description lifts the ambiguity.
+#        
+#        II.
+#        (4) 'If a girl plays piano, then the child is happy'.
+#        If we wanted to refer to the girl, it would have been more economical to say 'she is happy'.
+#        'The child' is a resource-consuming, marked way. In this sentence, there was no ambiguity that a pronoun could have introduced
+#        (then a definite description would have help us stick to the maxim of manner).
+#        The referent isn't too far away from the presupposition, either. But (the listener will think) the definite description 
+#        was used for some reason. This is why global accommodation will be at least as preferred as the binding to the referent 
+#        from the antecendent of the implicative condition.
+#        
+#        III.
+#        With definite descriptions, binding is very tricky.
+#        If condition functors are the same, the two referents will be bound (and indeed, this is the only way to do binding for proper names).
+#        Since pronouns have little semantic content, we can find referents by simply going through possible antecedents and comparing
+#        their features (number and gender) to those of the pronoun. But,
+#        (5) The garage is empty. The car is in the driveway.
+#        'The garage' and 'the car' are both inanimate singular nouns, but it is clear that these features are an insufficient basis
+#        for binding. We have to use ontologies.
+#        FOR INANIMATE NOUNS:
+#        First, we find the presupposition condition (the head of the presuppositional NP). If the antecedent is a subclass of the
+#        presupposition condition synset, there will be binding with little ambiguity.
+#        FOR ANIMATE NOUNS:
+#        This is even trickier. First of all, the presupposition condition has to be a subclass of 'person' or 'animal'. But how do we
+#        account for the gender?
+#        (6) Mia plays with John. The mother is happy.
+#        In wordnet, 'mother' is not a subclass of 'woman' or 'female'. The same is true for all gender-specific noun, like
+#        'seamstress', 'husband', 'bull', etc. We probably have to specify noun gender in the grammar, then.
+#        We do this, but we don't restrict the user in any way, for example gender doesn't have to be {m,f,n}, and these letters
+#        can be used for other features than gender, too.
+#        >>> S('singer.n.1').common_hypernyms(S('person.n.1'))
+#        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
+#        >>> S('mother.n.1').common_hypernyms(S('person.n.1'))
+#        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
+#        >>> S('dog.n.1').common_hypernyms(S('animal.n.1'))
+#        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('animal.n.01'), Synset('entity.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
+#        """
+#        # First, try global binding. If we can bind globally, it will be our preferred reading
+#        # (not by van der Sand's algorithm, though). Return it.
+#        # TODO: THERE CAN BE MORE THAN ONE POSSIBILITIES FOR GLOBAL BINDING. EITHER RANK THEM OR FILTER THEM (or both)
+#        # TODO: Even if we find a perfect binding candidate, e.g. hammer-tool, do we return this binding as the only reading?
+#        # A dog is outside. If a cat hisses, the animal is afraid.
+#        # For this to be a coherent discourse, animal should refer to the dog, but the other binding is also possible (no discourse coherence, though).
+#        # At least, if we extend the discourse, the binding to cat may be justified.
+#        # A dog is outside. If a cat hisses, the animal is afraid. The dog meets a hissing cat. Or: the dog meets a cat. The cat hisses.
+#
+#        # Note that 'cat' does not introduce a new individual as such (though it does put the referent on the referents list of the 
+#        # antecedent of the implicative condition), like 'dog' does.
+#        # If we bind 'animal' to 'cat', 'the animal' still won't refer to an individual, it will refer to a group of individuals that are cats.
+#        # This means that the if-sentence just puts some irrelevant background information in the middle of our discourse. 
+#        # Naturally, we want to exclde this reading.  
+#        
+#        # But if we introduce a referent that is a cat (before or after the if-sentence), this background information gets relevant to
+#        # our discourse. So maybe, for the future: as long as the bg info is irrelevant, consider only the first reading,
+#        # but keep the second reading as a possibility. If after n sentences the info is still irrelevant, throw the 2nd reading away.
+#        
+#        #-----------------
+#        # "The cat is black or the cat is fat", "The cat is black. The cat is fat". Both seem to require binding and sound weird.
+#         
+#        inner_drs = trail[-1]
+#        for drs in self.filter_drs(trail):
+#            antecedent_ref = self._binding_check(drs)
+#            if antecedent_ref:
+#                condition_index = self._get_condition_index(drs, trail)
+#                if inner_drs == drs:
+#                    return [Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
+#                return [Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent_ref, condition_index)),
+#                                 (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
+#        # We have gone through all boxes in the trail, and nowhere did we find an unambiguous antecedent
+#        # self.possible_antecedents is a list of lists (but those lists can be empty)
+#        # Return all the readings (binding + accommodation), prefer global binding.
+#        # TODO:
+#        """
+#        If we can't use ontologies and there wasn't a restrictive clause / PP, we are not so sure about which reading is the right one.
+#        Self.possible_antecedents holds antecedent candidates for binding, but we would probably need advanced lexical information
+#        beyond the scope of this project to lift, or at least narrow down, the ambiguity.
+#        So the best option would be to return all possible readings, with some preference order,
+#        and maybe have a more sophisticated semantic component filter them later 
+#        (In this project, these readings will be subjected to acceptability checks, but that's it.).
+#        """
+#        readings = []
+#        # If we bind at some level, there will be no accommodation at this level or below (van der Sandt)
+#        binding = False
+#        i = 0
+#        for drs in candidate_trail:
+#            antecedents = self.possible_antecedents[i]
+#            i += 1
+#            for antecedent in antecedents:
+#                condition_index = self._get_condition_index(drs, trail)
+#                if inner_drs == drs: r = Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
+#                else: r = Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent, condition_index)),
+#                             (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
+#                readings.append(r)
+#                binding = True
+#            if not binding:
+#                # If global accommodation passes acceptability check, all other accommodations will be eliminated
+#                readings.append(accommodation(drs))
+#        return readings, True
+#             
+#    def _binding_check(self, drs):
+#        # Iterate over unary predicates from the conditions of the drs
+#        possible_antecedents = []
+#        for cond in drs.conds:
+#            if is_unary_predicate(cond) and self.has_same_features(cond, self.features):
+#                for funcname in self.function_name:
+##                    if (cond.function.variable.name == funcname or issuperclasssof(cond.function.variable.name, funcname)) \
+##                        and not is_adjective(cond.function.variable.name):
+##                        # either equal, or second is a superclass of the first, and they are not adjectives
+##                        # (Because if they are adjectives, we could bind 'blue(x)' and 'blue(x)', and we don't want that.)
+##                        return cond.argument.variable
+##                    elif (issuperclasssof(cond.function.variable.name, 'person') and 
+##                         issuperclasssof(funcname, 'person')) or \
+##                         (issuperclasssof(cond.function.variable.name, 'animal') and 
+##                          issuperclasssof(funcname, 'animal')):
+#                        possible_antecedents.append(self.make_VariableExpression(cond.argument.variable))
+#        self.possible_antecedents.append(possible_antecedents)
+#        # TODO:
+#        """issuperclasssof(cond.function.variable.name, funcname).
+#        Is binding possible only when the second is the superclass of the first? What if it is the other way round?
+#        (1) A car is going down the road. The vehicle is black.
+#        (2) A vehicle is going down the road. The car is black.
+#        (3) Butch picks up a hammer. Then he puts the tool back on the shelf.
+#        (4) Butch picks up a tool. Then he puts the hammer back on the shelf.
+#        (5) The seamstress is at home. The woman is happy.
+#        (6) The woman is happy. The seamstress is at home.
+#        (7) If John has sons, his children are happy.
+#        (8) If John has children, his sons are happy.
+#        Somehow, with living beings 'the other way round' binding sounds impossible, with inanimate objects it's just very weird. 
+#        """
+#        return None
 
 class DrtParser(drt.DrtParser):
     """DrtParser producing conditions and referents for temporal logic"""
@@ -1133,488 +1572,3 @@ class DrtParser(drt.DrtParser):
     
     def make_LambdaExpression(self, variables, term):
         return DrtLambdaExpression(variables, term)
-    
-def is_unary_predicate(cond):
-    return isinstance(cond, DrtApplicationExpression) and isinstance(cond.function, DrtAbstractVariableExpression)
-
-class PresuppositionDRS(DRS):
-    class Remover(object):
-        def __init__(self, cond_index):
-            self.cond_index = cond_index
-        def __call__(self, drs):
-            #assert isinstance(drs.conds[self.cond_index], PresuppositionDRS)
-            drs.conds.pop(self.cond_index)
-            return drs
-        
-    def _readings(self, trail=[]):
-        inner_readings = DRS._readings(self, trail)
-        if inner_readings:
-            return inner_readings
-        else:
-            self._init_presupp_data()
-            return self._presupposition_readings(trail)
-    
-    def filter_trail(self, trail):
-        """A generator that iterates over the drss in the trail and filters out PresuppositionDrs and NewInfoDrs objects"""
-        return (drs for drs in trail  if isinstance (drs, DRS) and\
-                 not isinstance(drs, PresuppositionDRS) and\
-                  not isinstance(drs, DrtBooleanExpression) and\
-                   not isinstance(drs, NewInfoDRS))
-        
-    def _find_outer_drs(self, trail):
-        for drs in self.filter_trail(trail): return drs
-    
-    def is_possible_binding(self, cond):
-        return is_unary_predicate(cond) and self.has_same_features(cond) and cond.argument.__class__ is DrtIndividualVariableExpression
-                
-    def find_bindings(self, drs_list, collect_event_data=False):
-        bindings = []
-        if collect_event_data:
-            event_data_map = {}
-        is_bindable = True # do not allow forward binding
-        for drs in drs_list:
-            for cond in (c for c in drs.conds if isinstance(c, DrtApplicationExpression)):
-                # Ignore conditions following the presupposition DRS
-                if cond is self:
-                    if not collect_event_data: 
-                        break
-                    is_bindable = False 
-                if is_bindable and self.is_possible_binding(cond): 
-                    bindings.append(cond)
-                elif collect_event_data:
-                    event_data = self.collect_event_data(cond)
-                    if event_data:
-                        event_data_map.setdefault(cond.argument.variable,[]).append(event_data)
-        return (bindings, event_data_map) if collect_event_data else bindings
-    
-    def collect_event_data(self, cond):
-        if isinstance(cond.function, DrtApplicationExpression) and\
-              isinstance(cond.function.argument, DrtIndividualVariableExpression):
-            return (cond.function.argument, cond.function.function)
-        
-    def is_presupposition_cond(self, cond):
-        return True
-        
-    def _init_presupp_data(self):
-        """ Return the referent, features and function name of the presupposition condition. Make sure it passes the check.
-        @param check: a boolean function; a check that the presupposition condition must pass.""" 
-        """In DRSs representing sentences like 'John, who owns a dog, feeds it',
-        there will be more than one condition in the presupposition DRS, because the conditions from the relative clause
-        will be put in the same box as the presupposition condition (e.g. 'John' -> John(x); 'the boy' -> boy(x)).
-        This is also the case for presuppositions triggered by the definite article + noun,
-        where, apart from a relative clause, there can be an adjective / adjectives modifying the noun 
-        to complicate the matters.
-        If an adjective and a noun both turn into one-place predicates, how do we distinguish between them?
-        In our system, nouns are DrtFeatureConstantExpressions, and adjectives are simple DrtApplicationExpressions.
-        But this is not set in stone, as we do not require the user to define any syntactic nominal features.
-        """
-        
-        # The referent we are looking for is always the first on the list of referents of the presuppositional DRS.
-        # The head of the presuppositional NP, however, doesn't have to be the first on the list of conditions.
-        # It depends on how the lambda terms are written (e.g. for adjective, for complementizers).
-        # If there are no agreement features in the grammar, we have to consider all unary predicates 
-        # with this referent potential heads of the NP.
-        presupp_cond_list = [cond for cond in self.conds if is_unary_predicate(cond) and cond.argument.variable == self.refs[0] and self.is_presupposition_cond(cond)]
-        for cond in presupp_cond_list:
-            if isinstance(cond.function, DrtFeatureConstantExpression): # this is the one
-                # There can be more than one DrtFeatureConstantExpression on the conditions on list, e.g.
-                # "Tom, a kind boy, took her hand", or "Tom, who is a kind boy,...", or "Linguist Grimm suggested ...", 
-                # or "The distinguished physicist Einstein ...". But 'check' helps us find the right one.
-                self.variable = cond.argument.variable
-                self.features = cond.function.features
-                self.function_name = cond.function.variable.name
-                return
-
-        self.variable = self.refs[0]
-        self.features = None
-        self.function_name = presupp_cond_list[0].variable.name
-    
-    def has_same_features(self, cond):
-        return (not isinstance(cond.function, DrtFeatureConstantExpression) and not self.features) \
-                or (isinstance(cond.function, DrtFeatureConstantExpression) and cond.function.features == self.features)
-                
-    class Binding(object):
-        def __init__(self, presupp_drs, presupp_variable, presupp_funcname, antecedent_ref, condition_index):
-            self.presupp_drs = presupp_drs
-            self.presupp_variable = presupp_variable
-            self.presupp_funcname = presupp_funcname
-            self.antecedent_ref = antecedent_ref
-            self.condition_index = condition_index
-        def __call__(self, drs):
-            """Put all conditions from the presupposition DRS
-            (if presupposition condition is a proper name: except the proper name itself) into the drs, 
-            and replace the presupposition condition referent in them with antecedent_ref"""
-            #print "BINDING, drs", drs
-            newdrs = self.presupp_drs.replace(self.presupp_variable, self.antecedent_ref, True)
-            # There will be referents and conditions to move 
-            # if there is a relative clause modifying the noun that has triggered the presuppositon
-            drs.refs.extend([ref for ref in newdrs.refs \
-                             if ref != self.antecedent_ref.variable])
-            conds_to_move = [cond for cond in newdrs.conds \
-                            if not is_unary_predicate(cond) or cond.function.variable.name != self.presupp_funcname]
-            # Put the conditions at the position of the original presupposition DRS
-            if self.condition_index is None: # it is an index, it can be zero
-                drs.conds.extend(conds_to_move)
-            else:
-                drs.conds = drs.conds[:self.condition_index+1]+conds_to_move+drs.conds[self.condition_index+1:]
-            return drs
-            
-    class InnerReplace(object):
-        def __init__(self, presupp_drs, presupp_variable, presupp_funcname, antecedent_ref, class_to_call=None, condition_index=None):
-            self.presupp_drs = presupp_drs
-            self.presupp_variable = presupp_variable
-            self.presupp_funcname = presupp_funcname
-            self.antecedent_ref = antecedent_ref
-            self.class_to_call = class_to_call
-            self.condition_index = condition_index
-        def __call__(self, drs):
-                """In the conditions of the local DRS, replace the 
-                referent of the presupposition condition with antecedent_ref"""
-                if self.class_to_call:
-                    func = self.class_to_call(self.presupp_drs, self.presupp_variable, self.presupp_funcname, self.antecedent_ref, self.condition_index)
-                    drs = func(drs)
-                return drs.replace(self.presupp_variable, self.antecedent_ref, True)
-    
-    class Accommodation(object):
-        def __init__(self, presupp_drs, condition_index):
-            """We need the condition index so that the conditions are not just appended to the list of conditions of the DRS,
-            but inserted where the presuppositional DRS had been. The order of conditions is important, because it reflects
-            the proximity of a possible antecedent, which affects antecedent ranking (and our architecture does not allow us to use the 
-            index on the list of referents to reflect the proximity/focus)."""
-            self.presupp_drs = presupp_drs
-            self.condition_index = condition_index
-        def __call__(self, drs):
-            """Accommodation: put all referents and conditions from 
-            the presupposition DRS into the given DRS"""
-            drs.refs.extend(self.presupp_drs.refs)
-            if self.condition_index is None:
-                drs.conds.extend(self.presupp_drs.conds)
-            else:
-                drs.conds = drs.conds[:self.condition_index+1]+self.presupp_drs.conds+drs.conds[self.condition_index+1:]
-            #print drs
-            return drs
-    
-    def _get_condition_index(self, superordinate_drs, trail):
-        """Use a for loop and 'is' to find the condition. 
-        Do not use index(), because it calls a time-consuming equals method."""
-        for ind, trailee in enumerate(trail):
-            if trailee is superordinate_drs:
-                # The condition might be not in superordinate_drs, but inside one of its conditions (however deep we might need to go)
-                look_for = trail[ind+1] if ind < len(trail) -1 else self
-                for i, cond in enumerate(superordinate_drs.conds):
-                    if cond is look_for:
-                        return i # condition_index
-        return None
-                            
-class PronounDRS(PresuppositionDRS):
-    """A superclass for DRSs for personal, reflexive, 
-    and possessive pronouns"""
-    PRONOUNS = [DrtTokens.PRONOUN, DrtTokens.REFLEXIVE_PRONOUN, DrtTokens.POSSESSIVE_PRONOUN]
-    
-    def __init__(self, refs, conds):
-        PresuppositionDRS.__init__(self, refs, conds)
-        self.roles = {}
-        self.events = {}
-        
-    def is_presupposition_cond(self, cond):
-        return cond.function.variable.name in PronounDRS.PRONOUNS
-    
-    def _presupposition_readings(self, trail=[]):
-        possible_bindings, event_data = self.find_bindings(self.filter_trail(trail), True)
-        bindings = [cond for cond in possible_bindings if self._is_binding(cond, self._get_pro_events(event_data), event_data)]
-        ranked_bindings = self._rank_bindings(bindings, event_data)
-        return [Reading([(trail[-1], PronounDRS.VariableReplacer(self.variable, cond.argument))]) for cond, rank in sorted(ranked_bindings, key=lambda e: e[1], reverse=True)], True
-
-    def _get_pro_events(self, event_data):
-        #in case pronoun participates in only one event, which has no other participants,
-        #try to extend it with interlinked events
-        #f.e. THEME(z5,z3), THEME(e,z5) where z3 only participates in event z5
-        #will be extended to participate in e, but only in case z5 has one participant
-        pro_events = [item[0] for item in event_data.get(self.variable, ())]
-        if len(pro_events) == 1:
-            pro_event = pro_events[0]
-            #number of participants in the pro_event
-            participant_count = sum((1 for event_list in event_data.itervalues() for item in event_list if item[0] == pro_event))
-            # if there is only one participant in the pro_event and pro_event itself participates in other events
-            if participant_count == 1 and pro_event.variable in event_data:
-                pro_events.extend((item[0] for item in event_data[pro_event.variable]))
-
-        return set(pro_events)
-
-    def _rank_bindings(self, bindings, event_data):
-        #ranking system
-        #increment ranking for matching roles and map the positions of antecedents
-        if len(bindings) == 0:
-            raise AnaphoraResolutionException("Variable '%s' does not "
-                                "resolve to anything." % self.variable)
-        elif len(bindings) == 1:
-            bindings[0] = (bindings[0], 0)
-        else:
-            pro_roles = set((role for event, role in event_data.get(self.variable, ())))
-            for index, variable in enumerate(bindings):
-                var_roles = set((role for event_list in event_data.get(variable, ()) for event, role in event_list))
-                bindings[index] = (variable, index + len(var_roles.intersection(pro_roles)))
-        return bindings
-
-    def _is_binding(self, cond, pro_events, event_data):
-        #non reflexive pronouns can not resolve to variables having a role in the same event
-        if self.function_name == DrtTokens.POSSESSIVE_PRONOUN:
-            return True
-        else:  
-            variable = cond.argument.variable
-            variable_events = set((event for event, role in event_data.get(variable,())))
-        if self.function_name == DrtTokens.PRONOUN:
-            return variable_events.isdisjoint(pro_events)
-        elif self.function_name == DrtTokens.REFLEXIVE_PRONOUN:
-            return not variable_events.isdisjoint(pro_events)
-        else:
-            return True
-
-    class VariableReplacer(object):
-        def __init__(self, pro_var, new_var):
-            self.pro_var = pro_var
-            self.new_var = new_var
-        def __call__(self, drs):
-            return drs.__class__(drs.refs, [cond.replace(self.pro_var, self.new_var, False) for cond in drs.conds])
-
-class ProperNameDRS(PresuppositionDRS):
-
-    def _presupposition_readings(self, trail=[]):
-        """A proper name always yields one reading: it is either global binding 
-        or global accommodation (if binding is not possible)"""
-        outer_drs = self._find_outer_drs(trail)
-        inner_drs = trail[-1]
-        possible_bindings = self.find_bindings([outer_drs])
-        
-        assert len(possible_bindings) <= 1
-        condition_index = self._get_condition_index(outer_drs, trail)
-        if possible_bindings:           
-            # Return the reading
-            antecedent_ref = possible_bindings[0].argument
-            if inner_drs is outer_drs:
-                return [Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
-            return [Reading([(outer_drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent_ref, condition_index)),
-                     (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
-        # If no suitable antecedent has been found in the outer DRS,
-        # binding is not possible, so we go for accommodation instead.
-        return [Reading([(outer_drs, PresuppositionDRS.Accommodation(self, condition_index))])], True
-       
-    def is_possible_binding(self, cond):
-        return PresuppositionDRS.is_possible_binding(self, cond) and cond.is_propername() and cond.function.variable.name == self.function_name
-       
-    def is_presupposition_cond(self, cond):
-        return cond.is_propername()
-    
-class DefiniteDescriptionDRS(PresuppositionDRS): pass
-#    
-#    def _presupposition_readings(self, trail=[]):
-#        def accommodation(drs):
-#            condition_index = self._get_condition_index(drs, trail)
-#            return Reading([(drs, PresuppositionDRS.Accommodation(self, condition_index))])
-#        
-#        """'A car is going down the road. If Mia is married, then the car that her husband drives is black.'
-#        'A car is going down the road. If Mia is married, then the car of her neighbours is black.'
-#        'A car is going down the road. If Mia is married, then the car at home is black.'
-#        From these sentences we see that a _restrictive_ relative clause and adjunct PPs 
-#        require accommodation of the presuppositional NP as the only way of presupposition resolution.
-#        It seems that no binding to referents from the DRSs up along the trail can take place.
-#        """
-#        # If there is a restrictive clause or an adjunct PP, accommodate the presupposition locally
-#        events_states = set()
-#        # Are there any states/events in this presuppositional drs that the presupposition referent takes part in?
-#        for cond in self.conds:
-#            if isinstance(cond.function, DrtApplicationExpression) and \
-#                (isinstance(cond.function.argument, DrtStateVariableExpression) or 
-#                isinstance(cond.function.argument, DrtEventVariableExpression)) and \
-#                cond.argument.variable == self.variable:
-#                # This will give us conditions like AGENT(s,x), PATIENT(e,x)
-#                # TODO: will add() perform the equals check correctly? After all, even though they will be variables of the same name,
-#                # they will be different objects 
-#                events_states.add(cond.function.argument.variable)
-#        
-#        if events_states:
-#            # Only accommodation is possible.
-#            # Global accommodation will be preferred over all other accommodations. But we can't guarantee that 
-#            # the most preferred reading won't violate acceptability constraints, so we have to keep all of the readings for now.  
-#            """(1)'If a woman is married, then her car is black or her boss is mean.'
-#            (2)'If Mia is married, then her car is black or her boss is mean.'
-#            Global accommodation in (2), intermediate (preferred, according to van der Sandt) or local accommodation in (1).
-#            Focus: linguistic, cognitive, and computational perspectives. Peter Bosch, Rob A. van der Sandt. P. 281
-#            
-#            David Beaver (Accommodating Topics, When Variables Don't Vary Enough) 
-#            argues that local accommodation should be preferred over intermediate, but see Bosch & van der Sandt, p. 282-283
-#            """
-#            # TODO:
-#            """I think that there are some cases when it makes more sense to prefer local accommodation over intermediate
-#            (if global accommodation is not possible).
-#            (1) 'Every woman likes her hands'
-#            Have a look at wordnet in nltk: >>> S('person.n.01'). part_meronyms()
-#            [Synset('human_body.n.01'), Synset('personality.n.01')]
-#            """
-#            
-#            # TODO:
-#            """
-#            Always accommodate when there are any events or states in the presuppositional DRS that the referent takes part in?
-#            No.
-#            (1) Mia wins a prize. The prize that her neighbours win is a car.
-#            (2) Mia wins a prize, The prize that her neighbours make fun of is a car.
-#            (3) If Mia wins a prize, the prize that Mia wins is a car.
-#            (4) Mia wins a prize. The prize that Mia wins is a car.
-#            In (1), global accommodation is the only reading. In (2), binding is preferred to accommodation.
-#            In (3), binding is the only reading; local accommodation will be ruled out by acceptability constraints, 
-#            but what about intermediate accommodation?
-#            In (4), binding is the only reading. Will acceptability constraints let the accommodation reading through? 
-#            """
-#            accommodations = []
-#            # TODO: the loop for finding the global, intermediate and local DRSs will find all DRSs on the trail,
-#            # but can we just accommodate anywhere we want? I don't think so.
-#            # This means that this will work for 'if', but not for sentences like 
-#            # "If a woman is married or she has a dog, then her car is black or her boss is mean."
-#            for drs in self.filter_trail(trail):
-#                    accommodations.append(accommodation(drs))
-#            return accommodations, True
-#        # No restrictive clause or PP -> try binding
-#        """ Van der Sandt's algorithm would favour closest binding. But consider this sentence:
-#        (1) 'Mary is at the concert. If a singer kisses John, the woman is happy.'
-#        I think, for a discourse to remain coherent, the listener will always try to look for referents in the global DRS.
-#        Other readings will be dispreferred. Only if no referent in the global DRS is found could (but does it?) van der Sand's heuristics 
-#        come into play: the lower the level of binding, the better.
-#        
-#        Even then, we should ask ourselves why we used a definite description in the first place.
-#        Here are a couple of examples showing that anaphoric pronouns and definite descriptions do not behave in the same way.
-#        
-#        I.
-#        (2) Butch picks up a hammer. Then he picks up a flower. He puts it back on the shelf.
-#        In (2), there is some ambiguity as to the antecedent of 'it', but since 'flower' is the closest referent in the topic focus,
-#        it will be preferred. Compare (2) to:
-#        (3) Butch picks up a hammer. Then he picks up a flower. He puts the tool back on the shelf.
-#        The definite description lifts the ambiguity.
-#        
-#        II.
-#        (4) 'If a girl plays piano, then the child is happy'.
-#        If we wanted to refer to the girl, it would have been more economical to say 'she is happy'.
-#        'The child' is a resource-consuming, marked way. In this sentence, there was no ambiguity that a pronoun could have introduced
-#        (then a definite description would have help us stick to the maxim of manner).
-#        The referent isn't too far away from the presupposition, either. But (the listener will think) the definite description 
-#        was used for some reason. This is why global accommodation will be at least as preferred as the binding to the referent 
-#        from the antecendent of the implicative condition.
-#        
-#        III.
-#        With definite descriptions, binding is very tricky.
-#        If condition functors are the same, the two referents will be bound (and indeed, this is the only way to do binding for proper names).
-#        Since pronouns have little semantic content, we can find referents by simply going through possible antecedents and comparing
-#        their features (number and gender) to those of the pronoun. But,
-#        (5) The garage is empty. The car is in the driveway.
-#        'The garage' and 'the car' are both inanimate singular nouns, but it is clear that these features are an insufficient basis
-#        for binding. We have to use ontologies.
-#        FOR INANIMATE NOUNS:
-#        First, we find the presupposition condition (the head of the presuppositional NP). If the antecedent is a subclass of the
-#        presupposition condition synset, there will be binding with little ambiguity.
-#        FOR ANIMATE NOUNS:
-#        This is even trickier. First of all, the presupposition condition has to be a subclass of 'person' or 'animal'. But how do we
-#        account for the gender?
-#        (6) Mia plays with John. The mother is happy.
-#        In wordnet, 'mother' is not a subclass of 'woman' or 'female'. The same is true for all gender-specific noun, like
-#        'seamstress', 'husband', 'bull', etc. We probably have to specify noun gender in the grammar, then.
-#        We do this, but we don't restrict the user in any way, for example gender doesn't have to be {m,f,n}, and these letters
-#        can be used for other features than gender, too.
-#        >>> S('singer.n.1').common_hypernyms(S('person.n.1'))
-#        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
-#        >>> S('mother.n.1').common_hypernyms(S('person.n.1'))
-#        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
-#        >>> S('dog.n.1').common_hypernyms(S('animal.n.1'))
-#        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('animal.n.01'), Synset('entity.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
-#        """
-#        # First, try global binding. If we can bind globally, it will be our preferred reading
-#        # (not by van der Sand's algorithm, though). Return it.
-#        # TODO: THERE CAN BE MORE THAN ONE POSSIBILITIES FOR GLOBAL BINDING. EITHER RANK THEM OR FILTER THEM (or both)
-#        # TODO: Even if we find a perfect binding candidate, e.g. hammer-tool, do we return this binding as the only reading?
-#        # A dog is outside. If a cat hisses, the animal is afraid.
-#        # For this to be a coherent discourse, animal should refer to the dog, but the other binding is also possible (no discourse coherence, though).
-#        # At least, if we extend the discourse, the binding to cat may be justified.
-#        # A dog is outside. If a cat hisses, the animal is afraid. The dog meets a hissing cat. Or: the dog meets a cat. The cat hisses.
-#
-#        # Note that 'cat' does not introduce a new individual as such (though it does put the referent on the referents list of the 
-#        # antecedent of the implicative condition), like 'dog' does.
-#        # If we bind 'animal' to 'cat', 'the animal' still won't refer to an individual, it will refer to a group of individuals that are cats.
-#        # This means that the if-sentence just puts some irrelevant background information in the middle of our discourse. 
-#        # Naturally, we want to exclde this reading.  
-#        
-#        # But if we introduce a referent that is a cat (before or after the if-sentence), this background information gets relevant to
-#        # our discourse. So maybe, for the future: as long as the bg info is irrelevant, consider only the first reading,
-#        # but keep the second reading as a possibility. If after n sentences the info is still irrelevant, throw the 2nd reading away.
-#        
-#        #-----------------
-#        # "The cat is black or the cat is fat", "The cat is black. The cat is fat". Both seem to require binding and sound weird.
-#         
-#        inner_drs = trail[-1]
-#        for drs in self.filter_trail(trail):
-#            antecedent_ref = self._binding_check(drs)
-#            if antecedent_ref:
-#                condition_index = self._get_condition_index(drs, trail)
-#                if inner_drs == drs:
-#                    return [Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
-#                return [Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent_ref, condition_index)),
-#                                 (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent_ref, PresuppositionDRS.Binding, condition_index))])], True
-#        # We have gone through all boxes in the trail, and nowhere did we find an unambiguous antecedent
-#        # self.possible_antecedents is a list of lists (but those lists can be empty)
-#        # Return all the readings (binding + accommodation), prefer global binding.
-#        # TODO:
-#        """
-#        If we can't use ontologies and there wasn't a restrictive clause / PP, we are not so sure about which reading is the right one.
-#        Self.possible_antecedents holds antecedent candidates for binding, but we would probably need advanced lexical information
-#        beyond the scope of this project to lift, or at least narrow down, the ambiguity.
-#        So the best option would be to return all possible readings, with some preference order,
-#        and maybe have a more sophisticated semantic component filter them later 
-#        (In this project, these readings will be subjected to acceptability checks, but that's it.).
-#        """
-#        readings = []
-#        # If we bind at some level, there will be no accommodation at this level or below (van der Sandt)
-#        binding = False
-#        i = 0
-#        for drs in candidate_trail:
-#            antecedents = self.possible_antecedents[i]
-#            i += 1
-#            for antecedent in antecedents:
-#                condition_index = self._get_condition_index(drs, trail)
-#                if inner_drs == drs: r = Reading([(inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
-#                else: r = Reading([(drs, PresuppositionDRS.Binding(self, self.variable, self.function_name, antecedent, condition_index)),
-#                             (inner_drs, PresuppositionDRS.InnerReplace(self, self.variable, self.function_name, antecedent, PresuppositionDRS.Binding, condition_index))])
-#                readings.append(r)
-#                binding = True
-#            if not binding:
-#                # If global accommodation passes acceptability check, all other accommodations will be eliminated
-#                readings.append(accommodation(drs))
-#        return readings, True
-#             
-#    def _binding_check(self, drs):
-#        # Iterate over unary predicates from the conditions of the drs
-#        possible_antecedents = []
-#        for cond in drs.conds:
-#            if is_unary_predicate(cond) and self.has_same_features(cond, self.features):
-#                for funcname in self.function_name:
-##                    if (cond.function.variable.name == funcname or issuperclasssof(cond.function.variable.name, funcname)) \
-##                        and not is_adjective(cond.function.variable.name):
-##                        # either equal, or second is a superclass of the first, and they are not adjectives
-##                        # (Because if they are adjectives, we could bind 'blue(x)' and 'blue(x)', and we don't want that.)
-##                        return cond.argument.variable
-##                    elif (issuperclasssof(cond.function.variable.name, 'person') and 
-##                         issuperclasssof(funcname, 'person')) or \
-##                         (issuperclasssof(cond.function.variable.name, 'animal') and 
-##                          issuperclasssof(funcname, 'animal')):
-#                        possible_antecedents.append(self.make_VariableExpression(cond.argument.variable))
-#        self.possible_antecedents.append(possible_antecedents)
-#        # TODO:
-#        """issuperclasssof(cond.function.variable.name, funcname).
-#        Is binding possible only when the second is the superclass of the first? What if it is the other way round?
-#        (1) A car is going down the road. The vehicle is black.
-#        (2) A vehicle is going down the road. The car is black.
-#        (3) Butch picks up a hammer. Then he puts the tool back on the shelf.
-#        (4) Butch picks up a tool. Then he puts the hammer back on the shelf.
-#        (5) The seamstress is at home. The woman is happy.
-#        (6) The woman is happy. The seamstress is at home.
-#        (7) If John has sons, his children are happy.
-#        (8) If John has children, his sons are happy.
-#        Somehow, with living beings 'the other way round' binding sounds impossible, with inanimate objects it's just very weird. 
-#        """
-#        return None
