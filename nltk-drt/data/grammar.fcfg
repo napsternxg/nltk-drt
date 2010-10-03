@@ -216,7 +216,7 @@ LexN[NUM=sg,GEN=n,SEM=<porsche>] -> 'porsche'
 LexN[NUM=sg,GEN=n,SEM=<hammer>] -> 'hammer'
 LexN[NUM=sg,GEN=n,SEM=<tool>] -> 'tool'
 LexN[NUM=sg,GEN=f,SEM=<baroness>] -> 'baroness'
-LexN[NUM=sg,GEN=f,SEM=<child>] -> 'child'
+LexN[NUM=sg,GEN=m,SEM=<child>] -> 'child'
 
 LexN[NUM=sg,GEN=m,SEM=<human>] -> 'one'
 LexN[NUM=sg,GEN=n,SEM=<thing>] -> 'thing'
