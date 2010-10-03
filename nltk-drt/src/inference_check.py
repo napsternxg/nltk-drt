@@ -1,23 +1,9 @@
-from nltk.inference.prover9 import Prover9Command, Prover9
-from nltk.inference.mace import MaceCommand, Mace
-from temporaldrt import DrtParser
-from nltk.sem.drt import AbstractDrs
-from nltk import LogicParser
-from nltk.sem.logic import AndExpression, NegatedExpression, ParseException
-from nltk.inference.api import ParallelProverBuilderCommand, Prover, ModelBuilder
+from nltk.sem.logic import AndExpression, NegatedExpression
 from theorem import Builder, Prover 
-import temporaldrt as drt
-#import util
-#from util import local_DrtParser
-#from threading import Thread
-#import os
-
-import nltkfixtemporal
-
-def gr(s, recursive=False):
-    return []
-
-AbstractDrs.get_refs = gr
+from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
+                        DrtApplicationExpression, DrtVariableExpression, unique_variable, \
+                        ConcatenationDRS, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
+                        ReverseIterator, DrtTokens, DrtEventualityApplicationExpression
 
 """
 As Mace looks for a minimal solution, those are the things we need to have so that 
@@ -82,7 +68,7 @@ def inference_check(expr, background_knowledge=False,verbose=False):
     """General function for all kinds of inference-based checks:
     consistency, global and local informativity"""
     
-    assert isinstance(expr, drt.DRS), "Expression %s is not a DRS"
+    assert isinstance(expr, DRS), "Expression %s is not a DRS"
     
     expression = expr.deepcopy()
     print expression, "\n"
@@ -91,20 +77,20 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         """Removes discourse structuring temporal conditions that could
         affect inference check"""
         for cond in list(e.conds):
-            if isinstance(cond, drt.DrtEventualityApplicationExpression) and \
-            isinstance(cond.function, drt.DrtEventualityApplicationExpression) and \
-            cond.function.function.variable.name in drt.DrtTokens.TEMP_CONDS:
+            if isinstance(cond, DrtEventualityApplicationExpression) and \
+            isinstance(cond.function, DrtEventualityApplicationExpression) and \
+            cond.function.function.variable.name in DrtTokens.TEMP_CONDS:
                 e.conds.remove(cond)
                 
-            elif isinstance(cond, drt.DRS):
+            elif isinstance(cond, DRS):
                 _remove_temporal_conds(cond)
                 
-            elif isinstance(cond, drt.DrtNegatedExpression) and \
-                isinstance(cond.term, drt.DRS):
+            elif isinstance(cond, DrtNegatedExpression) and \
+                isinstance(cond.term, DRS):
                 _remove_temporal_conds(cond.term)
                 
-            elif isinstance(cond, drt.DrtBooleanExpression) and \
-                isinstance(cond.first, drt.DRS) and isinstance(cond.second, drt.DRS): 
+            elif isinstance(cond, DrtBooleanExpression) and \
+                isinstance(cond.first, DRS) and isinstance(cond.second, DRS): 
                 _remove_temporal_conds(cond.first)
                 _remove_temporal_conds(cond.second)           
 
@@ -144,17 +130,7 @@ def inference_check(expr, background_knowledge=False,verbose=False):
                 pass
         p.prover._prover.terminate()
         
-        return m.result
-    
-#    def check(expression):
-#        """nltk class freezes, not using it"""
-#        if background_knowledge:
-#            expr = NegatedExpression(AndExpression(expression,background_knowledge))
-#        else:
-#            expr = NegatedExpression(expression)
-#            
-#        return ParallelProverBuilderCommand(Prover9(), Mace(),expr).build_model()
-      
+        return m.result      
     
     def consistency_check(expression):
         """1. Consistency check"""
@@ -166,12 +142,12 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         """2. Global informativity check"""
         if verbose: print "informativity check initiated...\n"
         local_check = []
-        for cond in drt.ReverseIterator(expression.conds):
-            if isinstance(cond, drt.DRS) and \
-            not isinstance(cond, drt.PresuppositionDRS):
+        for cond in ReverseIterator(expression.conds):
+            if isinstance(cond, DRS) and \
+            not isinstance(cond, PresuppositionDRS):
                 """New discourse in the previous discourse"""
                 temp = (expression.conds[:expression.conds.index(cond)]+
-                        [drt.DrtNegatedExpression(cond)]+
+                        [DrtNegatedExpression(cond)]+
                     expression.conds[expression.conds.index(cond)+1:])
                 e = expression.__class__(expression.refs,temp)
                 if verbose:
@@ -188,19 +164,19 @@ def inference_check(expr, background_knowledge=False,verbose=False):
                 
                 """generates tuples for local admissibility check"""
 
-            elif isinstance(cond, drt.DrtOrExpression) and \
-                isinstance(cond.first, drt.DRS) and isinstance(cond.second, drt.DRS):
+            elif isinstance(cond, DrtOrExpression) and \
+                isinstance(cond.first, DRS) and isinstance(cond.second, DRS):
                 temp = (expression.conds[:expression.conds.index(cond)]+
                     expression.conds[expression.conds.index(cond)+1:])
                 local_check.append((expression.__class__(expression.refs,temp),cond.first))
                 local_check.append((expression.__class__(expression.refs,temp),cond.second))
     
-            elif isinstance(cond, drt.DrtImpExpression) and \
-                isinstance(cond.first, drt.DRS) and isinstance(cond.second, drt.DRS):
+            elif isinstance(cond, DrtImpExpression) and \
+                isinstance(cond.first, DRS) and isinstance(cond.second, DRS):
                 temp = (expression.conds[:expression.conds.index(cond)]+
                     expression.conds[expression.conds.index(cond)+1:])
                 local_check.append((expression.__class__(expression.refs,temp),cond.first))
-                local_check.append((drt.ConcatenationDRS(expression.__class__(expression.refs,temp),
+                local_check.append((ConcatenationDRS(expression.__class__(expression.refs,temp),
                                                          cond.first).simplify(),cond.second))
 
 
@@ -215,10 +191,10 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         if verbose: print "local admissibility check initiated...\n%s\n" % check_list
 
         for main,sub in check_list:
-            assert isinstance(main, drt.DRS), "Expression %s is not a DRS"
-            assert isinstance(sub, drt.DRS), "Expression %s is not a DRS"
+            assert isinstance(main, DRS), "Expression %s is not a DRS"
+            assert isinstance(sub, DRS), "Expression %s is not a DRS"
 
-            if not _check(main.__class__(main.refs,main.conds+[drt.DrtNegatedExpression(sub)])):
+            if not _check(main.__class__(main.refs,main.conds+[DrtNegatedExpression(sub)])):
                 if verbose: print "main %s entails sub %s \n" % (main,sub)
                 raise InferenceCheckException("New discourse is inadmissible due to local uninformativity:\n\n%s entails %s" % (main, sub))
                 
@@ -243,7 +219,7 @@ def inference_check(expr, background_knowledge=False,verbose=False):
     
     for cond in expr.conds:
         """Merge DRS of the new expression into the previous discourse"""
-        if isinstance(cond, drt.DRS):
+        if isinstance(cond, DRS):
             #change to NewInfoDRS when done
             return prenex_normal_form(expr.__class__(expr.refs,
                     expression.conds[:expr.conds.index(cond)]+
@@ -262,14 +238,14 @@ class InferenceCheckException(Exception):
 def prenex_normal_form(expression,subexpression):
     """Combines sub-DRS with superordinate DRS"""
     #needed any longer?
-    assert isinstance(subexpression, drt.DRS), "Expression %s is not a DRS" % subexpression
-    assert isinstance(expression, drt.DRS), "Expression %s is not a DRS" % expression
+    assert isinstance(subexpression, DRS), "Expression %s is not a DRS" % subexpression
+    assert isinstance(expression, DRS), "Expression %s is not a DRS" % expression
 
     subexpr = subexpression.__class__(subexpression.refs,subexpression.conds)
     expr = expression.__class__(expression.refs, expression.conds)
     
     for ref in set(subexpression.get_refs(True)) & set(expression.get_refs(True)):
-        newref = drt.DrtVariableExpression(drt.unique_variable(ref))
+        newref = DrtVariableExpression(unique_variable(ref))
         subexpr = subexpr.replace(ref,newref,True)
        
     return expr.__class__(expr.refs+subexpr.refs,expr.conds+subexpr.conds)
@@ -280,31 +256,31 @@ def get_bk(drs, dictionary):
     """Collects background knowledge relevant for a given expression.
     DrtConstantExpression variable names are used as keys"""
     
-    assert isinstance(drs, drt.DRS), "Expression %s is not a DRS" % drs
+    assert isinstance(drs, DRS), "Expression %s is not a DRS" % drs
     assert isinstance(dictionary, dict), "%s is not a dictionary" % dictionary
     bk_list = []
     
     for cond in drs.conds:
-        if isinstance(cond, drt.DrtApplicationExpression):
-            if isinstance(cond.function, drt.DrtConstantExpression):
+        if isinstance(cond, DrtApplicationExpression):
+            if isinstance(cond.function, DrtConstantExpression):
                 bk_formula = dictionary.get(cond.function.variable.name,False)
                
-            elif isinstance(cond.function, drt.ApplicationExpression) and \
-             isinstance(cond.function.function, drt.DrtConstantExpression):
+            elif isinstance(cond.function, DrtApplicationExpression) and \
+             isinstance(cond.function.function, DrtConstantExpression):
                 bk_formula = dictionary.get(cond.function.function.variable.name,False)
                
             if bk_formula:
                 bk_list.append(bk_formula)
                 
-        elif isinstance(cond, drt.DRS):
+        elif isinstance(cond, DRS):
             bk_list.extend(get_bk(cond,dictionary))
             
-        elif isinstance(cond, drt.DrtNegatedExpression) and \
-            isinstance(cond.term, drt.DRS):
+        elif isinstance(cond, DrtNegatedExpression) and \
+            isinstance(cond.term, DRS):
             bk_list.extend(get_bk(cond.term,dictionary))
             
-        elif isinstance(cond, drt.DrtBooleanExpression) and \
-            isinstance(cond.first, drt.DRS) and isinstance(cond.second, drt.DRS):
+        elif isinstance(cond, DrtBooleanExpression) and \
+            isinstance(cond.first, DRS) and isinstance(cond.second, DRS):
             bk_list.extend(get_bk(cond.first,dictionary))
             bk_list.extend(get_bk(cond.second,dictionary))
             
@@ -312,258 +288,160 @@ def get_bk(drs, dictionary):
     return list(set(bk_list))
 
 
-#def interpret(expr_1, expr_2, bk=False,verbose=False):
-#    """Interprets a new expression with respect to some previous discourse 
-#    and background knowledge. The function first generates relevant background
-#    knowledge and then performs inference check on readings generated by 
-#    the readings() method. It returns a list of admissible interpretations in
-#    the form of DRSs.
-#    
-#    Could be enlarged to take a grammar argument and a parser argument"""
-#    
-#    if expr_1 and not isinstance(expr_1, str):
-#        return "\nDiscourse uninterpretable. Expression %s is not a string" % expr_1
-#    elif not isinstance(expr_2, str):
-#        return "\nDiscourse uninterpretable. Expression %s is not a string" % expr_2
-#    elif not bk and not isinstance(bk, dict):
-#        return "\nDiscourse uninterpretable. Background knowledge is not in dictionary format"
-#        
-#    else:
-#            
-#        parser_obj = DrtParser()
-#        buffer = parser_obj.parse(r'\Q P.(Q+DRS([],[P]))')
-#        #buffer = parser_obj.parse(r'\Q P.(NEWINFO([],[P])+Q)')
-#        tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
-#        try:
-#            try:
-#                if expr_1:
-#                    discourse = tester.parse(expr_1, utter=True)
-#                    
-#                    expression = tester.parse(expr_2, utter=False)
-#                    
-#                    for ref in set(expression.get_refs(True)) & set(discourse.get_refs(True)):
-#                        newref = drt.DrtVariableExpression(drt.unique_variable(ref))
-#                        expression = expression.replace(ref,newref,True)                   
-#                    
-#                    new_discourse = drt.DrtApplicationExpression(drt.DrtApplicationExpression(buffer,discourse),expression).simplify()
-#                
-#                else: new_discourse = tester.parse(expr_2, utter=True)
-#                                   
-#                background_knowledge = None
-#                
-#                lp = LogicParser().parse
-#                
-#                #in order for bk in DRT-language to be parsed without REFER
-#                #this affects inference
-#                parser_obj = local_DrtParser()
-#                #should take bk in both DRT language and FOL
-#                try:
-#                    for formula in get_bk(new_discourse, bk):
-#                        if background_knowledge:
-#                            try:
-#                                background_knowledge = AndExpression(background_knowledge, parser_obj.parse(formula).fol())
-#                            except ParseException:
-#                                try:
-#                                    background_knowledge = AndExpression(background_knowledge, lp(formula))
-#                                except Exception:
-#                                    print Exception
-#                        else:
-#                            try:
-#                                background_knowledge = parser_obj.parse(formula).fol()
-#                            except ParseException:
-#                                try:
-#                                    background_knowledge = lp(formula)
-#                                except Exception:
-#                                    print Exception
-#                                    
-#                    if verbose: print "Generated background knowledge:\n%s" % background_knowledge
-#                    interpretations = []
-#                    
-#                    index = 1
-#                    for reading in new_discourse.readings():
-#                        print "\nGenerated reading (%s):" % index
-#                        index = index + 1
-#                        interpretation = None
-#                        try:
-#                            interpretation = inference_check(reading, background_knowledge, verbose)
-#                        except InferenceCheckException as e:
-#                            print e.value
-#                        if interpretation:
-#                            interpretations.append(interpretation)
-#                    
-#                    print "Admissible interpretations:"
-#                    return interpretations
-#                    
-#                except AssertionError as e:
-#                    print e
-#                
-#            except IndexError:
-#                print "Input sentences only!"
-#            
-#        except ValueError as e:
-#            print "Error:", e
-#    
-#        return "\nDiscourse uninterpretable"
-#    
-
-def test_1():
-    
-    #with ontology
-    bk_0 = {'individual' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
-            'time' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
-            'state' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
-            'event' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))'
-            }
 
     
-    bk_2 = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
-            'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
-            'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
-            
-            'husband' : r'(([t,x,y],[POSS(y,x), husband(y)]) -> ([s],[married(s),THEME(s,x),overlap(t,s)]))',
-            'married' : r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))',
-            'own' : r'(([s,x,y],[own(s),AGENT(s,x),PATIENT(s,y)]) -> ([],[POSS(y,x)]))',
-            'POSS' : r'(([t,y,x],[POSS(y,x)]) -> ([s],[own(s),AGENT(s,x),PATIENT(s,y),overlap(t,s)]))',
-            
-            #bk should be got from readings, not from unresolved expression
-            #'PERF' : r'all x y z v.((include(x,y),abut(z,y),(z = end(v))) -> -(overlap(x,v)))',
-            #'dead' : r'(([t,e,x],[die(e),AGENT(e,x)]) -> ([s1],[dead(s1),THEME(s1,x),overlap(t,s1),abut(e,s1)]))',
-            
-            'dead' : r'(([t,s,e,x],[include(s,t),abut(e,s),die(e),AGENT(e,x)]) -> ([],[dead(s),THEME(s,x),overlap(t,s)]))'
-            }
-    
-            
-    
-    #for interpretation in interpret("Mia is away", "If Mia is married her husband is away", bk_2):
-    ##    if not isinstance(interpretation, str):
-    #       print interpretation
-            #interpretation.draw()
-            
-        #TODO: Double referents of same name (because of buffer)
-        #TODO: Double outer accommodation readings because of NewInfroDRS
-        #TODO: POSS(x,x) should be ruled out
-        #TODO: Free variable check
-        #TODO: Recursive substitution of bound variable names, otherwise temporal conditions fail
-        #TODO: bk update after reading is generated
-        #TODO: add get_refs() into buffer merge
-        #TODO: Add Negative DRS admissibility condition 
-          
-        # No background knowledge attached:
-        ###################################
-        #
-        #"Mia is away", "Mia is away" -- uninformative
-        #
-        #"Mia is away", "Mia is not away" -- inconsistent
-        #
-        #"Mia is away", "If Mia is away Angus walked" -- inadmissible
-        #
-        #"Mia is away", "If Mia is not away Angus walked" -- uninformative
-        #
-        #"Mia is away", "If Angus walked Mia is away" -- uninformative
-        #
-        #"Mia is away", "If Angus walked Mia is not away" -- inadmissible
-        #
-        #"Mia is away", "Angus walked or Mia is away" -- uninformative
-        #
-        #"Mia is away", "Angus walked or Mia is not away" -- inadmissible
-        
-        ##################################################################
-        
-        # Background knowledge (not temporal):
-        ######################################
-        #
-        #"Mia owns a husband", "Mia is married" -- uninformative
-        #
-        #"Mia owns a husband", "Mia is not married" -- inconsistent
-        #
-        #"Mia owns a husband", "If Mia is married Angus walked" -- inadmissible
-        #
-        #"Mia owns a husband", "If Mia is not married Angus walked" -- uninformative
-        #
-        #"Mia owns a husband", "If Angus walked Mia is married" -- uninformative
-        #
-        #"Mia owns a husband", "If Angus walked Mia is not married" -- inadmissible
-        #
-        #"Mia owns a husband", "Angus walked or Mia is married" -- uninformative
-        #
-        #"Mia owns a husband", "Angus walked or Mia is not married" -- inadmissible
-        
-        ###################################################################
+#with ontology
+bk_0 = {'individual' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
+        'time' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
+        'state' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
+        'event' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))'
+        }
 
-        # Background knowledge (temporal):
-        ######################################
-        #
-        #"Mia died", "Mia will die" -- inconsistent, DRT-language & FOL used to write bk input
-        #
-        #"Mia died", "Mia will not die" -- ok
-        #
-        #"Mia died", "If Angus lives Mia will die" -- inadmissible 
-        #
-        #"Mia died", "If Angus lives Mia will not die" -- ok
-        #
-        #"Mia died", "Angus lives or Mia will die" -- inadmissible
-        #
-        #"Mia died", "Angus lives or Mia will not die" -- ok
+
+bk_2 = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
+        'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
+        'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
         
-        ###################################################################
+        'husband' : r'(([t,x,y],[POSS(y,x), husband(y)]) -> ([s],[married(s),THEME(s,x),overlap(t,s)]))',
+        'married' : r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))',
+        'own' : r'(([s,x,y],[own(s),AGENT(s,x),PATIENT(s,y)]) -> ([],[POSS(y,x)]))',
+        'POSS' : r'(([t,y,x],[POSS(y,x)]) -> ([s],[own(s),AGENT(s,x),PATIENT(s,y),overlap(t,s)]))',
         
-        # Background knowledge (not temporal), multiple readings:
-        #########################################################
-        #
-        #"Mia is away", "If Mia kissed someone her husband is away"
-        #
-        #global - ok, local - ok, intermediate - ok
-        #
-        #"Mia is away", "If Mia is married Mia's husband is away"
-        #
-        #global - inadmissible, local - ok, intermediate - ok
-        #
-        #"Mia is away", "If Mia owns a car her car is red"
-        #
-        #global - inadmissible, local - ok, intermediate - ok
-        #No binding!!!
-        #
-        #"Mia is away", "Mia does not own a car or her car is red"
-        #
-        #global - inadmissible, local - ok
+        #bk should be got from readings, not from unresolved expression
+        #'PERF' : r'all x y z v.((include(x,y),abut(z,y),(z = end(v))) -> -(overlap(x,v)))',
+        #'dead' : r'(([t,e,x],[die(e),AGENT(e,x)]) -> ([s1],[dead(s1),THEME(s1,x),overlap(t,s1),abut(e,s1)]))',
         
-        # Free variable check:
-        ######################
-        #
-        #"Mia is away", "Every boy loves his car"
-        #
-        #Not implemented
+        'dead' : r'(([t,s,e,x],[include(s,t),abut(e,s),die(e),AGENT(e,x)]) -> ([],[dead(s),THEME(s,x),overlap(t,s)]))'
+        }
         
-        # Miscellaneous:
-        ################
-        #
-        #"Angus is away", "If Angus owns a child his child is away"
-        #
-        # 'his' binds both child and Angus which is good. No free variable check.
-        #
-        #"Mia is away", "If a child kissed his dog he is red"
-        #
-        #AnaphoraResolutionException
-        #
-        #"Mia is away", "If Angus has sons his children are happy" - not tried yet
-        
-        # Temporal logic:
-        #################
-        #
-        #"Mia died", "Mia will die" -- inconsistent due to bk
-        #
-        #"Mia lives and she does not live"  -- inconsistent  (backgrounding turned off)
-        #
-        #"Jones has owned a car", "Jones owns it" - worked on PERF
-        #
-        #"Jones has died", "Jones is dead" -- uninformative
-        #
-        
+    #TODO: Double referents of same name (because of buffer)
+    #TODO: Double outer accommodation readings because of NewInfroDRS
+    #TODO: POSS(x,x) should be ruled out
+    #TODO: Free variable check
+    #TODO: Recursive substitution of bound variable names, otherwise temporal conditions fail
+    #TODO: bk update after reading is generated
+    #TODO: add get_refs() into buffer merge
+    #TODO: Add Negative DRS admissibility condition 
+      
+    # No background knowledge attached:
+    ###################################
+    #
+    #"Mia is away", "Mia is away" -- uninformative
+    #
+    #"Mia is away", "Mia is not away" -- inconsistent
+    #
+    #"Mia is away", "If Mia is away Angus walked" -- inadmissible
+    #
+    #"Mia is away", "If Mia is not away Angus walked" -- uninformative
+    #
+    #"Mia is away", "If Angus walked Mia is away" -- uninformative
+    #
+    #"Mia is away", "If Angus walked Mia is not away" -- inadmissible
+    #
+    #"Mia is away", "Angus walked or Mia is away" -- uninformative
+    #
+    #"Mia is away", "Angus walked or Mia is not away" -- inadmissible
+    
+    ##################################################################
+    
+    # Background knowledge (not temporal):
+    ######################################
+    #
+    #"Mia owns a husband", "Mia is married" -- uninformative
+    #
+    #"Mia owns a husband", "Mia is not married" -- inconsistent
+    #
+    #"Mia owns a husband", "If Mia is married Angus walked" -- inadmissible
+    #
+    #"Mia owns a husband", "If Mia is not married Angus walked" -- uninformative
+    #
+    #"Mia owns a husband", "If Angus walked Mia is married" -- uninformative
+    #
+    #"Mia owns a husband", "If Angus walked Mia is not married" -- inadmissible
+    #
+    #"Mia owns a husband", "Angus walked or Mia is married" -- uninformative
+    #
+    #"Mia owns a husband", "Angus walked or Mia is not married" -- inadmissible
+    
+    ###################################################################
+
+    # Background knowledge (temporal):
+    ######################################
+    #
+    #"Mia died", "Mia will die" -- inconsistent, DRT-language & FOL used to write bk input
+    #
+    #"Mia died", "Mia will not die" -- ok
+    #
+    #"Mia died", "If Angus lives Mia will die" -- inadmissible 
+    #
+    #"Mia died", "If Angus lives Mia will not die" -- ok
+    #
+    #"Mia died", "Angus lives or Mia will die" -- inadmissible
+    #
+    #"Mia died", "Angus lives or Mia will not die" -- ok
+    
+    ###################################################################
+    
+    # Background knowledge (not temporal), multiple readings:
+    #########################################################
+    #
+    #"Mia is away", "If Mia kissed someone her husband is away"
+    #
+    #global - ok, local - ok, intermediate - ok
+    #
+    #"Mia is away", "If Mia is married Mia's husband is away"
+    #
+    #global - inadmissible, local - ok, intermediate - ok
+    #
+    #"Mia is away", "If Mia owns a car her car is red"
+    #
+    #global - inadmissible, local - ok, intermediate - ok
+    #No binding!!!
+    #
+    #"Mia is away", "Mia does not own a car or her car is red"
+    #
+    #global - inadmissible, local - ok
+    
+    # Free variable check:
+    ######################
+    #
+    #"Mia is away", "Every boy loves his car"
+    #
+    #Not implemented
+    
+    # Miscellaneous:
+    ################
+    #
+    #"Angus is away", "If Angus owns a child his child is away"
+    #
+    # 'his' binds both child and Angus which is good. No free variable check.
+    #
+    #"Mia is away", "If a child kissed his dog he is red"
+    #
+    #AnaphoraResolutionException
+    #
+    #"Mia is away", "If Angus has sons his children are happy" - not tried yet
+    
+    # Temporal logic:
+    #################
+    #
+    #"Mia died", "Mia will die" -- inconsistent due to bk
+    #
+    #"Mia lives and she does not live"  -- inconsistent  (backgrounding turned off)
+    #
+    #"Jones has owned a car", "Jones owns it" - worked on PERF
+    #
+    #"Jones has died", "Jones is dead" -- uninformative
+    #
+    
         ####################################################################
         ############################# TEST #################################
         ####################################################################
         
-def test_2():
+def test_1():
+    from nltk.inference.prover9 import Prover9Command
+    from temporaldrt import DrtParser
+    from nltk import LogicParser   
     parser_obj = DrtParser()
     parser = LogicParser().parse
     expression_4 = parser_obj.parse(r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))')
