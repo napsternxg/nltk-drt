@@ -108,7 +108,7 @@ class Tester(object):
                     if readings[-1] == expected_drs:
                         print("%s. %s %s" % (number, sentence, readings[-1]))
                     else:
-                        print("%s. !comparison failed %s != %s" % (number, readings[-1], expected_drs))
+                        print("%s. !comparison failed:\n%s\n%s" % (number, readings[-1], expected_drs))
             except Exception, e:
                 if error and isinstance(e, error):
                     #if readings[-1] == expected_drs:
