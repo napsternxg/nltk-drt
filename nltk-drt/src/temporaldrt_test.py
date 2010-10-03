@@ -38,15 +38,15 @@ def main():
 
     tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
     
-    tester.test(cases)
+    #tester.test(cases)
     
-    #expr = tester.parse('Angus owns a car', utter=True)
+    expr = tester.parse('If Mia is married her husband is away', utter=True)
     
-    #print expr
+    print expr
     #expr.draw()
     
-    #for read in expr.readings():
-        #print read
+    for read in expr.readings():
+        print read
         #read.draw()
 
 if __name__ == '__main__':
