@@ -3,12 +3,12 @@ from nltk.inference.prover9 import Prover9Command, Prover9
 from temporaldrt import DrtParser
 from nltk.sem.drt import AbstractDrs
 from nltk import LogicParser
-from nltk.sem.logic import AndExpression, NegatedExpression
+from nltk.sem.logic import AndExpression, NegatedExpression, ParseException
 #from nltk.inference.api import ParallelProverBuilderCommand, Prover, ModelBuilder
-#import temporaldrt as drt
 from theorem import Builder, Prover 
 import temporaldrt as drt
 import util
+from util import local_DrtParser
 #from threading import Thread
 #import os
 
@@ -120,6 +120,7 @@ def inference_check(expr, background_knowledge=False):
     def check(expression):
         #os.system('killall mace4')
         if background_knowledge:
+            print "check on:", NegatedExpression(AndExpression(expression.fol(),background_knowledge))
             p = Prover(NegatedExpression(AndExpression(expression,background_knowledge)))
             m = Builder(AndExpression(expression,background_knowledge))
         else:
@@ -332,7 +333,7 @@ def interpret(expr_1, expr_2, bk=False):
     
     Could be enlarged to take a grammar argument and a parser argument"""
     
-    if not isinstance(expr_1, str):
+    if expr_1 and not isinstance(expr_1, str):
         return "\nDiscourse uninterpretable. Expression %s is not a string" % expr_1
     elif not isinstance(expr_2, str):
         return "\nDiscourse uninterpretable. Expression %s is not a string" % expr_2
@@ -347,47 +348,49 @@ def interpret(expr_1, expr_2, bk=False):
         tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
         try:
             try:
-                discourse = tester.parse(expr_1, utter=True)
+                if expr_1:
+                    discourse = tester.parse(expr_1, utter=True)
+                    
+                    expression = tester.parse(expr_2, utter=False)
+                                        
+                    for ref in expression.get_refs():
+                        if ref in discourse.get_refs():
+                            newref = drt.DrtVariableExpression(drt.unique_variable(ref))
+                            expression = expression.replace(ref,newref,True)
+                    
+                    new_discourse = drt.DrtApplicationExpression(drt.DrtApplicationExpression(buffer,discourse),expression).simplify()
                 
-                expression = tester.parse(expr_2, utter=False)
-                
-                #discourse = parser_obj.parse(r'DRS([x,s],[Mia(x),die(x)])')
-                #expression = parser_obj.parse(r'DRS([],[-DRS([x,s],[Mia(x),die(x)])])')
-                
-                #discourse = parser_obj.parse(r'DRS([x],[Mia(x),die(x)])')
-                #inconsistent
-                #expression = parser_obj.parse(r'DRS([x],[Mia(x),-DRS([],[die(x)])])')
-                #globally uninformative
-                #expression = parser_obj.parse(r'DRS([],[DRS([x],[Mia(x),-DRS([],[die(x)])]) -> DRS([y],[Angus(y),live(y)])])')
-                #locally inadmissible
-                #expression = parser_obj.parse(r'DRS([],[DRS([x],[Mia(x),die(x)]) -> DRS([y],[Angus(y),live(y)])])')
-                #globally uninformative
-                #expression = parser_obj.parse(r'DRS([],[DRS([y],[Angus(y),live(y)]) -> DRS([x],[Mia(x),die(x)])])')
-                #locally inadmissible
-                #expression = parser_obj.parse(r'DRS([],[DRS([y],[Angus(y),live(y)]) -> DRS([x],[Mia(x),-DRS([],[die(x)])])])')
-                
-                for ref in expression.get_refs():
-                    if ref in discourse.get_refs():
-                        newref = drt.DrtVariableExpression(drt.unique_variable(ref))
-                        expression = expression.replace(ref,newref,True)
-                
-                new_discourse = drt.DrtApplicationExpression(drt.DrtApplicationExpression(buffer,discourse),expression).simplify()
-                
-                #new_discourse = parser_obj.parse(r'DRS([x,e],[Mia(x),AGENT(e,x),die(e),DRS([e01],[AGENT(e01,x),die(e01)]) ])')
-                #new_discourse = parser_obj.parse(r'DRS([n,e,t,x],[Mia(x),AGENT(e,x),die(e),earlier(e,n),DRS([e01],[AGENT(e01,x),die(e01),earlier(e01,n)]) ])')
-                #([n,t,e,x],[([t09,e],[earlier(t09,n), die(e), AGENT(e,x), include(t09,e), REFER(e)]), earlier(t,n), die(e), AGENT(e,x), include(t,e), REFER(e), Mia{sg,f}(x)])
-                
+                else: new_discourse = tester.parse(expr_2, utter=True)
+                                   
                 background_knowledge = None
                 
                 lp = LogicParser().parse
+                
+                #in order for bk in DRT-language to be parsed without REFER
+                #this affects inference
+                parser_obj = local_DrtParser()
+                #should take bk in both DRT language and FOL
                 try:
                     print get_bk(new_discourse, bk)
                     for formula in get_bk(new_discourse, bk):
                         if background_knowledge:
-                            background_knowledge = AndExpression(background_knowledge, lp(formula))
+                            try:
+                                background_knowledge = AndExpression(background_knowledge, parser_obj.parse(formula).fol())
+                            except ParseException:
+                                try:
+                                    background_knowledge = AndExpression(background_knowledge, lp(formula))
+                                except Exception:
+                                    print Exception
                         else:
-                            background_knowledge = lp(formula)
-     
+                            try:
+                                background_knowledge = parser_obj.parse(formula).fol()
+                            except ParseException:
+                                try:
+                                    background_knowledge = lp(formula)
+                                except Exception:
+                                    print Exception
+                                    
+                    print background_knowledge
                     interpretations = []
                     
                     index = 1
@@ -415,55 +418,36 @@ def interpret(expr_1, expr_2, bk=False):
             print "Error:", e
     
         return "\nDiscourse uninterpretable"
-
-    
     
 
 def test_1():
     
     #with ontology
-    bk_0 = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
-          'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
-          'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
-          'dead' : r'all x y z.((die(x) & AGENT(x,z) & abut(x,y)) -> (dead(y) & THEME(y,z)))',
-          'live' : r'all x y z v.((overlap(x,y) & live(y) & AGENT(x,z)) <-> -(overlap(x,v) & dead(v) & THEME(v,z)))',
-          'married' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))',
-          'husband' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))',
-          'individual' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
-          'time' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
-          'state' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
-          'event' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))'
-          }
+    bk_0 = {'individual' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
+            'time' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
+            'state' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
+            'event' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))'
+            }
+
     
-    
-    bk_1 = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
-          'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
-          'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
-          #'live' : r'all x y z v.((overlap(x,y) & live(y) & AGENT(x,z)) <-> -(overlap(x,v) & dead(v) & THEME(v,z)))',
-          'dead' : r'all x y z v.((die(x) & AGENT(x,z) & abut(x,y) & dead(v) & THEME(v,z)) -> y = v)',
-          'married' : r'all x y z v.((married(x) & THEME(x,y)) <-> (own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)))',
-          'husband' : r'all z y v.((own(z) & AGENT(z,y) & PATIENT(z,v) & husband(v)) <-> (POSS(v,y) & husband(v)))',
-          'child' : r'all z y v.((own(z) & AGENT(z,y) & PATIENT(z,v) & child(v)) <-> (POSS(v,y) & child(v)))',
-          'POSS' : r'all z v.(POSS(z,v) <-> -(z=v))'}
-  
-    #parser_obj = DrtParser()
-    #buffer = parser_obj.parse(r'\Q P.(DRS([],[P])+Q)')
-    #tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
-    #discourse = tester.parse("Angus owns a red car", utter=True)
-    #expression = tester.parse("Mia owns a car", utter=False)
+    bk_2 = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
+            'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
+            'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
             
-    #new_discourse = drt.DrtApplicationExpression(drt.DrtApplicationExpression(buffer,discourse),expression).simplify()
-                
-    #for read in new_discourse.readings():
-        #read.draw()
-    #    print read
-    #    interpret = inference_check(read)
-    #    if interpret:
-    #        print interpret
-            #interpret.draw()
+            'husband' : r'(([t,x,y],[POSS(y,x), husband(y)]) -> ([s],[married(s),THEME(s,x),overlap(t,s)]))',
+            'married' : r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))',
+            'own' : r'(([s,x,y],[own(s),AGENT(s,x),PATIENT(s,y)]) -> ([],[POSS(y,x)]))',
+            'POSS' : r'(([t,y,x],[POSS(y,x)]) -> ([s],[own(s),AGENT(s,x),PATIENT(s,y),overlap(t,s)]))',
+            
+            #bk should be got from readings, not from unresolved expression
+            #'PERF' : r'all x y z v.((include(x,y),abut(z,y),(z = end(v))) -> -(overlap(x,v)))',
+            #'dead' : r'(([t,e,x],[die(e),AGENT(e,x)]) -> ([s1],[dead(s1),THEME(s1,x),overlap(t,s1),abut(e,s1)]))',
+            
+            'dead' : r'(([t,s,e,x],[include(s,t),abut(e,s),die(e),AGENT(e,x)]) -> ([],[dead(s),THEME(s,x),overlap(t,s)]))'
+            }
+             
     
-    
-    for interpretation in interpret("Mia walked", "If John owns a child his child is away", bk_1):
+    for interpretation in interpret("Jones has died", "Jones is dead", bk_2):
         if not isinstance(interpretation, str):
             print interpretation
             #interpretation.draw()
@@ -471,6 +455,10 @@ def test_1():
         #TODO: Double referents of same name (because of buffer)
         #TODO: Double outer accommodation readings because of NewInfroDRS
         #TODO: POSS(x,x) should be ruled out
+        #TODO: Free variable check
+        #TODO: Recursive substitution of bound variable names, otherwise temporal conditions fail
+        #TODO: bk update after reading is generated
+        #TODO: add get_refs() into buffer merge 
           
         # No background knowledge attached:
         ###################################
@@ -481,13 +469,13 @@ def test_1():
         #
         #"Mia is away", "If Mia is away Angus walked" -- inadmissible
         #
-        #"Mia is away", "If Mia is not away Angus walked" -- uninformative (short freeze)
+        #"Mia is away", "If Mia is not away Angus walked" -- uninformative
         #
         #"Mia is away", "If Angus walked Mia is away" -- uninformative
         #
         #"Mia is away", "If Angus walked Mia is not away" -- inadmissible
         #
-        #"Mia is away", "Angus walked or Mia is away" -- uninformative (short freeze)
+        #"Mia is away", "Angus walked or Mia is away" -- uninformative
         #
         #"Mia is away", "Angus walked or Mia is not away" -- inadmissible
         
@@ -504,7 +492,7 @@ def test_1():
         #
         #"Mia owns a husband", "If Mia is not married Angus walked" -- uninformative
         #
-        #"Mia owns a husband", "If Angus walked Mia is married" -- uninformative (freeze)
+        #"Mia owns a husband", "If Angus walked Mia is married" -- uninformative
         #
         #"Mia owns a husband", "If Angus walked Mia is not married" -- inadmissible
         #
@@ -517,7 +505,7 @@ def test_1():
         # Background knowledge (temporal):
         ######################################
         #
-        #"Mia died", "Mia will die" -- inconsistent
+        #"Mia died", "Mia will die" -- inconsistent, DRT-language & FOL used to write bk input
         #
         #"Mia died", "Mia will not die" -- ok
         #
@@ -534,11 +522,53 @@ def test_1():
         # Background knowledge (not temporal), multiple readings:
         #########################################################
         #
+        #"Mia is away", "If Mia kissed someone her husband is away"
+        #
+        #global - ok, local - ok, intermediate - ok
+        #
         #"Mia is away", "If Mia is married Mia's husband is away"
         #
-        #global - inadmissible, local - uninformative, intermediate - ok
+        #global - inadmissible, local - ok, intermediate - ok
         #
+        #"Mia is away", "If Mia owns a car her car is red"
         #
+        #global - inadmissible, local - ok, intermediate - ok
+        #No binding!!!
+        #
+        #"Mia is away", "Mia does not own a car or her car is red"
+        #
+        #global - inadmissible, local - ok
+        
+        # Free variable check:
+        ######################
+        #
+        #"Mia is away", "Every boy loves his car"
+        #
+        #Not implemented
+        
+        # Miscellaneous:
+        ################
+        #
+        #"Angus is away", "If Angus owns a child his child is away"
+        #
+        # 'his' binds both child and Angus which is good. No free variable check.
+        #
+        #"Mia is away", "If a child kissed his dog he is red"
+        #
+        #AnaphoraResolutionException
+        #
+        #"Mia is away", "If Angus has sons his children are happy" - not tried yet
+        
+        # Temporal logic:
+        #################
+        #
+        #"Mia died", "Mia will die" -- inconsistent due to bk
+        #
+        #"Mia lives and she does not live"  -- inconsistent  (backgrounding turned off)
+        #
+        #"Jones has owned a car", "Jones owns it" - worked on PERF
+        #
+        #"Jones has died", "Jones is dead" -- uninformative
         #
         
         ####################################################################
@@ -548,13 +578,23 @@ def test_1():
 def test_2():
     parser_obj = DrtParser()
     parser = LogicParser().parse
-    expression_1 = parser(r'all v y.(((POSS(v,y) & husband(v)) -> exists s.(married(s) & THEME(s,y))))')
+    expression_4 = parser_obj.parse(r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))')
+    expression_1 = parser_obj.parse(r'(([s,x,y],[own(s),AGENT(s,x),PATIENT(s,y)]) -> ([],[POSS(y,x)]))')
+    expression_2 = parser_obj.parse(r'(([t,y,x],[POSS(y,x)]) -> ([s],[own(s),AGENT(s,x),PATIENT(s,y),overlap(t,s)]))')
+    expression_3 = parser_obj.parse(r'(([t,x,y],[POSS(y,x), husband(y)]) -> ([s],[married(s),THEME(s,x),overlap(t,s)]))')
+    #expression_4 = parser_obj.parse(r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))')
+    #expression_2 = parser(r'exists x.((POSS(x, Mia) & husband(x)) -> -married(Mia))')
     #expression = parser_obj.parse(r'DRS([n,e,x,t],[Mia(x),die(e),AGENT(e,x),include(t,e),earlier(t,n),-DRS([t02,e01],[die(e01),AGENT(e01,x),include(t02,e01),earlier(t02,n)]) ])')
     #expression = parser_obj.parse(r'([n,t,e,x,y],[-([s],[married(s), THEME(s,x), overlap(n,s)]), POSS(y,x), husband{sg,m}(y), Mia{sg,f}(x), earlier(t,n), walk(e), AGENT(e,x), include(t,e)])')
-    expression = parser_obj.parse(r'([e,x,y],[-([s],[married(s), THEME(s,x)]), POSS(y,x), husband(y), Mia(x)])')
+    #expression = parser_obj.parse(r'([x],[POSS(x,Mia),husband(x),-([s],[married(s),THEME(s,Mia)])])')
+    expression = parser_obj.parse(r'([n,z6,s,x],[Mia{sg,f}(x), husband{sg,m}(z6), own(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), -([s011],[married(s011), THEME(s011,x), overlap(n,s011)])])')
     #expression = parser(r'DRS([],[die(Mia),-(DRS([],[die(Mia)])])')
     #expression = parser(r'(p & -(-p -> q))')
-    parsed = NegatedExpression(AndExpression(expression.fol(),expression_1))
+    parsed = NegatedExpression(AndExpression(expression.fol(),
+                    AndExpression(AndExpression(expression_1.fol(),expression_3.fol()),
+                                  AndExpression(expression_2.fol(),expression_4.fol()))) )
+    
+    #parsed = r'-(([n,z6,s,x],[Mia{sg,f}(x), husband{sg,m}(z6), own(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), ([s011],[married(s011), THEME(s011,x), overlap(n,s011)])]) & ((all t s.((((married(s) & THEME(s,x)) & overlap(t,s)) & REFER(s)) -> exists x.(exists y.((POSS(y,x) & husband(y)) & individual(y)) & individual(x))) & all s x y.((((own(s) & AGENT(s,x)) & PATIENT(s,y)) & REFER(s)) -> POSS(y,x))) & all t x y.((POSS(y,x) & husband(y)) -> exists s.((((married(s) & THEME(s,x)) & overlap(t,s)) & REFER(s)) & state(s)))))'
     print parsed
     #expression = parser('m')
     #assumption = parser('m')
