@@ -33,20 +33,79 @@ def main():
     (17,"Mary will kiss John and John will smile","([n,t,e,t063,e062,x,z57],[earlier(n,t), Mary{sg,f}(x), John{sg,m}(z57), kiss(e), AGENT(e,x), PATIENT(e,z57), include(t,e), earlier(n,t063), smile(e062), AGENT(e062,z57), include(t063,e062), earlier(e,e062)])",None),
     (18,"John was away. John's car was broken", "([n,t,s,t072,s070,x,y],[earlier(t,n), John{sg,m}(x), away(s), THEME(s,x), overlap(t,s), earlier(t072,n), POSS(y,x), car{sg,n}(y), broken(s070), THEME(s070,y), overlap(t072,s070), overlap(s,s070)])",None),
     (19,"If John owns a car John is rich","([n,x],[(([z74,s],[car{sg,n}(z74), own(s), AGENT(s,x), PATIENT(s,z74), overlap(n,s)]) -> ([s079],[rich(s079), THEME(s079,x), overlap(n,s079), overlap(s,s079)])), John{sg,m}(x)])",None),
-    (20,"John owns a broken car or John is rich","([n,x],[(([z82,s],[broken(z82), car{sg,n}(z82), own(s), AGENT(s,x), PATIENT(s,z82), overlap(n,s)]) | ([s087],[rich(s087), THEME(s087,x), overlap(n,s087)])), John{sg,m}(x)])",None)
+    (20,"John owns a broken car or John is rich","([n,x],[(([z82,s],[broken(z82), car{sg,n}(z82), own(s), AGENT(s,x), PATIENT(s,z82), overlap(n,s)]) | ([s087],[rich(s087), THEME(s087,x), overlap(n,s087)])), John{sg,m}(x)])",None),
+    (21,"If Mia is married her husband is away",None,None)
     ]
 
     tester = util.Tester('file:../data/grammar.fcfg', DrtParser)
     
     #tester.test(cases)
     
-    expr = tester.parse('If Mia is married her husband is away', utter=True)
     
-    print expr
+    cases_inf = [
+    # No background knowledge attached
+    (1,"Mia is away","Angus owns a car","ok"),
+    (2,"Mia is away","Mia is not away","inconsistent"),
+    (3,"Mia is away", "Mia is away","uninformative"),
+    (4,"Mia is away", "If Mia is away Angus walked","inadmissible"),
+    (5,"Mia is away", "If Mia is not away Angus walked","uninformative"),
+    (6,"Mia is away", "If Angus walked Mia is away","uninformative"),
+    (7,"Mia is away", "If Angus walked Mia is not away","inadmissible"),
+    (8,"Mia is away", "Angus walked or Mia is away","uninformative"),
+    (9,"Mia is away", "Angus walked or Mia is not away","inadmissible"),
+    # Background knowledge (not temporal)
+    (10,"Mia owns a husband", "Mia is married","uninformative"),
+    (11,"Mia owns a husband", "Mia is not married","inconsistent"),
+    (12,"Mia owns a husband", "If Mia is married Angus walked", "inadmissible"),
+    (13,"Mia owns a husband", "If Mia is not married Angus walked", "uninformative"),
+    (14,"Mia owns a husband", "If Angus walked Mia is married", "uninformative"),
+    (15,"Mia owns a husband", "If Angus walked Mia is not married","inadmissible"),
+    (16,"Mia owns a husband", "Angus walked or Mia is married", "uninformative"),
+    (17,"Mia owns a husband", "Angus walked or Mia is not married","inadmissible"),
+    # Background knowledge (temporal)
+    (18,"Mia died", "Mia will die", "inconsistent"),
+    (19,"Mia died", "Mia will not die","ok"),
+    (20,"Mia died", "If Angus lives Mia will die","inadmissible"),
+    (21,"Mia died", "If Angus lives Mia will not die", "ok"),
+    (22,"Mia died", "Angus lives or Mia will die", "inadmissible"),
+    (23,"Mia died", "Angus lives or Mia will not die", "ok"),
+    # Background knowledge (not temporal), multiple readings:
+    (24,"Mia is away", "If Mia kissed someone her husband is away","global - ok, local - ok, intermediate - ok"),
+    (25,"Mia is away", "If Mia is married Mia's husband is away","global - inadmissible, local - ok, intermediate - ok"),
+    (26,"Mia is away", "Mia does not own a car or her car is red", "global - inadmissible, local - ok"),
+    # Free variable check: Not implemented
+    # Temporal logic
+    (27,"Mia died", "Mia will die","inconsistent"),
+    (28,None,"Mia lives and Mia does not live","inconsistent"),
+    (29,"Jones has died", "Jones is dead","uninformative"),
+    #(30,"Jones has owned a car", "Jones owns it","not working yet"),           
+    ]
+    
+    
+    bk = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
+    'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
+    'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',   
+    'husband' : r'(([t,x,y],[POSS(y,x), husband(y)]) -> ([s],[married(s),THEME(s,x),overlap(t,s)]))',
+    'married' : r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))',
+    'own' : r'(([s,x,y],[own(s),AGENT(s,x),PATIENT(s,y)]) -> ([],[POSS(y,x)]))',
+    'POSS' : r'(([t,y,x],[POSS(y,x)]) -> ([s],[own(s),AGENT(s,x),PATIENT(s,y),overlap(t,s)]))',
+   'dead' : r'(([t,s,e,x],[include(s,t),abut(e,s),die(e),AGENT(e,x)]) -> ([],[dead(s),THEME(s,x),overlap(t,s)]))'
+    } 
+    
+    
+    tester.inference_test(cases_inf,bk)
+    
+    #for i in tester.interpret("Mia walked","Mia walked",bk,True):
+    #    if not isinstance(i, str):
+    #        print i
+    
+    #expr = tester.parse('If a boy did not kiss a girl he is red', utter=True)
+    
+    #print expr
     #expr.draw()
     
-    for read in expr.readings():
-        print read
+    #for read in expr.readings():
+        #print read
         #read.draw()
 
 if __name__ == '__main__':
