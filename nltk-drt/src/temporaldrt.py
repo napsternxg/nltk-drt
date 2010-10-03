@@ -365,20 +365,20 @@ class DRS(AbstractDrs, drt.DRS):
             accum = ExistsExpression(ref, AndExpression(accum, DRS._ref_type(ref).fol()))
         return accum
 
-    @staticmethod
-    def _ref_type(referent):
-        """Checks a referent type and returns corresponding predicate"""
-        ref_cond = None
-        if is_eventvar(referent.name):
-            ref_cond = drt.DrtConstantExpression(Variable("event"))
-        elif is_statevar(referent.name):
-            ref_cond = drt.DrtConstantExpression(Variable("state"))
-        elif is_timevar(referent.name):
-            ref_cond = drt.DrtConstantExpression(Variable("time"))
-        else:
-            ref_cond = drt.DrtConstantExpression(Variable("individual"))
-        
-        return DrtApplicationExpression(ref_cond, DrtAbstractVariableExpression(referent))
+#    @staticmethod
+#    def _ref_type(referent):
+#        """Checks a referent type and returns corresponding predicate"""
+#        ref_cond = None
+#        if is_eventvar(referent.name):
+#            ref_cond = drt.DrtConstantExpression(Variable("event"))
+#        elif is_statevar(referent.name):
+#            ref_cond = drt.DrtConstantExpression(Variable("state"))
+#        elif is_timevar(referent.name):
+#            ref_cond = drt.DrtConstantExpression(Variable("time"))
+#        else:
+#            ref_cond = drt.DrtConstantExpression(Variable("individual"))
+#        
+#        return DrtApplicationExpression(ref_cond, DrtAbstractVariableExpression(referent))
     
 
     def replace(self, variable, expression, replace_bound=False):
