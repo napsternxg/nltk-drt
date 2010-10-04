@@ -135,11 +135,10 @@ class Tester(object):
             return "\nDiscourse uninterpretable. Expression %s is not a string" % expr_1
         elif not isinstance(expr_2, str):
             return "\nDiscourse uninterpretable. Expression %s is not a string" % expr_2
-        elif not bk and not isinstance(bk, dict):
+        elif bk and not isinstance(bk, dict):
             return "\nDiscourse uninterpretable. Background knowledge is not in dictionary format"
             
         else:
-        
             buffer = self.logic_parser.parse(r'\Q P.(Q+DRS([],[P]))')
             #buffer = parser_obj.parse(r'\Q P.(NEWINFO([],[P])+Q)')
             try:
@@ -158,52 +157,54 @@ class Tester(object):
                     else: new_discourse = self.parse(expr_2, utter=True)
                                        
                     background_knowledge = None
-                    
-                    lp = LogicParser().parse
-                    
-                    #in order for bk in DRT-language to be parsed without REFER
-                    #as this affects inference
-                    parser_obj = local_DrtParser()
-                    #takes bk in both DRT language and FOL
-                    try:
-                        for formula in get_bk(new_discourse, bk):
-                            if background_knowledge:
-                                try:
-                                    background_knowledge = AndExpression(background_knowledge, parser_obj.parse(formula).fol())
-                                except ParseException:
+                    if bk:
+                        lp = LogicParser().parse
+                        
+                        #in order for bk in DRT-language to be parsed without REFER
+                        #as this affects inference
+                        parser_obj = local_DrtParser()
+                        #takes bk in both DRT language and FOL
+                        try:
+                            for formula in get_bk(new_discourse, bk):
+                                if background_knowledge:
                                     try:
-                                        background_knowledge = AndExpression(background_knowledge, lp(formula))
-                                    except Exception:
-                                        print Exception
-                            else:
-                                try:
-                                    background_knowledge = parser_obj.parse(formula).fol()
-                                except ParseException:
+                                        background_knowledge = AndExpression(background_knowledge, parser_obj.parse(formula).fol())
+                                    except ParseException:
+                                        try:
+                                            background_knowledge = AndExpression(background_knowledge, lp(formula))
+                                        except Exception:
+                                            print Exception
+                                else:
                                     try:
-                                        background_knowledge = lp(formula)
-                                    except Exception:
-                                        print Exception
-                                        
-                        if verbose: print "Generated background knowledge:\n%s" % background_knowledge
-                        interpretations = []
+                                        background_knowledge = parser_obj.parse(formula).fol()
+                                    except ParseException:
+                                        try:
+                                            background_knowledge = lp(formula)
+                                        except Exception:
+                                            print Exception
+                                            
+                            if verbose: print "Generated background knowledge:\n%s" % background_knowledge
                         
-                        index = 1
-                        for reading in new_discourse.readings():
-                            print "\nGenerated reading (%s):" % index
-                            index = index + 1
-                            interpretation = None
-                            try:
-                                interpretation = inference_check(reading, background_knowledge, verbose)
-                            except InferenceCheckException as e:
-                                print e.value
-                            if interpretation:
-                                interpretations.append(interpretation)
-                        
-                        print "Admissible interpretations:"
-                        return interpretations
-                        
-                    except AssertionError as e:
-                        print e
+                        except AssertionError as e:
+                            #catches dictionary exceptions 
+                            print e
+                            
+                    interpretations = []
+                    
+                    index = 1
+                    for reading in new_discourse.readings():
+                        print "\nGenerated reading (%s):" % index
+                        index = index + 1
+                        interpretation = None
+                        try:
+                            interpretation = inference_check(reading, background_knowledge, verbose)
+                        except InferenceCheckException as e:
+                            print e.value
+                        if interpretation:
+                            interpretations.append(interpretation)
+                    
+                    print "Admissible interpretations:"
+                    return interpretations
                     
                 except IndexError:
                     print "Input sentences only!"
