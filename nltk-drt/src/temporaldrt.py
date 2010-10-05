@@ -941,7 +941,6 @@ class PresuppositionDRS(DRS):
         is_bindable = True # do not allow forward binding
         for drs in filtered_trail:
             for cond in (c for c in drs.conds if isinstance(c, DrtApplicationExpression)):
-                print "COND", type(cond), cond
                 # Ignore conditions following the presupposition DRS
                 if cond is self:
                     if not collect_event_data: 
@@ -1240,7 +1239,7 @@ class ProperNameDRS(PresuppositionDRS):
 class DefiniteDescriptionDRS(PresuppositionDRS):
     
     def _presupposition_readings(self, trail=[]):
-        trail[0].draw()
+        #trail[0].draw()
         """
         If a dog barks, every cat likes the dog.
         For binding, we need to look for antecedents in the whole trail (i.e. in all candidate drss, see filter_trail)
