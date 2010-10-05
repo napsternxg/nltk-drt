@@ -964,10 +964,12 @@ class PresuppositionDRS(DRS):
             event_strings_map[cond.argument] = cond.function.variable.name
         
     def _enrich_event_data_map(self, event_data_map, event_strings_map):
-        for individual in event_strings_map.keys():
+        # TODO:
+        for individual in event_data_map.keys():
             new_event_list = []
-            for event_tuple in event_strings_map[individual]:
-                new_event_list.append((event_tuple[0], event_tuple[1], event_strings_map[event_tuple[0]]))
+            for event_tuple in event_data_map[individual]:
+                new_event_list.append((event_tuple[0], event_tuple[1], event_strings_map.get(event_tuple[0], None))) 
+            event_data_map[individual] = new_event_list
                 
     def is_presupposition_cond(self, cond):
         return True
