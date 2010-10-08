@@ -1,5 +1,5 @@
 from nltk.sem.logic import AndExpression, NegatedExpression
-from theorem import Builder, Prover 
+from theorem import Theorem
 from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
                         DrtApplicationExpression, DrtVariableExpression, unique_variable, \
                         ConcatenationDRS, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
@@ -99,38 +99,15 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         if background_knowledge:
             e = AndExpression(expression.fol(),background_knowledge)
             if verbose: print "performing check on:", e
-            p = Prover(NegatedExpression(e))
-            m = Builder(e)
+            t = Theorem(NegatedExpression(e), e)
         else:
             if verbose: print "performing check on:", expression
-            p = Prover(NegatedExpression(expression))
-            m = Builder(expression)
+            t = Theorem(NegatedExpression(expression), expression)
         
-        if verbose: print "\n%s, %s\n" % (p, m)
-        
-        p.start()
-        m.start()
-        
-        while p.is_alive() and m.is_alive():
-            pass
-        
-        if m.is_alive():
-            result = p.result
-            if verbose: print "prover returned with result:", p, result, "\n"
-            
-            while not m.builder._modelbuilder.isrunning():
-                pass
-            m.builder._modelbuilder.terminate()
-            
-            return not result
-
-        if verbose: print "builder return with result:", m, "\n\n", m.builder.valuation, "\n"
-        
-        while not p.prover._prover.isrunning():
-                pass
-        p.prover._prover.terminate()
-        
-        return m.result      
+        result, output = t.check()
+        if output and verbose:
+            print output
+        return result      
     
     def consistency_check(expression):
         """1. Consistency check"""
