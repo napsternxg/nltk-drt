@@ -131,6 +131,7 @@ LexPropN[NUM=sg,GEN=m,SEM=<Jones>] -> 'Jones'
 LexPropN[NUM=sg,GEN=m,SEM=<Bill>] -> 'Bill'
 LexPropN[NUM=sg,GEN=m,SEM=<Brown>] -> 'Brown'
 LexPropN[NUM=sg,GEN=f,SEM=<Charlotte>] -> 'Charlotte'
+LexPropN[NUM=sg,GEN=n,SEM=<London>] -> 'London'
 
 # Personal, Reflexive and Possessive Pronouns:
 ##############################################
@@ -142,7 +143,7 @@ LexPro[NUM=sg,GEN=n,SEM=<PRO>] -> 'it' | 'It'
 LexPro[NUM=sg,GEN=m,SEM=<PRO>] -> 'him'
 LexPro[NUM=sg,GEN=f,SEM=<PRO>] -> 'her'
 
-LexPro[NUM=sg,GEN=m,SEM=<RPRO>] -> 'himself'
+LexPro[NUM=sg,GEN=m,SEM=<RPRO>] -> 'himself' | 'Himself'
 LexPro[NUM=sg,GEN=f,SEM=<RPRO>] -> 'herself'
 LexPro[NUM=sg,GEN=n,SEM=<RPRO>] -> 'itself'
 
@@ -189,6 +190,7 @@ LexADJ[SEM=<broken>] -> 'broken'
 LexADJ[SEM=<upset>] -> 'upset'
 LexADJ[SEM=<late>] -> 'late'
 LexADJ[SEM=<stupid>] -> 'stupid'
+LexADJ[SEM=<smart>] -> 'smart'
 
 # Common Nouns:
 ###############
@@ -235,7 +237,7 @@ IF[SEM=<\X Y.DRS([],[(X implies Y)])>] -> 'if' | 'If'
 
 AND[SEM=<\X Y.(X+Y)>] -> 'and' | 'but'
 
-IbarAND[SEM=<\X Y Z.Y(\Q.X(\P.Z(\y.(P(y)+Q(y)))))>] -> 'and'
+IbarAND[SEM=<\X Y Z.Y(\Q.X(\P.Z(\y.(P(y)+Q(y)))))>] -> 'and' | 'but'
 
 IbarOR[SEM=<\X Y Z.Y(\Q.X(\P.Z(\y.(DRS([],[(P(y) or Q(y))])))))>] -> 'or'
 
@@ -284,15 +286,17 @@ LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<own>] -> 'own'
 LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<want>] -> 'want'
 LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<need>] -> 'need'
 LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<love>] -> 'love'
+LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<hate>] -> 'hate'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<invite>] -> 'invite'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<ask>] -> 'ask'
-LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<like>] -> 'like'
+LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<like>] -> 'like'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<hide>] -> 'hide'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<date>] -> 'date'
 LexV[SUBCAT=tv,FORM=inf,TYPE=e,SEM=<beat>] -> 'beat'
 LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<underestimate>] -> 'underestimate'
 
 LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<write>] -> 'written'
+LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<leave>] -> 'left'
 LexV[SUBCAT=tv,FORM=perf,TYPE=s,SEM=<own>] -> 'owned'
 
 # Ditransitives:
