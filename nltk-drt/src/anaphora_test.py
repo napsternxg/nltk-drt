@@ -21,7 +21,7 @@ def main():
     (7, "Jones likes a picture of him.", None, AnaphoraResolutionException),
     (8, "Bill likes Jones's picture of himself", "DRS([n,e,x,z98,y],[Bill{sg,m}(x), POSS(y,z98), REL(y,z98), picture{sg,n}(y), Jones{sg,m}(z98), like(e), AGENT(e,x), PATIENT(e,y), include(n,e)])", None),
     (9, "Bill likes Jones's picture of him", "DRS([n,e,x,z111,y],[Bill{sg,m}(x), POSS(y,z111), REL(y,x), picture{sg,n}(y), Jones{sg,m}(z111), like(e), AGENT(e,x), PATIENT(e,y), include(n,e)])", None),
-    (10,"Jones shows Bill his room. He likes it", "DRS([n,e,e0122,x,z115,z116],[Jones{sg,m}(x), POSS(z115,x), room{sg,n}(z115), Bill{sg,m}(z116), show(e), AGENT(e,x), PATIENT(e,z115), RECIP(e,z116), include(n,e), like(e0122), AGENT(e0122,x), PATIENT(e0122,z115), include(n,e0122), earlier(e,e0122)])", None),
+    (10,"Jones shows Bill his room. He likes it", "DRS([n,e,e0122,x,z116,z115],[Jones{sg,m}(x), Bill{sg,m}(z116), POSS(z115,z116), room{sg,n}(z115), show(e), AGENT(e,x), PATIENT(e,z115), RECIP(e,z116), include(n,e), like(e0122), AGENT(e0122,z116), PATIENT(e0122,z115), include(n,e0122), earlier(e,e0122)])", None),
     (11, "If Jones is not dead, he will die.", "DRS([n,x],[(([],[-([s],[dead(s), THEME(s,x), overlap(n,s)])]) -> ([t0128,e],[earlier(n,t0128), die(e), AGENT(e,x), include(t0128,e)])), Jones{sg,m}(x)])", None),
     (12, "No one dates Charlotte and she is upset.", "DRS([n,s,z131],[-([x,e],[human{sg,m}(x), date(e), AGENT(e,x), PATIENT(e,z131), include(n,e), include(s,e)]), Charlotte{sg,f}(z131), upset(s), THEME(s,z131), overlap(n,s)])", None),
     (13, "If Jones is stupid, everyone underestimates him.", "DRS([n,z145],[(([s],[stupid(s), THEME(s,z145), overlap(n,s)]) -> ([],[(([x],[human{sg,m}(x)]) -> ([s0150],[underestimate(s0150), AGENT(s0150,x), PATIENT(s0150,z145), overlap(n,s0150), overlap(s,s0150)]))])), Jones{sg,m}(z145)])", None),
@@ -42,7 +42,7 @@ def main():
     tester.test(cases)
 
 #    tester = Tester('file:../data/grammar.fcfg', DrtParser)
-#    drs = tester.parse("If Jones is stupid, everyone underestimates him.")
+#    drs = tester.parse("Bill likes Jones's picture of himself.")
 #    print drs
 #    readings = drs.readings(True)
 #    print readings

@@ -913,33 +913,27 @@ class PresuppositionDRS(DRS):
         else:
             self._init_presupp_data()
             return self._presupposition_readings(trail)
-    
-    def _is_normal_drs(self, expr):
-        return isinstance(expr, DRS) and\
-                 not isinstance(expr, PresuppositionDRS) and\
-                   not isinstance(expr, NewInfoDRS)
-                
-    def filter_drs(self, expr_list):
-        """A generator that iterates over the drss in the trail and filters out PresuppositionDrs and NewInfoDrs objects"""
-        return (expr for expr in expr_list if self._is_normal_drs(expr))
         
     def _find_outer_drs(self, trail):
-        for drs in self.filter_drs(trail):
-            return drs
+        for expr in trail:
+            if expr.__class__ is DRS:
+                return expr
         
     def _find_local_drs(self, trail):
-        for drs in self.filter_drs(ReverseIterator(trail)): return drs
+        for expr in ReverseIterator(trail):
+            if expr.__class__ is DRS:
+                return expr
     
     def is_possible_binding(self, cond):
         return is_unary_predicate(cond) and self.has_same_features(cond) and cond.argument.__class__ is DrtIndividualVariableExpression
                 
-    def find_bindings(self, filtered_trail, collect_event_data=False):
+    def find_bindings(self, trail, collect_event_data=False, filter=lambda x: x.__class__ is DRS):
         bindings = []
         if collect_event_data:
             event_data_map = {}
             event_strings_map = {}
         is_bindable = True # do not allow forward binding
-        for drs in filtered_trail:
+        for drs in (expr for expr in trail if filter(expr)):
             for cond in (c for c in drs.conds if isinstance(c, DrtApplicationExpression)):
                 # Ignore conditions following the presupposition DRS
                 if cond is self:
@@ -1163,11 +1157,9 @@ class PronounDRS(PresuppositionDRS):
 
     def is_presupposition_cond(self, cond):
         return cond.function.variable.name in PronounDRS.PRONOUNS
-    
+
     def _presupposition_readings(self, trail=[]):
-        #trail[0].draw()
-        possible_bindings, event_data = self.find_bindings(self.filter_drs(trail), True)
-        #print possible_bindings
+        possible_bindings, event_data = self.find_bindings(trail, True, lambda x: x.__class__ is DRS or isinstance(x, PresuppositionDRS))
         bindings = [cond for cond in possible_bindings if self._is_binding(cond, self._get_pro_events(event_data), event_data)]
         ranked_bindings = self._rank_bindings(bindings, event_data)
         return [Reading([(trail[-1], VariableReplacer(self.variable, cond.argument, False))]) for cond, rank in sorted(ranked_bindings, key=lambda e: e[1], reverse=True)], True
@@ -1272,7 +1264,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
         # Go through the filtered trail, find bindings and find the intermediate drs for possible accommodation
         for index, drs in enumerate(trail):
             if isinstance(drs, DrtImpExpression): intermediate_next = True
-            if not self._is_normal_drs(drs): continue
+            if not drs.__class__ is DRS: continue
             # Free variable check
             if not self._free_variable_check(drs, free, all_refs): 
                 intermediate_next = False
