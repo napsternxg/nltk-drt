@@ -272,7 +272,7 @@ class AbstractDrs(drt.AbstractDrs):
 
     def normalize(self):
         """Rename auto-generated unique variables"""
-        print "visited %s", 'TemporalExpression'
+        #print "visited %s", 'TemporalExpression'
         def f(e):
             if isinstance(e, Variable):
                 if re.match(r'^z\d+$', e.name) or re.match(r'^[est]0\d+$', e.name):
@@ -1287,7 +1287,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
             if drs_possible_bindings:
                 possible_bindings[index] = drs_possible_bindings
         
-        print accommod_indices
+        #print accommod_indices
         
         # Filter the bindings, create the readings
         antecedent_tracker = []
