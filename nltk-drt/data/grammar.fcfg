@@ -113,7 +113,7 @@ V[SUBCAT=tv,FORM=perf,SEM=<\X x.X(\y.DRS([s],[?lv(s),AGENT(s,x),PATIENT(s,y),PER
 # Bare infinitives: Ditransitive Events / States
 ##############################################
 
-V[SUBCAT=dv,FORM=inf,SEM=<\Z X x.X(\y.Z(\z.DRS([e,t],[?lv(e),AGENT(e,x),PATIENT(e,y),RECIP(e,z),LOCPRO(t)])))>] -> LexV[SUBCAT=dv,FORM=inf,TYPE=e,SEM=?lv]
+V[SUBCAT=dv,FORM=inf,SEM=<\Z X x.Z(\z.X(\y.DRS([e,t],[?lv(e),AGENT(e,x),PATIENT(e,y),RECIP(e,z),LOCPRO(t)])))>] -> LexV[SUBCAT=dv,FORM=inf,TYPE=e,SEM=?lv]
 
 #############################
 # Lexicon
