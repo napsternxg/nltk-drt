@@ -934,12 +934,14 @@ class PresuppositionDRS(DRS):
             event_strings_map = {}
         is_bindable = True # do not allow forward binding
         for drs in (expr for expr in trail if filter(expr)):
-            for cond in (c for c in drs.conds if isinstance(c, DrtApplicationExpression)):
+            for cond in drs.conds:
                 # Ignore conditions following the presupposition DRS
                 if cond is self:
                     if not collect_event_data: 
                         break # assuming that the filtered_trail has drss ordered from the outermost to the innermost 
-                    is_bindable = False 
+                    is_bindable = False
+                if not isinstance(cond, DrtApplicationExpression):
+                    continue
                 if is_bindable and self.is_possible_binding(cond): 
                     bindings.append(cond)
                 elif collect_event_data:
