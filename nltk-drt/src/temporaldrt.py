@@ -955,17 +955,22 @@ class PresuppositionDRS(DRS):
         return (bindings, event_data_map) if collect_event_data else bindings
 
     def collect_event_data(self, cond, event_data_map, event_strings_map):
-        if isinstance(cond.function, DrtApplicationExpression) and (isinstance(cond.function.argument, DrtStateVariableExpression) or
-                isinstance(cond.function.argument, DrtEventVariableExpression)):
+        #print "\nCOND", type(cond), cond, 'cond function', type(cond.function), 'cond argument', type(cond.argument)
+
+        if isinstance(cond.function, DrtApplicationExpression) and not isinstance(cond.function, DrtTimeApplicationExpression) and \
+        isinstance(cond.argument, DrtIndividualVariableExpression) and not isinstance(cond.argument, DrtTimeVariableExpression):
                 event_data_map.setdefault(cond.argument.variable,[]).append((cond.function.argument, cond.function.function.variable.name))
-        elif cond.__class__ == DrtApplicationExpression and \
-        (isinstance(cond.argument, DrtEventVariableExpression) or isinstance(cond.argument, DrtStateVariableExpression)):
-            assert cond.argument not in event_strings_map
-            event_strings_map[cond.argument] = cond.function.variable.name
+        #else: print "ELSE", type(cond), cond
+#        elif cond.__class__ == DrtApplicationExpression and \
+#        (isinstance(cond.argument, DrtEventVariableExpression) or isinstance(cond.argument, DrtStateVariableExpression)):
+#            assert cond.argument not in event_strings_map
+#            print "HERE"
+#            event_strings_map[cond.argument] = cond.function.variable.name
         
     def _enrich_event_data_map(self, event_data_map, event_strings_map):
         # TODO:
-        for individual in event_data_map.keys():
+        #print event_strings_map
+        for individual in event_data_map:
             new_event_list = []
             for event_tuple in event_data_map[individual]:
                 new_event_list.append((event_tuple[0], event_tuple[1], event_strings_map.get(event_tuple[0], None))) 
@@ -1056,25 +1061,25 @@ class PresuppositionDRS(DRS):
             return drs
     
     class Bind(Operation):
-        def __init__(self, presupp_drs, presupp_variable, presupp_funcname, antecedent_ref, condition_index):
+        def __init__(self, presupp_drs, presupp_variable, presupp_funcname, antecedent_cond, condition_index):
             self.presupp_drs = presupp_drs
             self.presupp_variable = presupp_variable
             self.presupp_funcname = presupp_funcname
-            self.antecedent_ref = antecedent_ref
+            self.antecedent_cond = antecedent_cond
             self.condition_index = condition_index
         def __call__(self, drs):
             """Put all conditions from the presupposition DRS
             (if presupposition condition is a proper name: except the proper name itself) into the drs, 
-            and replace the presupposition condition referent in them with antecedent_ref"""
+            and replace the presupposition condition referent in them with antecedent referent"""
             #print "BINDING, drs", drs
-            newdrs = self.presupp_drs.replace(self.presupp_variable, self.antecedent_ref, True)
+            newdrs = self.presupp_drs.replace(self.presupp_variable, self.antecedent_cond.argument, True)
             # There will be referents and conditions to move 
             # if there is a relative clause modifying the noun that has triggered the presuppositon
             drs.refs.extend([ref for ref in newdrs.refs \
-                             if ref != self.antecedent_ref.variable])
+                             if ref != self.antecedent_cond.argument.variable])
+            move_presupp_condition = True if self.antecedent_cond.function.variable.name != self.presupp_funcname else False
             conds_to_move = [cond for cond in newdrs.conds \
-                            if not is_unary_predicate(cond) or cond.function.variable.name != self.presupp_funcname]
-            # TODO: in these condiitons, variables must be replaced, too. Or is it already done by InnerReplace?
+                            if move_presupp_condition or not is_unary_predicate(cond) or cond.function.variable.name != self.presupp_funcname]
             # Put the conditions at the position of the original presupposition DRS
             if self.condition_index is None: # it is an index, it can be zero
                 drs.conds.extend(conds_to_move)
@@ -1110,10 +1115,10 @@ class PresuppositionDRS(DRS):
                 drs = operation(drs)
             return drs   
                 
-    def binding_reading(self, inner_drs, target_drs, antecedent_ref, trail, temporal_conditions=None, local_drs=None):
+    def binding_reading(self, inner_drs, target_drs, antecedent_cond, trail, temporal_conditions=None, local_drs=None):
         condition_index = self._get_condition_index(target_drs, trail)
-        binder = self.Bind(self, self.variable, self.function_name, antecedent_ref, condition_index)
-        inner_replacer = self.InnerReplace(self.variable, antecedent_ref)
+        binder = self.Bind(self, self.variable, self.function_name, antecedent_cond, condition_index)
+        inner_replacer = self.InnerReplace(self.variable, antecedent_cond.argument)
         temp_cond_mover = self.MoveTemporalConditions(temporal_conditions) if temporal_conditions else None
         if inner_drs is target_drs:
             if temp_cond_mover:
@@ -1164,7 +1169,9 @@ class PronounDRS(PresuppositionDRS):
         return cond.function.variable.name in PronounDRS.PRONOUNS
     
     def _presupposition_readings(self, trail=[]):
+        #trail[0].draw()
         possible_bindings, event_data = self.find_bindings(self.filter_drs(trail), True)
+        #print possible_bindings
         bindings = [cond for cond in possible_bindings if self._is_binding(cond, self._get_pro_events(event_data), event_data)]
         ranked_bindings = self._rank_bindings(bindings, event_data)
         return [Reading([(trail[-1], VariableReplacer(self.variable, cond.argument, False))]) for cond, rank in sorted(ranked_bindings, key=lambda e: e[1], reverse=True)], True
@@ -1201,6 +1208,7 @@ class PronounDRS(PresuppositionDRS):
         return bindings
 
     def _is_binding(self, cond, pro_events, event_data):
+        #print "PRO EVENTS", pro_events
         #non reflexive pronouns can not resolve to variables having a role in the same event
         if self.function_name == DrtTokens.POSSESSIVE_PRONOUN:
             return True
@@ -1226,8 +1234,7 @@ class ProperNameDRS(PresuppositionDRS):
         assert len(possible_bindings) <= 1
         if possible_bindings:           
             # Return the reading
-            antecedent_ref = possible_bindings[0].argument
-            return [self.binding_reading(inner_drs, outer_drs, antecedent_ref, trail)], True
+            return [self.binding_reading(inner_drs, outer_drs, possible_bindings[0], trail)], True
         # If no suitable antecedent has been found in the outer DRS,
         # binding is not possible, so we go for accommodation instead.
         return [self.accommodation_reading(outer_drs, trail)], True
@@ -1299,7 +1306,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
                     not cond.argument in antecedent_tracker:
                         antecedent_tracker.append(cond.argument)
                         drs_readings.append(self.binding_reading(inner_drs, drs, \
-                                                                         cond.argument, trail, temporal_conditions, local_drs))
+                                                                         cond, trail, temporal_conditions, local_drs))
             # If binding is possible, no accommodation at this level or below will take place
             if drs_readings: accommod_indices = [None]
             elif drsindex in accommod_indices:
@@ -1697,7 +1704,6 @@ class DrtParser(drt.DrtParser):
     
     def make_ConstantExpression(self, name):
         return DrtConstantExpression(Variable(name))
-
 
     def make_NegatedExpression(self, expression):
         return DrtNegatedExpression(expression)
