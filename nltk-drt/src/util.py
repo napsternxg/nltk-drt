@@ -27,7 +27,7 @@ class Tester(object):
     (re.compile("^died$"), ("did", "die")),
      (re.compile("^([A-Z][a-z]+)'s?$"),   lambda m: (m.group(1), "s")),
      (re.compile("^(?P<stem>[a-z]+)s$"),  lambda m: ("does", m.group("stem"))),
-     (re.compile("^([a-z]+[^cvl])ed|([a-z]+[cvl]e)d$"), lambda m: ("did", m.group(1) if m.group(1) else m.group(2))),
+     (re.compile("^([a-z]+(?:[^cvklt]|lk))ed|([a-z]+[cvlkt]e)d$"), lambda m: ("did", m.group(1) if m.group(1) else m.group(2))),
      (re.compile("^([A-Z]?[a-z]+)one$"), lambda m: (m.group(1), "one")),
      (re.compile("^([A-Z]?[a-z]+)thing$"), lambda m: (m.group(1), "thing")),
       (re.compile("^bit$"), ("did", "bite")),
@@ -96,29 +96,29 @@ class Tester(object):
     def test(self, cases, **args):
         verbose = args.get("verbose", False)
         for number, sentence, expected, error in cases:
-            if expected is not None:
-                expected_drs = local_DrtParser().parse(expected).readings(verbose)[0]
-            else:
-                expected_drs = None
-
-            drs_list = []
+            expected_drs = []
+            if expected:
+                for item in expected if isinstance(expected, list) else [expected]:
+                    expected_drs.append(local_DrtParser().parse(item, verbose))
+                               
+            expression = None
             readings = []
             try:
-                drs_list.append(self.parse(sentence, **args))
-                readings.append(drs_list[-1].readings(verbose)[0])
+                expression = self.parse(sentence, **args)
+                readings = expression.readings(verbose)
+                
                 if error:
                     print("%s. !error: expected %s" % (number, str(error)))
                 else:
-                    if readings[-1] == expected_drs:
-                        print("%s. %s %s" % (number, sentence, readings[-1]))
+                    if len(expected_drs) == len(readings):
+                        for index, pair in enumerate(zip(expected_drs, readings)):
+                            if pair[0] == pair[1]:
+                                print("%s. %s reading (%s): %s" % (number, sentence, index, pair[1]))
                     else:
-                        print("%s. !comparison failed:\n%s\n%s" % (number, readings[-1], expected_drs))
+                        print("%s. !comparison failed!\n%s" % (number, sentence))
             except Exception, e:
                 if error and isinstance(e, error):
-                    #if readings[-1] == expected_drs:
                     print("%s. *%s (%s)" % (number, sentence,  e))
-                    #else:
-                    #    print("%s. !comparison failed %s != %s" % (number, readings[-1], expected_drs))
                 else:
                     print("%s. !unexpected error: %s" % (number, e))
                     
@@ -223,7 +223,7 @@ class Tester(object):
 
 def main():
     tester = Tester('file:../data/grammar.fcfg', temporaldrt.DrtParser)
-    sentences = ["Mia has a garden", "Angus bought a girl who smiled"]
+    sentences = ["Mia walked", "Angus liked a boy"]
     for sentence in sentences:
         print tester._split(sentence)
 
