@@ -955,21 +955,18 @@ class PresuppositionDRS(DRS):
         return (bindings, event_data_map) if collect_event_data else bindings
 
     def collect_event_data(self, cond, event_data_map, event_strings_map):
-        #print "\nCOND", type(cond), cond, 'cond function', type(cond.function), 'cond argument', type(cond.argument)
-
         if isinstance(cond.function, DrtApplicationExpression) and not isinstance(cond.function, DrtTimeApplicationExpression) and \
         isinstance(cond.argument, DrtIndividualVariableExpression) and not isinstance(cond.argument, DrtTimeVariableExpression):
                 event_data_map.setdefault(cond.argument.variable,[]).append((cond.function.argument, cond.function.function.variable.name))
-        #else: print "ELSE", type(cond), cond
-#        elif cond.__class__ == DrtApplicationExpression and \
-#        (isinstance(cond.argument, DrtEventVariableExpression) or isinstance(cond.argument, DrtStateVariableExpression)):
-#            assert cond.argument not in event_strings_map
-#            print "HERE"
-#            event_strings_map[cond.argument] = cond.function.variable.name
+        elif cond.__class__ == DrtEventualityApplicationExpression and \
+        (isinstance(cond.argument, DrtEventVariableExpression) or isinstance(cond.argument, DrtStateVariableExpression)) and\
+        not isinstance(cond.function, DrtApplicationExpression):
+            assert cond.argument not in event_strings_map
+            event_strings_map[cond.argument] = cond.function.variable.name
+        # The rest are nouns and attributive adjectives
+        #elif cond.__class__ == DrtApplicationExpression and 
         
     def _enrich_event_data_map(self, event_data_map, event_strings_map):
-        # TODO:
-        #print event_strings_map
         for individual in event_data_map:
             new_event_list = []
             for event_tuple in event_data_map[individual]:
@@ -1003,7 +1000,7 @@ class PresuppositionDRS(DRS):
             if isinstance(cond.function, DrtFeatureConstantExpression): # this is the one
                 # There can be more than one DrtFeatureConstantExpression on the conditions on list, e.g.
                 # "Tom, a kind boy, took her hand", or "Tom, who is a kind boy,...", or "Linguist Grimm suggested ...", 
-                # or "The distinguished physicist Einstein ...". But 'check' helps us find the right one.
+                # or "The distinguished physicist Einstein ...". But 'is_presupposition_cond' helps us find the right one.
                 self.variable = cond.argument.variable
                 self.features = cond.function.features
                 self.function_name = cond.function.variable.name
@@ -1077,9 +1074,8 @@ class PresuppositionDRS(DRS):
             # if there is a relative clause modifying the noun that has triggered the presuppositon
             drs.refs.extend([ref for ref in newdrs.refs \
                              if ref != self.antecedent_cond.argument.variable])
-            move_presupp_condition = True if self.antecedent_cond.function.variable.name != self.presupp_funcname else False
             conds_to_move = [cond for cond in newdrs.conds \
-                            if move_presupp_condition or not is_unary_predicate(cond) or cond.function.variable.name != self.presupp_funcname]
+                             if not cond in drs.conds]
             # Put the conditions at the position of the original presupposition DRS
             if self.condition_index is None: # it is an index, it can be zero
                 drs.conds.extend(conds_to_move)
@@ -1247,7 +1243,7 @@ class ProperNameDRS(PresuppositionDRS):
     
 class DefiniteDescriptionDRS(PresuppositionDRS):
     
-    def _presupposition_readings(self, trail=[]):
+    def _presupposition_readings(self, trail=[], overgenerate=False):
         #trail[0].draw()
         """
         If a dog barks, every cat likes the dog.
@@ -1282,8 +1278,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
                 intermediate_next = False
                 continue
             # Find the (maximum) three drss
-            if drs is outer_drs or drs is local_drs: accommod_indices.append(index)
-            if intermediate_next: 
+            if drs is outer_drs or drs is local_drs or intermediate_next:
                 accommod_indices.append(index)
                 intermediate_next = False
             # Find the bindings
@@ -1308,7 +1303,8 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
                         drs_readings.append(self.binding_reading(inner_drs, drs, \
                                                                          cond, trail, temporal_conditions, local_drs))
             # If binding is possible, no accommodation at this level or below will take place
-            if drs_readings: accommod_indices = [None]
+            # (unless we set the 'overgenerate' parameter to True)
+            if not overgenerate and drs_readings: accommod_indices = [None]
             elif drsindex in accommod_indices:
                 drs_readings.append(self.accommodation_reading(drs, trail, temporal_conditions, local_drs))
                 accommod_indices.remove(drsindex)
