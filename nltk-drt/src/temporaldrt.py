@@ -927,7 +927,7 @@ class PresuppositionDRS(DRS):
     def is_possible_binding(self, cond):
         return is_unary_predicate(cond) and self.has_same_features(cond) and cond.argument.__class__ is DrtIndividualVariableExpression
                 
-    def find_bindings(self, trail, collect_event_data=False, filter=lambda x: x.__class__ is DRS):
+    def find_bindings(self, trail, collect_event_data=False, filter=lambda x: x.__class__ is DRS, individuals=None):
         bindings = []
         if collect_event_data:
             event_data_map = {}
@@ -938,19 +938,19 @@ class PresuppositionDRS(DRS):
                 # Ignore conditions following the presupposition DRS
                 if cond is self:
                     if not collect_event_data: 
-                        break # assuming that the filtered_trail has drss ordered from the outermost to the innermost 
-                    is_bindable = False
+                        break # assuming that the filtered_trail has drss ordered from the outermost to the innermost
                 if not isinstance(cond, DrtApplicationExpression):
-                    continue
+                    continue 
+                    is_bindable = False 
                 if is_bindable and self.is_possible_binding(cond): 
                     bindings.append(cond)
-                elif collect_event_data:
-                    self.collect_event_data(cond, event_data_map, event_strings_map)
+                if collect_event_data:
+                    self.collect_event_data(cond, event_data_map, event_strings_map, individuals)
         if collect_event_data:
             self._enrich_event_data_map(event_data_map, event_strings_map)
         return (bindings, event_data_map) if collect_event_data else bindings
 
-    def collect_event_data(self, cond, event_data_map, event_strings_map):
+    def collect_event_data(self, cond, event_data_map, event_strings_map, individuals=None):
         if isinstance(cond.function, DrtApplicationExpression) and not isinstance(cond.function, DrtTimeApplicationExpression) and \
         isinstance(cond.argument, DrtIndividualVariableExpression) and not isinstance(cond.argument, DrtTimeVariableExpression):
                 event_data_map.setdefault(cond.argument.variable,[]).append((cond.function.argument, cond.function.function.variable.name))
@@ -960,7 +960,9 @@ class PresuppositionDRS(DRS):
             assert cond.argument not in event_strings_map
             event_strings_map[cond.argument] = cond.function.variable.name
         # The rest are nouns and attributive adjectives
-        #elif cond.__class__ == DrtApplicationExpression and 
+        elif individuals is not None and cond.__class__ == DrtApplicationExpression and \
+        not isinstance(cond.function, DrtApplicationExpression):
+            individuals.setdefault(cond.argument.variable,[]).append(cond)
         
     def _enrich_event_data_map(self, event_data_map, event_strings_map):
         for individual in event_data_map:
@@ -1000,11 +1002,13 @@ class PresuppositionDRS(DRS):
                 self.variable = cond.argument.variable
                 self.features = cond.function.features
                 self.function_name = cond.function.variable.name
+                self.cond = cond
                 return
 
         self.variable = self.refs[0]
         self.features = None
         self.function_name = presupp_cond_list[0].variable.name
+        self.cond = presupp_cond_list[0]
     
     def has_same_features(self, cond):
         return (not isinstance(cond.function, DrtFeatureConstantExpression) and not self.features) \
@@ -1161,7 +1165,7 @@ class PronounDRS(PresuppositionDRS):
         return cond.function.variable.name in PronounDRS.PRONOUNS
 
     def _presupposition_readings(self, trail=[]):
-        possible_bindings, event_data = self.find_bindings(trail, True, lambda x: x.__class__ is DRS or isinstance(x, PresuppositionDRS))
+        possible_bindings, event_data = self.find_bindings(trail, True, filter=lambda x: x.__class__ is DRS or isinstance(x, PresuppositionDRS))
         bindings = [cond for cond in possible_bindings if self._is_binding(cond, self._get_pro_events(event_data), event_data)]
         ranked_bindings = self._rank_bindings(bindings, event_data)
         return [Reading([(trail[-1], VariableReplacer(self.variable, cond.argument, False))]) for cond, rank in sorted(ranked_bindings, key=lambda e: e[1], reverse=True)], True
@@ -1238,7 +1242,7 @@ class ProperNameDRS(PresuppositionDRS):
 class DefiniteDescriptionDRS(PresuppositionDRS):
     
     def _presupposition_readings(self, trail=[], overgenerate=False):
-        #trail[0].draw()
+        trail[0].draw()
         """
         If a dog barks, every cat likes the dog.
         For binding, we need to look for antecedents in the whole trail (i.e. in all candidate drss, see filter_trail)
@@ -1250,13 +1254,15 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
         # If there is a restrictive clause or an adjunct PP, find the perfect binding or accommodate the presupposition
         presupp_event_data = {}
         presupp_event_strings = {}
+        presupp_individuals = {}
         # Are there any states/events in this presuppositional drs that the presupposition referent takes part in?
         for cond in (c for c in self.conds if isinstance(c, DrtApplicationExpression)):
-            self.collect_event_data(cond, presupp_event_data, presupp_event_strings)
+            self.collect_event_data(cond, presupp_event_data, presupp_event_strings, presupp_individuals)
         self._enrich_event_data_map(presupp_event_data, presupp_event_strings)
         
         possible_bindings = {}
         event_data = {}
+        individuals = {}
         accommod_indices = []
         intermediate_next = False # find the closest antecedent drs
         outer_drs = self._find_outer_drs(trail)
@@ -1276,22 +1282,21 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
                 accommod_indices.append(index)
                 intermediate_next = False
             # Find the bindings
-            drs_possible_bindings, drs_event_data = self.find_bindings([drs], True)
+            drs_possible_bindings, drs_event_data = self.find_bindings([drs], True, individuals=individuals)
             for var in drs_event_data: event_data.setdefault(var,[]).extend(drs_event_data[var])
             if drs_possible_bindings:
                 possible_bindings[index] = drs_possible_bindings
         
-        #print accommod_indices
-        
         # Filter the bindings, create the readings
-        antecedent_tracker = []
+        antecedent_tracker = [] # do not bind to the same referent twice
         readings = []
         inner_drs = trail[-1]
         for drsindex, drs in enumerate(trail):
             drs_readings = []
             if drsindex in possible_bindings:
                 for cond in ReverseIterator(possible_bindings[drsindex]):
-                    if self._is_binding(cond, self._get_defdescr_events(event_data), event_data, presupp_event_data) and \
+                    variable = cond.argument.variable
+                    if self._is_binding(variable, individuals[variable], self._get_defdescr_events(event_data), event_data, presupp_event_data, presupp_individuals) and \
                     not cond.argument in antecedent_tracker:
                         antecedent_tracker.append(cond.argument)
                         drs_readings.append(self.binding_reading(inner_drs, drs, \
@@ -1471,30 +1476,66 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
         state 'angry' from the sentence 'The boy is angry'"""
         return [item[0] for item in event_data.get(self.variable, ())]
     
-    def _is_binding(self, cond, defdescr_events, event_data, presupp_event_data):
-        #No binding is possible to variables having a role in the same event
-        variable = cond.argument.variable
+    def _is_binding(self, variable, var_individuals, defdescr_events, event_data, presupp_event_data, presupp_individuals):
+        # No binding is possible to variables having a role in the same event (look for events in drss other than self)
         variable_events = set((event for event, role, event_string in event_data.get(variable,())))
-        if not variable_events.isdisjoint(defdescr_events): return False
-        if cond.function.variable.name == self.function_name or self.semantic_check(cond.function.variable.name):
+        if not variable_events.isdisjoint(defdescr_events):
+            return False
+        # Don't allow binding if the potential antecedent participates in the same event (in the relative clause) as self.variable, e.g.:
+        # If John has a child, the child that likes him (him = the child in the antecedent of the impl. cond) is away.
+        variable_presupp_events = set((event for event, role, event_string in presupp_event_data.get(variable,())))
+        defdescr_presupp_events = set((event for event, role, event_string in presupp_event_data.get(self.variable,())))
+        if not variable_presupp_events.isdisjoint(defdescr_presupp_events):
+            return False
+
+        # Don't allow binding x to y if there are conditions like POSS(x,y), POSS(y,x), REL(x,y), REL(y,x) and suchlike
+        for event_tuple in presupp_event_data.get(variable, []):
+            event = event_tuple[0]
+            if event.__class__ == DrtIndividualVariableExpression and event.variable == self.variable:
+                return False
+        for event_tuple in presupp_event_data.get(self.variable, []):
+            event = event_tuple[0]
+            if event.__class__ == DrtIndividualVariableExpression and event.variable == variable:
+                return False
+        
+        # Perform the semantic check
+        if self.semantic_check(var_individuals, presupp_individuals):
             if not presupp_event_data: return True 
             return not self.event_conflict(event_data, presupp_event_data)
         return False
     
-    # Ambitious TODO:
+    # TODO:
     # Mia walks. Kate sings. The girl that sings is happy. - only binding to Kate
     # Mia owns a blue bag. Kate owns a red bag. The girl that owns a/the blue bag is happy. A, THE, OR BOTH?
-    # Mia owns a blue bag. Kate owns a red bag. The girl with the blue bag is happy.
-    # Background knowledge:
+    # Mia owns a blue bag. Kate owns a red bag. The girl _with_ the blue bag is happy.
+    # Mia owns a flower. Kate owns a hammer. The girl that owns a tool is happy.
+    #----
+    # Predicative adjectives and intransitive stative verbs are treated the same way
+    # (except that the argument of an adjective is its theme, and the argument of a verb is its agent, but that can be changed).
+    # Given that, bind to Kate:
+    # Kate owns a bag. Her bag is blue. Mary owns a red bag. The girl who owns a/the blue bag...
+    #---- 
+    # Use background knowledge for resolution:
     # Uncle Vernon and Harry are talking. The wizard is upset.
         
-    def semantic_check(self, other_noun, strict=False):
-        """ Users can plug in their sophisticated semantic checks here.
+    def semantic_check(self, individuals, presupp_individuals, strict=False):
+        """ Users can plug in their more sophisticated semantic checks here.
         As for this project, we confine ourselves to ontologies provided by WordNet.
         See the other file for how this is supposed to work."""
         if strict:
-            # Plug in ontologies here
-            return self.function_name == other_noun
+            # ------------------------ Plug in ontologies here
+            if isinstance(self.cond, DrtFeatureConstantExpression):
+                for individual in individuals:
+                    if isinstance(individual, DrtFeatureConstantExpression) and self.function_name == individual.function.variable.name:
+                        return True
+                return False
+            else:
+                # If no features are used, we cannot guarantee that the condition we got self.function_name from wasn't an adjective
+                for individual in individuals:
+                    for presupp_individual in presupp_individuals[self.variable]:
+                        if presupp_individual.function.variable.name == individual.function.variable.name:
+                            return True
+                return False
         else:
             return True
     
