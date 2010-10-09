@@ -159,11 +159,14 @@ class Reading(list):
     """
     pass
 
-class LocalAccommodationReading(Reading): pass
+class LocalAccommodationReading(Reading): 
+    pass
 
-class IntermediateAccommodationReading(Reading): pass
+class IntermediateAccommodationReading(Reading): 
+    pass
 
-class GlobalAccommodationReading(Reading): pass
+class GlobalAccommodationReading(Reading): 
+    pass
 
 class VariableReplacer(object):
     """A generic variable replacer functor to be used in readings"""
@@ -199,6 +202,9 @@ class ConditionRemover(object):
     def __call__(self, drs):
         drs.conds.pop(self.cond_index)
         return drs
+
+class ResolutionException(Exception):
+    pass
 
 class DrtTokens(drt.DrtTokens):
     OPEN_BRACE = '{'
@@ -322,9 +328,13 @@ class AbstractDrs(drt.AbstractDrs):
         until there are no presuppositions left to resolve.
         """
         readings = []
-
+        errors = []
         def get_operations(expr):
-            ops = expr.readings()
+            try:
+                ops = expr.readings()
+            except Exception as ex:
+                errors.append(str(ex))
+                return []
             if ops:
                 return [(expr, ops[0])]
             else:
@@ -348,8 +358,10 @@ class AbstractDrs(drt.AbstractDrs):
 
             operations = new_operations
 
+        if not readings and errors:
+            raise ResolutionException("\n".join(errors))
         return readings
-    
+
     def readings(self, trail=[]):
         raise NotImplementedError()
 
