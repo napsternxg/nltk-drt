@@ -1242,7 +1242,7 @@ class ProperNameDRS(PresuppositionDRS):
 class DefiniteDescriptionDRS(PresuppositionDRS):
     
     def _presupposition_readings(self, trail=[], overgenerate=False):
-        trail[0].draw()
+        #trail[0].draw()
         """
         If a dog barks, every cat likes the dog.
         For binding, we need to look for antecedents in the whole trail (i.e. in all candidate drss, see filter_trail)
