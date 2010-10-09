@@ -110,7 +110,8 @@ class Tester(object):
                         for index, pair in enumerate(zip(expected_drs, readings)):
                             if pair[0] == pair[1]:
                                 print("%s. %s reading (%s): %s" % (number, sentence, index, pair[1]))
-                            else: print("!comparison failed!\n")
+                            else:
+                                print("%s. !failed %s !failed reading (%s):\n\nexpected %s\nreturns %s\n" % (number, sentence, index, pair[0], pair[1]))
                     else:
                         print("%s. !comparison failed!\n%s" % (number, sentence))
             except Exception, e:
