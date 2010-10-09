@@ -8,12 +8,12 @@ else:
     from temporaldrt import DrtParser
 
 
-# Nltk fix
-import nltkfixtemporal
-from nltk.sem.drt import AbstractDrs
-def gr(s, recursive=False):
-    return []
-AbstractDrs.get_refs = gr
+## Nltk fix
+#import nltkfixtemporal
+#from nltk.sem.drt import AbstractDrs
+#def gr(s, recursive=False):
+#    return []
+#AbstractDrs.get_refs = gr
 
 def test(tester):
 
@@ -30,9 +30,10 @@ def test(tester):
     #expr = tester.parse("A dog needs a kitchen. If a donkey dances, the animal is stupid.", utter=True) # Animal=dog or animal=donkey. OK.
     #expr = tester.parse("Fido bites a farmer. If a donkey dances, the animal is stupid.", utter=True) # Animal=Fido or animal=donkey. OK.
     #expr = tester.parse("John hates the student. The student is upset.", utter=True) # Bind to student. OK. But it also binds to "John"
-    #expr = tester.parse("If Mary does not like the president, she will not vote him.", utter=True) # Although 'child', 'letter' and 'dog' are all neuter, 'the dog' doesn't bind to either 'child' or 'kitchen'
+    #expr = tester.parse("If Mary does not like the president, she will not vote him.", utter=True) 
+    expr = tester.parse("The child writes a letter. The dog needs the kitchen.", utter=True)# Although 'child', 'letter' and 'dog' are all neuter, 'the dog' doesn't bind to either 'child' or 'letter'
     #expr = tester.parse("Mary likes the president or she will not vote him.", utter=True)
-    expr = tester.parse("Mary likes John's car or she hates his car.", utter=True)
+    #expr = tester.parse("Mary likes John's car or she hates his car.", utter=True)
     
     
     #########
@@ -49,7 +50,7 @@ def test(tester):
 #        except:pass
 
     expr.draw()
-    r = expr.readings(verbose=True)
+    r = expr.resolve(verbose=True)
     print len(r)
     for reading in r:
         reading.draw()
