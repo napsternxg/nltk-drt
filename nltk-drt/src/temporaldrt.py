@@ -74,7 +74,7 @@ class LocationTimeResolutionException(Exception):
     pass
 
 class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
-    def _readings(self, trail=[]):
+    def readings(self, trail=[]):
         utter_time_search = False
 
         for drs in (ancestor for ancestor in ReverseIterator(trail) if isinstance(ancestor, DRS)):
@@ -108,7 +108,7 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
 
 class DrtFindUtterTimeExpression(DrtApplicationExpression):
     """Type of application expression looking to equate its argument with utterance time"""
-    def _readings(self, trail=[]):
+    def readings(self, trail=[]):
         for ancestor in trail:    
             for ref in ancestor.get_refs():
                 refex = DrtVariableExpression(ref)
@@ -136,7 +136,7 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
     PERF(s) locates the most recent state referent s* and resolves to a condition abut(e*,s*),
     e* = end(s) and adds a new event referent e*. Note that end(.) is an operator on states
     that returns events."""
-    def _readings(self, trail=[]):
+    def readings(self, trail=[]):
 
         state_reference_point = None
         index = trail[-1].conds.index(self)
