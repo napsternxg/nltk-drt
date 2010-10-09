@@ -20,7 +20,8 @@ from nltk.sem.logic import _counter, is_eventvar, is_funcvar
 from nltk.sem.logic import BasicType
 from nltk.sem.logic import Expression
 from nltk.sem.logic import ParseException
-from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
+from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException,\
+    DrtNegatedExpression
 
 import nltk.sem.drt as drt
 
@@ -920,9 +921,15 @@ class PresuppositionDRS(DRS):
                 return expr
         
     def _find_local_drs(self, trail):
+        drs = None
         for expr in ReverseIterator(trail):
+            if drs:
+                if not isinstance(expr, DrtNegatedExpression):
+                    return drs
+                else: drs = None
             if expr.__class__ is DRS:
-                return expr
+                drs = expr
+        return drs
     
     def is_possible_binding(self, cond):
         return is_unary_predicate(cond) and self.has_same_features(cond) and cond.argument.__class__ is DrtIndividualVariableExpression
@@ -1165,6 +1172,7 @@ class PronounDRS(PresuppositionDRS):
         return cond.function.variable.name in PronounDRS.PRONOUNS
 
     def _presupposition_readings(self, trail=[]):
+        #trail[0].draw()
         possible_bindings, event_data = self.find_bindings(trail, True, filter=lambda x: x.__class__ is DRS or isinstance(x, PresuppositionDRS))
         bindings = [cond for cond in possible_bindings if self._is_binding(cond, self._get_pro_events(event_data), event_data)]
         ranked_bindings = self._rank_bindings(bindings, event_data)
