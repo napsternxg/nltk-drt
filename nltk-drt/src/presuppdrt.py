@@ -159,6 +159,12 @@ class Reading(list):
     """
     pass
 
+class LocalAccommodationReading(Reading): pass
+
+class IntermediateAccommodationReading(Reading): pass
+
+class GlobalAccommodationReading(Reading): pass
+
 class VariableReplacer(object):
     """A generic variable replacer functor to be used in readings"""
     def __init__(self, var, new_var, remove_ref=True):
@@ -976,18 +982,18 @@ class PresuppositionDRS(DRS):
                 return Reading([(target_drs, binder),
                         (inner_drs, inner_replacer)])
     
-    def accommodation_reading(self, target_drs, trail, temporal_conditions=None, local_drs=None):
+    def accommodation_reading(self, target_drs, trail, temporal_conditions=None, local_drs=None, reading_type=Reading):
         condition_index = self._get_condition_index(target_drs, trail)
         accommodator = self.Accommodate(self, condition_index)
         if temporal_conditions:
             temp_cond_mover = self.MoveTemporalConditions(temporal_conditions)
             if local_drs is target_drs:
-                return Reading([(target_drs, self.DoMultipleOperations([temp_cond_mover, accommodator]))])
+                return reading_type([(target_drs, self.DoMultipleOperations([temp_cond_mover, accommodator]))])
             else:
-                return Reading([(target_drs, accommodator),
+                return reading_type([(target_drs, accommodator),
                                 (local_drs, temp_cond_mover)])
         else:
-            return Reading([(target_drs, accommodator)])
+            return reading_type([(target_drs, accommodator)])
                             
 class PronounDRS(PresuppositionDRS):
     """
@@ -1099,7 +1105,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
         possible_bindings = {}
         event_data = {}
         individuals = {}
-        accommod_indices = []
+        accommod_indices = set()
         intermediate_next = False # find the closest antecedent drs
         outer_drs = self._find_outer_drs(trail)
         local_drs = self._find_local_drs(trail)
@@ -1115,13 +1121,27 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
                 continue
             # Find the (maximum) three drss
             if drs is outer_drs or drs is local_drs or intermediate_next:
-                accommod_indices.append(index)
+                accommod_indices.add(index)
                 intermediate_next = False
             # Find the bindings
             drs_possible_bindings, drs_event_data = self.find_bindings([drs], True, individuals=individuals)
             for var in drs_event_data: event_data.setdefault(var,[]).extend(drs_event_data[var])
             if drs_possible_bindings:
                 possible_bindings[index] = drs_possible_bindings
+                
+        # Make accommodation indices a sorted list
+        accommod_indices = sorted(list(accommod_indices))
+        def accommodation_cite(drsindex):#LocalAccommodationReading, IntermediateAccommodationReading, GlobalAccommodationReading
+            if not drsindex in accommod_indices:
+                return None
+            ind = accommod_indices.index(drsindex)
+            if ind == 0:
+                return [LocalAccommodationReading, GlobalAccommodationReading, GlobalAccommodationReading][len(accommod_indices)-1]
+            elif ind == 1:
+                return [LocalAccommodationReading, IntermediateAccommodationReading][len(accommod_indices)-2]
+            else:
+                assert ind == 2
+                return LocalAccommodationReading
         
         # Filter the bindings, create the readings
         antecedent_tracker = [] # do not bind to the same referent twice
@@ -1140,9 +1160,11 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
             # If binding is possible, no accommodation at this level or below will take place
             # (unless we set the 'overgenerate' parameter to True)
             if not overgenerate and drs_readings: accommod_indices = [None]
-            elif drsindex in accommod_indices:
-                drs_readings.append(self.accommodation_reading(drs, trail, temporal_conditions, local_drs))
-                accommod_indices.remove(drsindex)
+            else:
+                acc_cite = accommodation_cite(drsindex)
+                if acc_cite:
+                    drs_readings.append(self.accommodation_reading(drs, trail, temporal_conditions, local_drs, acc_cite))
+                    accommod_indices.remove(drsindex)
             readings.extend(drs_readings)
         
         return readings, True
