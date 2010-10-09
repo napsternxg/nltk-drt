@@ -36,6 +36,88 @@ def test_anaphora(tester):
     (23, "Jones loves her and Bill loves the baroness.", None, AnaphoraResolutionException)
     ]
     tester.test(cases)
+    
+    
+def test_presupposition(tester):
+    
+    cases = [
+    #definite description
+    (1,"Mary likes the president.", "([n,s,x,z6],[Mary{sg,f}(x), president{sg,m}(z6), like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)])", None),
+
+    (2,"Mary does not like the president.", "([n,x,z6],[Mary{sg,f}(x), -([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]), president{sg,m}(z6)])", None),
+
+    (3,"If Mary likes the president, she will vote him.", ["([n,x,z6],[(([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]) -> ([t012,e],[earlier(n,t012), vote(e), AGENT(e,x), PATIENT(e,z6), include(t012,e), include(s,e)])), president{sg,m}(z6), Mary{sg,f}(x)])", "([n,x],[(([s,z6],[president{sg,m}(z6), like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]) -> ([t012,e],[earlier(n,t012), vote(e), AGENT(e,x), PATIENT(e,z6), include(t012,e), include(s,e)])), Mary{sg,f}(x)])"], None),
+
+    (4,"Mary likes the president or she will not vote him.", None, None),
+
+    (5,"If Mary does not like the president, she will not vote him.", ["([n,x,z6],[(([],[-([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)])]) -> ([t014],[earlier(n,t014), -([e],[vote(e), AGENT(e,x), PATIENT(e,z6), include(t014,e)])])), president{sg,m}(z6), Mary{sg,f}(x)])", "([n,x],[(([z6],[-([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]), president{sg,m}(z6)]) -> ([t014],[earlier(n,t014), -([e],[vote(e), AGENT(e,x), PATIENT(e,z6), include(t014,e)])])), Mary{sg,f}(x)])"], None),
+
+    (6,"France has elected a new president. Mary likes the president.", "([n,s,z6,e,s011,x,z10],[include(s,n), France{sg,n}(x), new(z6), president{sg,m}(z6), elect(e), AGENT(e,x), PATIENT(e,z6), abut(e,s), Mary{sg,f}(z10), like(s011), AGENT(s011,z10), PATIENT(s011,z6), overlap(n,s011), include(s011,e)])", None),
+
+    (7,"France has elected a new president. Mary does not like the president.", "([n,s,z6,e,x,z11],[include(s,n), France{sg,n}(x), new(z6), president{sg,m}(z6), elect(e), AGENT(e,x), PATIENT(e,z6), abut(e,s), Mary{sg,f}(z11), -([s012],[like(s012), AGENT(s012,z11), PATIENT(s012,z6), overlap(n,s012), include(s012,e)])])", None),
+
+    (8,"France has elected a new president. If Mary likes the president, she has voted him.", "([n,s,z6,e,x,z23],[include(s,n), France{sg,n}(x), new(z6), president{sg,m}(z6), elect(e), AGENT(e,x), PATIENT(e,z6), abut(e,s), (([s024],[like(s024), AGENT(s024,z23), PATIENT(s024,z6), overlap(n,s024), include(s024,e)]) -> ([s021,e025],[include(s021,n), include(s021,e), vote(e025), AGENT(e025,z23), PATIENT(e025,z6), abut(e025,s021)])), Mary{sg,f}(z23)])", None),
+
+    (9,"France has elected a new president. Mary likes the president or she has not voted him.", "([n,s,z6,e,x,z24],[include(s,n), France{sg,n}(x), new(z6), president{sg,m}(z6), elect(e), AGENT(e,x), PATIENT(e,z6), abut(e,s), (([s025],[like(s025), AGENT(s025,z24), PATIENT(s025,z6), overlap(n,s025), include(s025,e)]) | ([s022],[include(s022,n), include(s022,e), -([e026],[vote(e026), AGENT(e026,z24), PATIENT(e026,z6), abut(e026,s022)])])), Mary{sg,f}(z24)])", None),
+
+    (10,"France has elected a new president. If Mary does not like the president, she has not voted him", "([n,s,z6,e,x,z25],[include(s,n), France{sg,n}(x), new(z6), president{sg,m}(z6), elect(e), AGENT(e,x), PATIENT(e,z6), abut(e,s), (([],[-([s026],[like(s026), AGENT(s026,z25), PATIENT(s026,z6), overlap(n,s026), include(s026,e)])]) -> ([s023],[include(s023,n), include(s023,e), -([e027],[vote(e027), AGENT(e027,z25), PATIENT(e027,z6), abut(e027,s023)])])), Mary{sg,f}(z25)])", None),
+    
+    #complex determiner NPs
+    (11,"Mary likes John's car.", "([n,s,x,z10,y],[Mary{sg,f}(x), POSS(y,z10), car{sg,n}(y), John{sg,m}(z10), like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)])", None),
+
+    (12,"Mary does not like John's car.", "([n,x,z11,y],[Mary{sg,f}(x), -([s],[like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]), POSS(y,z11), car{sg,n}(y), John{sg,m}(z11)])", None),
+    
+    (13,"If Mary likes John's car, she is stupid.", ["([n,x,z10,y],[(([s],[like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]) -> ([s024],[stupid(s024), THEME(s024,x), overlap(n,s024), overlap(s,s024)])), POSS(y,z10), car{sg,n}(y), John{sg,m}(z10), Mary{sg,f}(x)])","([n,x,z10],[(([s,y],[POSS(y,z10), car{sg,n}(y), like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]) -> ([s024],[stupid(s024), THEME(s024,x), overlap(n,s024), overlap(s,s024)])), John{sg,m}(z10), Mary{sg,f}(x)])"], None),
+
+    (14,"Mary likes John's car or she hates it.", None, None),
+
+    (15,"Mary likes John's car or she hates his car.",None, None),
+    
+    #possessive pronoun NPs
+    (16,"Mary loves John and she likes his car.", "([n,s,s012,x,z6,z9],[Mary{sg,f}(x), John{sg,m}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), POSS(z9,z6), car{sg,n}(z9), like(s012), AGENT(s012,x), PATIENT(s012,z9), overlap(n,s012), overlap(s,s012)])",None),
+
+    (17,"Mary loves John but she does not like his car.", "([n,s,x,z6,z9],[Mary{sg,f}(x), John{sg,m}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), -([s013],[like(s013), AGENT(s013,x), PATIENT(s013,z9), overlap(n,s013), overlap(s,s013)]), POSS(z9,z6), car{sg,n}(z9)])", None),
+
+    (18,"Mary loves John. If Mary likes his car, she is stupid.", ["([n,s,x,z6,z9],[Mary{sg,f}(x), John{sg,m}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), (([s025],[like(s025), AGENT(s025,x), PATIENT(s025,z9), overlap(n,s025), overlap(s,s025)]) -> ([s022],[stupid(s022), THEME(s022,x), overlap(n,s022), overlap(s025,s022)])), POSS(z9,z6), car{sg,n}(z9)])", "([n,s,x,z6],[Mary{sg,f}(x), John{sg,m}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), (([s025,z9],[POSS(z9,z6), car{sg,n}(z9), like(s025), AGENT(s025,x), PATIENT(s025,z9), overlap(n,s025), overlap(s,s025)]) -> ([s022],[stupid(s022), THEME(s022,x), overlap(n,s022), overlap(s025,s022)]))])"], None),
+
+    (19,"Mary loves John. She likes his car or hates it.", None, None),
+    
+    #free variable check
+    (20, "Angus is away. Every farmer likes his donkey.", ["([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10,z8],[farmer{sg,m}(z10), POSS(z8,z10), donkey{sg,n}(z8)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])","([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10],[farmer{sg,m}(z10)]) -> ([s011,z8],[POSS(z8,z10), donkey{sg,n}(z8), like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])","([n,s,x,z8],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10],[farmer{sg,m}(z10)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)])), POSS(z8,x), donkey{sg,n}(z8)])","([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10,z8],[farmer{sg,m}(z10), POSS(z8,x), donkey{sg,n}(z8)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])","([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10],[farmer{sg,m}(z10)]) -> ([s011,z8],[POSS(z8,x), donkey{sg,n}(z8), like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])"], None)
+    ]
+    
+    admissibility_cases = [
+    #admissibility check
+    (21,None,"If Mary owns a car, Mary's car is black.", None),
+
+    (22,None,"If Mary owns a car, her car is black.", None),
+
+    (23,None,"Mary does not own a car or Mary's car is black.", None),
+
+    (24,None,"Mary does not own a car or her car is black.", None),
+
+    (25,None,"If Mary is out, Mary's husband is away.", None),
+
+    (26,None,"If Mary is out, her husband is away.", None),
+
+    (27,None,"If Mary is married, Mary's husband is away.", None),
+
+    (28,None,"If Mary is married, her husband is away.", None),
+    ]
+    
+    bk = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
+    'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
+    'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',   
+    'husband' : r'(([t,x,y],[POSS(y,x), husband(y)]) -> ([s],[married(s),THEME(s,x),overlap(t,s)]))',
+    'married' : r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))',
+    'own' : r'(([s,x,y],[own(s),AGENT(s,x),PATIENT(s,y)]) -> ([],[POSS(y,x)]))',
+    'POSS' : r'(([t,y,x],[POSS(y,x)]) -> ([s],[own(s),AGENT(s,x),PATIENT(s,y),overlap(t,s)]))',
+   'dead' : r'(([t,s,e,x],[include(s,t),abut(e,s),die(e),AGENT(e,x)]) -> ([],[dead(s),THEME(s,x),overlap(t,s)]))'
+    } 
+    
+    
+    tester.test(cases)
+    tester.inference_test(admissibility_cases,bk)
 
 def test_tenses(tester):
     cases = [
@@ -107,7 +189,7 @@ def test_inference(tester):
     (29,"Jones has died", "Jones is dead","uninformative"),
     #(30,"Jones has owned a car", "Jones owns it","not working yet"),           
     ]
-
+    
     bk = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
     'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
     'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',   
@@ -123,13 +205,15 @@ def test_inference(tester):
 def main():
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
     print "--Testing anaphora--"
-    test_anaphora(tester)
+    #test_anaphora(tester)
+    print "--Testing presupposition--"
+    test_presupposition(tester)
     print "--Testing simple tenses with / without negation, quantified NPs--"
     #test_tenses(tester)
     print "--Testing inference--"
     #test_inference(tester)
     
-    expr = tester.parse(r"Every farmer who owns a donkey likes it.", utter=True)
+    expr = tester.parse(r"Angus is away. Every farmer likes his donkey.", utter=True)
     
     #print expr
     #expr.draw()
