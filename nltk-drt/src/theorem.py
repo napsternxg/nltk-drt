@@ -1,10 +1,22 @@
 import subprocess
-import select
 import nltk
 from nltk.sem import Valuation
 from nltk.sem.logic import is_indvar
 from nltk.inference.mace import MaceCommand
 from nltk.inference.prover9 import convert_to_prover9
+from threading import Thread
+
+class Communicator(Thread):
+    def __init__(self, process, input=None):
+        Thread.__init__(self)
+        self.process = process
+        self.input = input
+    
+    def run(self):
+        try:
+            self.result = self.process.communicate(self.input)
+        except OSError:
+            pass
 
 class Theorem(object):
 
@@ -28,12 +40,15 @@ class Theorem(object):
             verbose=verbose)
 
     def _prover9_input(self):
-        return "clear(auto_denials).\nformulas(goals).\n    %s.\nend_of_list.\n\n" % convert_to_prover9(self.prover_goal)
+        return "clear(auto_denials).\n%s" % self._input(self.prover_goal)
 
     def _mace_input(self):
-        return "formulas(goals).\n    %s.\nend_of_list.\n\n" % convert_to_prover9(self.builder_goal)
+        return self._input(self.builder_goal)
+    
+    def _input(self, goal):
+        return "formulas(goals).\n    %s.\nend_of_list.\n\n" % convert_to_prover9(goal)
 
-    def check(self, verbose=False):
+    def check(self, verbose=True):
         prover_input = 'assign(max_seconds, %d).\n\n' % self.prover_timeout if self.prover_timeout > 0 else ""
         prover_input += self._prover9_input()
 
@@ -117,64 +132,72 @@ class Theorem(object):
             print 'Calling Builder:', Theorem.BUILDER_BINARY
             print 'Builder Input:\n', builder_input, '\n'
 
-        prover = subprocess.Popen([Theorem.PROVER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
-        builder = subprocess.Popen([Theorem.BUILDER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
-        prover.stdin.write(prover_input)
-        builder.stdin.write(builder_input)
-        prover.stdin.flush()
-        builder.stdin.flush()
+        prover_process = subprocess.Popen([Theorem.PROVER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
-        rlist, wlist, xlist = select.select([builder.stdout, prover.stdout], [], [])
-        stdout = rlist[0]
+#        stdout, stderr = prover_process.communicate(prover_input)
+#        returncode = prover_process.poll()
+#        result = not (returncode == 0)
+#        output = None
+#        print "prover done"
+        
+        builder_process = subprocess.Popen([Theorem.BUILDER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+#
+#        stdout, stderr = builder_process.communicate(builder_input)
+#        returncode = builder_process.poll()
+#        result = (returncode == 0)
+#        output = self._model(stdout, verbose)
+#        
+#        print "builder done"
 
-#        polling_object = select.poll()
-#        polling_object.register(builder.stdout , select.POLLIN)
-#        polling_object.register(prover.stdout , select.POLLIN)
-#        stdout, event = polling_object.poll()[0]
+        prover_thread = Communicator(prover_process, prover_input)
+        builder_thread = Communicator(builder_process, builder_input)
+        
+        prover_thread.start()
+        builder_thread.start()
 
-        if stdout is prover.stdout: #.fileno():
-            if verbose:
-                print "Prover finished as first"
-            if builder.poll() is None:
-                if verbose:
-                    print "Builder is still running, terminating..."
-                builder.terminate()
-            output, error = prover.communicate()
-            returncode = prover.poll()
+        while prover_thread.is_alive() and builder_thread.is_alive():
+            pass
+
+        if verbose:
+            print "Prover %s, Builder %s " % ("done" if not prover_thread.is_alive() else "running", "done" if not builder_thread.is_alive() else "running")
+
+        if not prover_thread.is_alive():
+            stdout, stderr = prover_thread.result
+            returncode = prover_process.poll()
             result = not (returncode == 0)
-            if verbose:
-                if output: print('output:\t%s' % output)
-                if error: print('error:\t%s' % error)
             output = None
-
-        elif stdout is builder.stdout: #.fileno():
-            if verbose:
-                print "Builder finished as first"
-            if prover.poll() is None:
+            if builder_process.poll() is None:
+                try:
+                    builder_process.terminate()
+                except OSError:
+                    pass
                 if verbose:
-                    print "Prover is still running, terminating..."
-                prover.terminate()
-            output, error = builder.communicate()
-            returncode = builder.poll()
+                    print "builder is still running, terminating..."
+
+        elif not builder_thread.is_alive():
+            stdout, stderr = builder_thread.result
+            returncode = prover_process.poll()
             result = (returncode == 0)
-            if verbose:
-                if output: print('output:\t%s' % output)
-                if error: print('error:\t%s' % error)
-            output = self._model(output, verbose)
+            output = self._model(stdout, verbose)
+            if prover_process.poll() is None:
+                try:
+                    prover_process.terminate()
+                except OSError:
+                    pass
+                if verbose:
+                    print "prover is still running, terminating..."
   
         if verbose:
-            if output: print('output:\t%s' % output)
-            if error: print('error:\t%s' % error)
-
-        if verbose:
-            print 'Return code:', returncode
+            if stdout: print('output:\t%s' % stdout)
+            if stderr: print('error:\t%s' % stderr)
+            print 'return code:', returncode
 
         return (result, output)
 
 def main():
     from nltk.sem.logic import LogicParser
-    a = LogicParser().parse('p and -p')
-    t = Theorem(a, a)
+    a = LogicParser().parse('(exists n (exists z128 (exists s (exists x (exists z138 (((((((((Mia = x) & husband(z128)) & own(s)) & AGENT(s,x)) & PATIENT(s,z128)) & overlap(n,s)) & all s0140(((married(s0140) & THEME(s0140,x)) & overlap(n,s0140)) -> exists t0135 (exists e ((((earlier(t0135,n) & walk(e)) & AGENT(e,z138)) & include(t0135,e)) & event(e)) & time(t0135)))) & (Angus = z138)) & individual(z138)) & individual(x)) & state(s)) & individual(z128)) & time(n)) & ((((all x all y all z ((include(x,y) & include(z,y)) -> overlap(x,z)) & (all x all y all z ((earlier(x,y) & earlier(y,z)) -> earlier(x,z)) & all x all y (earlier(x,y) -> -(overlap(x,y))))) & all t all s (((married(s) & THEME(s,x)) & overlap(t,s)) -> exists x (exists y ((POSS(y,x) & husband(y)) & individual(y)) & individual(x)))) & all s all x all y (((own(s) & AGENT(s,x)) & PATIENT(s,y)) -> POSS(y,x))) & all t all x all y ((POSS(y,x) & husband(y)) -> exists s (((married(s) & THEME(s,x)) & overlap(t,s)) & state(s)))))')
+    t = Theorem(a, a, 120, 60)
     res = t.check(True)
     print "check returned:", res
 
