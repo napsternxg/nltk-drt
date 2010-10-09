@@ -105,8 +105,11 @@ def inference_check(expr, background_knowledge=False,verbose=False):
             t = Theorem(NegatedExpression(expression), expression)
         
         result, output = t.check()
-        if output and verbose:
-            print output
+        if verbose:
+            if output:
+                print "\nMace4 returns:\n%s\n" % output
+            else:
+                print "\nProver9 returns: %s\n" % result
         return result      
     
     def consistency_check(expression):
