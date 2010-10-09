@@ -2,6 +2,7 @@ import nltkfixtemporal
 from nltk.sem.drt import AbstractDrs
 import util
 from temporaldrt import DrtParser
+from nltk.inference.prover9 import Prover
 
 def gr(s, recursive=False):
     return []
@@ -41,6 +42,8 @@ def main():
     
     #tester.test(cases)
     
+    #config_prover9('/usr/share/prover9/bin')
+    #config_mace4('/usr/share/prover9/bin')
     
     cases_inf = [
     # No background knowledge attached
@@ -93,11 +96,11 @@ def main():
     } 
     
     
-    tester.inference_test(cases_inf,bk)
+    #tester.inference_test(cases_inf,bk)
     
-    #for i in tester.interpret("Mia walked","Mia walked",bk,True):
-    #    if not isinstance(i, str):
-    #        print i
+    for i in tester.interpret("Mia is away", "If Mia is married Mia's husband is away",bk,True):
+        if not isinstance(i, str):
+            print i
     
     #expr = tester.parse('If a boy did not kiss a girl he is red', utter=True)
     
