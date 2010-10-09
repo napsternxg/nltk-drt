@@ -105,7 +105,7 @@ class Tester(object):
             readings = []
             try:
                 expression = self.parse(sentence, **args)
-                readings = expression.readings(verbose)
+                readings = expression.resolve(verbose)
                 
                 if error:
                     print("%s. !error: expected %s" % (number, str(error)))
