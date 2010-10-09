@@ -132,7 +132,7 @@ LexPropN[NUM=sg,GEN=m,SEM=<Bill>] -> 'Bill'
 LexPropN[NUM=sg,GEN=m,SEM=<Brown>] -> 'Brown'
 LexPropN[NUM=sg,GEN=f,SEM=<Charlotte>] -> 'Charlotte'
 LexPropN[NUM=sg,GEN=n,SEM=<London>] -> 'London'
-LexPropN[NUM=sg,GEN=n,SEM=<London>] -> 'Fido'
+LexPropN[NUM=sg,GEN=n,SEM=<Fido>] -> 'Fido'
 
 # Personal, Reflexive and Possessive Pronouns:
 ##############################################
