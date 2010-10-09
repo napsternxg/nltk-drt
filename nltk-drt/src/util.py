@@ -3,6 +3,7 @@ import nltkfixtemporal
 from nltk import load_parser
 from nltk.sem.drt import AbstractDrs
 from temporaldrt import DRS, DrtApplicationExpression, DrtVariableExpression, unique_variable
+from presuppdrt import DrtParser as PresuppDrtParser
 import nltk.sem.drt as drt
 import temporaldrt
 import re
@@ -11,12 +12,6 @@ from types import LambdaType
 from nltk import LogicParser
 from nltk.sem.logic import AndExpression, ParseException
 from inference_check import InferenceCheckException, inference_check, get_bk
-
-class local_DrtParser(temporaldrt.DrtParser):
-    
-    def handle_DRS(self, tok, context):
-        drs = drt.DrtParser.handle_DRS(self, tok, context)
-        return DRS(drs.refs, drs.conds)
 
 class Tester(object):
 
@@ -95,11 +90,12 @@ class Tester(object):
 
     def test(self, cases, **args):
         verbose = args.get("verbose", False)
+        presupp_parser = PresuppDrtParser()
         for number, sentence, expected, error in cases:
             expected_drs = []
             if expected:
                 for item in expected if isinstance(expected, list) else [expected]:
-                    expected_drs.append(local_DrtParser().parse(item, verbose))
+                    expected_drs.append(presupp_parser.parse(item, verbose))
                                
             expression = None
             readings = []
@@ -114,6 +110,7 @@ class Tester(object):
                         for index, pair in enumerate(zip(expected_drs, readings)):
                             if pair[0] == pair[1]:
                                 print("%s. %s reading (%s): %s" % (number, sentence, index, pair[1]))
+                            else: print("!comparison failed!\n")
                     else:
                         print("%s. !comparison failed!\n%s" % (number, sentence))
             except Exception, e:
@@ -162,7 +159,7 @@ class Tester(object):
                         
                         #in order for bk in DRT-language to be parsed without REFER
                         #as this affects inference
-                        parser_obj = local_DrtParser()
+                        parser_obj = PresuppDrtParser()
                         #takes bk in both DRT language and FOL
                         try:
                             for formula in get_bk(new_discourse, bk):
