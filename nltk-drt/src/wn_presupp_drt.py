@@ -1,5 +1,5 @@
 from temporaldrt import DefiniteDescriptionDRS, DrtParser, DrtTokens,\
-    DrtFeatureConstantExpression
+ DrtFeatureConstantExpression
 
 class DefiniteDescriptionDRSwithWordNet(DefiniteDescriptionDRS):
     def __init__(self, refs, conds):
@@ -56,13 +56,13 @@ class DefiniteDescriptionDRSwithWordNet(DefiniteDescriptionDRS):
 class DrtParserWN(DrtParser):
 
     def handle_PRESUPPOSITION_DRS(self, tok, context):
-        
+        print "HANDLE"
         if tok == DrtTokens.DEFINITE_DESCRIPTION_DRS:
             self.assertNextToken(DrtTokens.OPEN)
             drs = self.handle_DRS(tok, context)
             return DefiniteDescriptionDRSwithWordNet(drs.refs, drs.conds)
         else:
-            return DrtParser.handle_PRESUPPOSITION_DRS(self, tok, context)
+            return DrtParser.handle_PresuppositionDRS(self, tok, context)
 
 #--------------------------------------------
 from nltk.corpus.reader.wordnet import WordNetCorpusReader
