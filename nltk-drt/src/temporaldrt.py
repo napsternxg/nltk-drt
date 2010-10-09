@@ -43,6 +43,7 @@ from presuppdrt import DrtBooleanExpression
 from presuppdrt import ConcatenationDRS
 from presuppdrt import DrtImpExpression
 from presuppdrt import DrtOrExpression
+from presuppdrt import DrtFeatureConstantExpression
 
 class DrtTokens(drt.DrtTokens):
     NEWINFO_DRS = 'NEWINFO'
