@@ -230,6 +230,7 @@ LexN[NUM=sg,GEN=n,SEM=<cat>] -> 'cat'
 LexN[NUM=sg,GEN=n,SEM=<kitty>] -> 'kitty'
 LexN[NUM=sg,GEN=f,SEM=<woman>] -> 'woman'
 LexN[NUM=sg,GEN=f,SEM=<mother>] -> 'mother'
+LexN[NUM=sg,GEN=n,SEM=<feline>] -> 'feline'
 
 LexN[NUM=sg,GEN=m,SEM=<human>] -> 'one'
 LexN[NUM=sg,GEN=n,SEM=<thing>] -> 'thing'
