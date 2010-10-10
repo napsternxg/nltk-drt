@@ -37,7 +37,7 @@ def test_anaphora(tester):
     
     (2, "He invited Jones.", None),
     
-    (3, "Jones loves Charlotte and Bill loves her. He hates himself.", ["([s,s012,s018,x,z6,z11],[Jones{sg,m}(x), Charlotte{sg,f}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), Bill{sg,m}(z11), love(s012), AGENT(s012,z11), PATIENT(s012,z6), overlap(n,s012), overlap(s,s012), hate(s018), AGENT(s018,z11), PATIENT(s018,z11), overlap(n,s018), overlap(s012,s018)])", "([n,s,s012,s018,x,z6,z11],[Jones{sg,m}(x), Charlotte{sg,f}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), Bill{sg,m}(z11), love(s012), AGENT(s012,z11), PATIENT(s012,z6), overlap(n,s012), overlap(s,s012), hate(s018), AGENT(s018,x), PATIENT(s018,x), overlap(n,s018), overlap(s012,s018)])"]),
+    (3, "Jones loves Charlotte and Bill loves her. He hates himself.", ["([n,s,s012,s018,x,z6,z11],[Jones{sg,m}(x), Charlotte{sg,f}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), Bill{sg,m}(z11), love(s012), AGENT(s012,z11), PATIENT(s012,z6), overlap(n,s012), overlap(s,s012), hate(s018), AGENT(s018,z11), PATIENT(s018,z11), overlap(n,s018), overlap(s012,s018)])", "([n,s,s012,s018,x,z6,z11],[Jones{sg,m}(x), Charlotte{sg,f}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), Bill{sg,m}(z11), love(s012), AGENT(s012,z11), PATIENT(s012,z6), overlap(n,s012), overlap(s,s012), hate(s018), AGENT(s018,x), PATIENT(s018,x), overlap(n,s018), overlap(s012,s018)])"]),
     
     (4, "Jones loves Charlotte and Bill loves her. He hates him.", ["([n,s,s012,s018,x,z6,z11],[Jones{sg,m}(x), Charlotte{sg,f}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), Bill{sg,m}(z11), love(s012), AGENT(s012,z11), PATIENT(s012,z6), overlap(n,s012), overlap(s,s012), hate(s018), AGENT(s018,z11), PATIENT(s018,x), overlap(n,s018), overlap(s012,s018)])","([n,s,s012,s018,x,z6,z11],[Jones{sg,m}(x), Charlotte{sg,f}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), Bill{sg,m}(z11), love(s012), AGENT(s012,z11), PATIENT(s012,z6), overlap(n,s012), overlap(s,s012), hate(s018), AGENT(s018,x), PATIENT(s018,z11), overlap(n,s018), overlap(s012,s018)])"]),
     
@@ -88,11 +88,11 @@ def test_presupposition(tester):
 
     (2,"Mary does not like the president.", "([n,x,z6],[Mary{sg,f}(x), -([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]), president{sg,m}(z6)])"),
 
-    (3,"If Mary likes the president, she will vote him.", ["([n,x,z6],[(([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]) -> ([t012,e],[earlier(n,t012), vote(e), AGENT(e,x), PATIENT(e,z6), include(t012,e), include(s,e)])), president{sg,m}(z6), Mary{sg,f}(x)])", "([n,x],[(([s,z6],[president{sg,m}(z6), like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]) -> ([t012,e],[earlier(n,t012), vote(e), AGENT(e,x), PATIENT(e,z6), include(t012,e), include(s,e)])), Mary{sg,f}(x)])"]),
+    (3,"If Mary likes the president, she will vote him.", "([n,x,z6],[(([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]) -> ([t012,e],[earlier(n,t012), vote(e), AGENT(e,x), PATIENT(e,z6), include(t012,e), include(s,e)])), president{sg,m}(z6), Mary{sg,f}(x)])"),
 
-    (4,"Mary likes the president or she will not vote him.", None),
+    (4,"Mary likes the president or she will not vote him.", "([n,x,z6],[(([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]) | ([t013],[earlier(n,t013), -([e],[vote(e), AGENT(e,x), PATIENT(e,z6), include(t013,e)])])), president{sg,m}(z6), Mary{sg,f}(x)])"),
 
-    (5,"If Mary does not like the president, she will not vote him.", ["([n,x,z6],[(([],[-([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)])]) -> ([t014],[earlier(n,t014), -([e],[vote(e), AGENT(e,x), PATIENT(e,z6), include(t014,e)])])), president{sg,m}(z6), Mary{sg,f}(x)])", "([n,x],[(([z6],[-([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]), president{sg,m}(z6)]) -> ([t014],[earlier(n,t014), -([e],[vote(e), AGENT(e,x), PATIENT(e,z6), include(t014,e)])])), Mary{sg,f}(x)])"]),
+    (5,"If Mary does not like the president, she will not vote him.", "([n,x,z6],[(([],[-([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)])]) -> ([t014],[earlier(n,t014), -([e],[vote(e), AGENT(e,x), PATIENT(e,z6), include(t014,e)])])), president{sg,m}(z6), Mary{sg,f}(x)])"),
 
     (6,"France has elected a new president. Mary likes the president.", "([n,s,z6,e,s011,x,z10],[include(s,n), France{sg,n}(x), new(z6), president{sg,m}(z6), elect(e), AGENT(e,x), PATIENT(e,z6), abut(e,s), Mary{sg,f}(z10), like(s011), AGENT(s011,z10), PATIENT(s011,z6), overlap(n,s011), include(s011,e)])"),
 
@@ -109,23 +109,23 @@ def test_presupposition(tester):
 
     (12,"Mary does not like John's car.", "([n,x,z11,y],[Mary{sg,f}(x), -([s],[like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]), POSS(y,z11), car{sg,n}(y), John{sg,m}(z11)])"),
     
-    (13,"If Mary likes John's car, she is stupid.", ["([n,x,z10,y],[(([s],[like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]) -> ([s024],[stupid(s024), THEME(s024,x), overlap(n,s024), overlap(s,s024)])), POSS(y,z10), car{sg,n}(y), John{sg,m}(z10), Mary{sg,f}(x)])","([n,x,z10],[(([s,y],[POSS(y,z10), car{sg,n}(y), like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]) -> ([s024],[stupid(s024), THEME(s024,x), overlap(n,s024), overlap(s,s024)])), John{sg,m}(z10), Mary{sg,f}(x)])"]),
+    (13,"If Mary likes John's car, she is stupid.", "([n,x,z307,y],[(([s],[like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]) -> ([s0321],[stupid(s0321), THEME(s0321,x), overlap(n,s0321), overlap(s,s0321)])), POSS(y,z307), car{sg,n}(y), John{sg,m}(z307), Mary{sg,f}(x)])"),
 
-    (14,"Mary likes John's car or she hates it.", None),
+    (14,"Mary likes John's car or she hates it.", "([n,x,z307,y],[(([s],[like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]) | ([s0327],[hate(s0327), AGENT(s0327,x), PATIENT(s0327,y), overlap(n,s0327)])), POSS(y,z307), car{sg,n}(y), John{sg,m}(z307), Mary{sg,f}(x)])"),
 
-    (15,"Mary likes John's car or she hates his car.",None),
+    (15,"Mary likes John's car or she hates his car.","([n,x,z10,y],[(([s],[like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]) | ([s025],[hate(s025), AGENT(s025,x), PATIENT(s025,y), overlap(n,s025)])), POSS(y,z10), car{sg,n}(y), John{sg,m}(z10), Mary{sg,f}(x)])"),
     
     #possessive pronoun NPs
     (16,"Mary loves John and she likes his car.", "([n,s,s012,x,z6,z9],[Mary{sg,f}(x), John{sg,m}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), POSS(z9,z6), car{sg,n}(z9), like(s012), AGENT(s012,x), PATIENT(s012,z9), overlap(n,s012), overlap(s,s012)])"),
 
     (17,"Mary loves John but she does not like his car.", "([n,s,x,z6,z9],[Mary{sg,f}(x), John{sg,m}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), -([s013],[like(s013), AGENT(s013,x), PATIENT(s013,z9), overlap(n,s013), overlap(s,s013)]), POSS(z9,z6), car{sg,n}(z9)])"),
 
-    (18,"Mary loves John. If Mary likes his car, she is stupid.", ["([n,s,x,z6,z9],[Mary{sg,f}(x), John{sg,m}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), (([s025],[like(s025), AGENT(s025,x), PATIENT(s025,z9), overlap(n,s025), overlap(s,s025)]) -> ([s022],[stupid(s022), THEME(s022,x), overlap(n,s022), overlap(s025,s022)])), POSS(z9,z6), car{sg,n}(z9)])", "([n,s,x,z6],[Mary{sg,f}(x), John{sg,m}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), (([s025,z9],[POSS(z9,z6), car{sg,n}(z9), like(s025), AGENT(s025,x), PATIENT(s025,z9), overlap(n,s025), overlap(s,s025)]) -> ([s022],[stupid(s022), THEME(s022,x), overlap(n,s022), overlap(s025,s022)]))])"]),
+    (18,"Mary loves John. If Mary likes his car, she is stupid.", "([n,s,x,z551,z554],[Mary{sg,f}(x), John{sg,m}(z551), love(s), AGENT(s,x), PATIENT(s,z551), overlap(n,s), (([s0570],[like(s0570), AGENT(s0570,x), PATIENT(s0570,z554), overlap(n,s0570), overlap(s,s0570)]) -> ([s0567],[stupid(s0567), THEME(s0567,x), overlap(n,s0567), overlap(s0570,s0567)])), POSS(z554,z551), car{sg,n}(z554)])"),
 
-    (19,"Mary loves John. She likes his car or hates it.", None),
+    (19,"Mary loves John. She likes his car or hates it.", "([n,s,x,z6,z26],[Mary{sg,f}(x), John{sg,m}(z6), love(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), (([s034],[like(s034), AGENT(s034,x), PATIENT(s034,z26), overlap(n,s034), overlap(s,s034)]) | ([s025],[hate(s025), AGENT(s025,x), PATIENT(s025,z26), overlap(n,s025), overlap(s,s025)])), POSS(z26,z6), car{sg,n}(z26)])"),
     
     #free variable check
-    (20, "Angus is away. Every farmer likes his donkey.", ["([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10,z8],[farmer{sg,m}(z10), POSS(z8,z10), donkey{sg,n}(z8)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])","([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10],[farmer{sg,m}(z10)]) -> ([s011,z8],[POSS(z8,z10), donkey{sg,n}(z8), like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])","([n,s,x,z8],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10],[farmer{sg,m}(z10)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)])), POSS(z8,x), donkey{sg,n}(z8)])","([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10,z8],[farmer{sg,m}(z10), POSS(z8,x), donkey{sg,n}(z8)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])","([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10],[farmer{sg,m}(z10)]) -> ([s011,z8],[POSS(z8,x), donkey{sg,n}(z8), like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])"])
+    (20, "Angus is away. Every farmer likes his donkey.", ["([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10,z8],[farmer{sg,m}(z10), POSS(z8,z10), donkey{sg,n}(z8)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])","([n,s,x,z8],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10],[farmer{sg,m}(z10)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)])), POSS(z8,x), donkey{sg,n}(z8)])"])
     ]
     
     admissibility_cases = [
@@ -148,7 +148,7 @@ def test_presupposition(tester):
     ]   
     
     tester.test(cases)
-    tester.inference_test(admissibility_cases,BK)
+    #tester.inference_test(admissibility_cases,BK)
 
 def test_tenses(tester):
     cases = [
@@ -231,13 +231,13 @@ def test_inference(tester):
 def main():
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
     print "\n\t# ############################################################## #\n\t### ############### Testing Anaphora Component ############### ###\n\t# ############################################################## #\n\n"
-    test_anaphora(tester)
+    #test_anaphora(tester)
     print "\n\t# ############################################################## #\n\t### ############ Testing Presupposition Component ############ ###\n\t# ############################################################## #\n\n"
-    #sition(tester)
+    #test_presupposition(tester)
     print "\n\t# ######################################################## #\n\t### ########### Testing Inference Component ############ ###\n\t# ######################################################## #\n\n"
     #test_inference(tester)
     print "\n\t# ######################################################## #\n\t### ############ Testing Tempotal Component ############ ###\n\t# ######################################################## #\n\n"
-    #test_tenses(tester)
+    test_tenses(tester)
 
     cases_inf = [
     # No background knowledge attached
@@ -261,9 +261,18 @@ def main():
     #tester.inference_test(cases_inf,BK,verbose=True)
     
     
+    #expr = tester.parse("Mary loves John. If Mary likes his car, she is stupid.")
+    #interpret, e = expr.inf_resolve(lambda x: (True, None))
+    #for i in interpret:
+    #    print i
+        #i.draw()  
     
     
+    #expr = DrtParser().parse("(([z10],[farmer{sg,m}(z10)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))")
     
+    #expr_2 = DrtParser().parse("(([z299],[farmer{sg,m}(z299)]) -> ([s0300],[like(s0300), AGENT(s0300,z299), PATIENT(s0300,z297), overlap(n,s0300), overlap(s,s0300)]))")
+    
+    #print expr == expr_2
     
     #expr = tester.interpret("Angus likes John.","If Angus likes John, Mia is black.", BK, verbose=True, test=True)
     
