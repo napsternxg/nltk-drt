@@ -31,9 +31,12 @@ def test(tester):
     #expr = tester.parse("Fido bites a farmer. If a donkey dances, the animal is stupid.", utter=True) # Animal=Fido or animal=donkey. OK.
     #expr = tester.parse("John hates the student. The student is upset.", utter=True) # Bind to student. OK. But it also binds to "John"
     #expr = tester.parse("If Mary does not like the president, she will not vote him.", utter=True) 
-    expr = tester.parse("The child writes a letter. The dog needs the kitchen.", utter=True)# Although 'child', 'letter' and 'dog' are all neuter, 'the dog' doesn't bind to either 'child' or 'letter'
+    #expr = tester.parse("The child writes a letter. The dog needs the kitchen.", utter=True)# Although 'child', 'letter' and 'dog' are all neuter, 'the dog' doesn't bind to either 'child' or 'letter'
     #expr = tester.parse("Mary likes the president or she will not vote him.", utter=True)
     #expr = tester.parse("Mary likes John's car or she hates his car.", utter=True)
+    #expr = tester.parse("If John does not own a girl, he beats her.", utter=True) # Fails, as it should. OK.
+    expr = tester.parse("A child beats a cat. It beats a dog. The kitty is upset", utter=True)
+    #expr = tester.parse("A woman writes a letter. Her child beats a cat. The kitty is black. The mother is upset.", utter=True)
     
     
     #########
