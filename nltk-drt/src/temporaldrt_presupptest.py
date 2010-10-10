@@ -35,8 +35,9 @@ def test(tester):
     #expr = tester.parse("Mary likes the president or she will not vote him.", utter=True)
     #expr = tester.parse("Mary likes John's car or she hates his car.", utter=True)
     #expr = tester.parse("If John does not own a girl, he beats her.", utter=True) # Fails, as it should. OK.
-    expr = tester.parse("A child beats a cat. It beats a dog. The kitty is upset", utter=True)
+    #expr = tester.parse("A child beats a cat. It beats a dog. The kitty is upset", utter=True)
     #expr = tester.parse("A woman writes a letter. Her child beats a cat. The kitty is black. The mother is upset.", utter=True)
+    expr = tester.parse("A dog bites a cat. The feline is upset", utter=True)
     
     
     #########

@@ -82,14 +82,14 @@ class WordNetLookup(object):
         if not self.WN:
             self.WN = WordNetCorpusReader(nltk.data.find(self.path))
             
-    def is_superclasss_of(self, first, second):
-        "Debugging"
-        print "IS SUPERCLASS", first, second,
-        r = self._is_superclasss_of(first, second)
-        print r
-        return r
+#    def is_superclasss_of(self, first, second):
+#        "Debugging"
+#        print "IS SUPERCLASS", first, second,
+#        r = self._is_superclasss_of(first, second)
+#        print r
+#        return r
         
-    def _is_superclasss_of(self, first, second):
+    def is_superclasss_of(self, first, second):
         "Is the second noun the superclass of the first one?"
         self.wn()
         # We cannot guarantee it is a noun. By the time we deal with DRSs, this is just a condition, and could have easily
