@@ -377,7 +377,9 @@ class AbstractDrs(drt.AbstractDrs):
         """
         readings = []
         errors = []
-
+        if inference_check:
+            failed_readings = []
+        
         def traverse(base_reading, operations):
             for operation in sorted(operations, key=lambda o: AbstractDrs.RESOLUTION_ORDER[type(o)]):
                 new_reading = base_reading.deepcopy(operation)
@@ -390,9 +392,12 @@ class AbstractDrs(drt.AbstractDrs):
                     continue
                 if not new_operations:
                     if inference_check:
-                        if inference_check(new_reading):
+                        success, error = inference_check(new_reading)
+                        if success:
                             readings.append(new_reading)
                             return True
+                        else:
+                            failed_readings.append((new_reading, error))
                     else:
                         readings.append(new_reading)
                 else:
@@ -408,8 +413,8 @@ class AbstractDrs(drt.AbstractDrs):
             return [self]
 
         if not readings and errors:
-            raise ResolutionException(". ".join(errors))
-        return readings
+            raise ResolutionException(". ".join(errors)) 
+        return readings, failed_readings if inference_check else readings
 
     def readings(self, trail=[]):
         raise NotImplementedError()
