@@ -72,7 +72,7 @@ def inference_check(expr, background_knowledge=False,verbose=False):
     assert isinstance(expr, DRS), "Expression %s is not a DRS"
         
     expression = expr.deepcopy()
-    print "\n##### Inference check initiated #####\n\nExpression:\t%s\n" % expression
+    if verbose: print "\n##### Inference check initiated #####\n\nExpression:\t%s\n" % expression
     
     def _remove_temporal_conds(e):
         """Removes discourse structuring temporal conditions that could
@@ -142,7 +142,7 @@ def inference_check(expr, background_knowledge=False,verbose=False):
                     print "expression for global check: %s \n" % e
                 if not _check(e):
                     """new discourse is uninformative"""
-                    error_message = "#!!!#: ew expression is uninformative on the following interpretation:\n\n%s" % expression
+                    error_message = "New expression is uninformative on the following interpretation:\n\n%s" % expression
                     if verbose: print "#!!!#", error_message
                     return InformativityOuput(error_message)
                 else:
@@ -217,11 +217,11 @@ def inference_check(expr, background_knowledge=False,verbose=False):
             return result, "Sentence admitted"
         
         else:
-            print "\n###!!!# Inference check failed #!!!###\n"
+            if verbose: print "\n###!!!# Inference check failed #!!!###\n"
             return False, inf_check
     
     else:
-        print "\n###!!!# Inference check failed #!!!###\n"
+        if verbose: print "\n###!!!# Inference check failed #!!!###\n"
         return False, cons_check
 
     
