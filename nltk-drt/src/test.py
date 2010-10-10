@@ -130,25 +130,25 @@ def test_presupposition(tester):
     
     admissibility_cases = [
     #admissibility check
-    (21,None,"If Mary owns a car, Mary's car is black.", None),
+    (21,None,"If Mary owns a car, Mary's car is black.", 3),
 
-    (22,None,"If Mary owns a car, her car is black.", None),
+    (22,None,"If Mary owns a car, her car is black.", 3),
 
-    (23,None,"Mary does not own a car or Mary's car is black.", None),
+    (23,None,"Mary does not own a car or Mary's car is black.", 3),
 
-    (24,None,"Mary does not own a car or her car is black.", None),
+    (24,None,"Mary does not own a car or her car is black.", 3),
 
     (25,None,"If Mary is out, Mary's husband is away.", None),
 
     (26,None,"If Mary is out, her husband is away.", None),
 
-    (27,None,"If Mary is married, Mary's husband is away.", None),
+    (27,None,"If Mary is married, Mary's husband is away.", 3),
 
-    (28,None,"If Mary is married, her husband is away.", None),
+    (28,None,"If Mary is married, her husband is away.", 3),
     ]   
     
     tester.test(cases)
-    #tester.inference_test(admissibility_cases,BK)
+    tester.inference_test(admissibility_cases,BK)
 
 def test_tenses(tester):
     cases = [
@@ -198,47 +198,15 @@ def test_tenses(tester):
     (21,"John owns a broken car or he is rich","([n,x],[(([z82,s],[broken(z82), car{sg,n}(z82), own(s), AGENT(s,x), PATIENT(s,z82), overlap(n,s)]) | ([s087],[rich(s087), THEME(s087,x), overlap(n,s087)])), John{sg,m}(x)])"),
     ]
 
-    case_inf = [(22,"Mia died", "Mia will die","inconsistent"),
+    case_inf = [(22,"Mia died", "Mia will die",1),
                 
-    (23,"Jones has died", "Jones is dead","uninformative")]
+    (23,"Jones has died", "Jones is dead",2)]
     
     tester.test(cases)
-    tester.inference_test(case_inf,BK)
+    tester.inference_test(case_inf,BK,verbose=False)
 
 def test_inference(tester):
     
-    cases_inf = [
-    # No background knowledge attached
-    (1,"Mia is away","Mia is not away","inconsistent"),
-    
-    (2,"Mia is away", "Mia is away","uninformative"),
-    
-    (3,"Mia is away", "If Mia is away Angus is out","inadmissible"),
-    
-    (4,"Mia is away", "If Mia is not away Angus is out","uninformative"),
-    
-    (5,"Mia is away", "If Angus is out Mia is away","uninformative"),
-    
-    (6,"Mia is away", "If Angus is out Mia is not away","inadmissible"),
-    
-    (7,"Mia is away", "Angus is out or Mia is away","uninformative"),
-    
-    (8,"Mia is away", "Angus is out or Mia is not away","inadmissible"),         
-    ]
-
-    tester.inference_test(cases_inf,BK)
-
-def main():
-    tester = Tester('file:../data/grammar.fcfg', DrtParser)
-    print "\n\t# ############################################################## #\n\t### ############### Testing Anaphora Component ############### ###\n\t# ############################################################## #\n\n"
-    #test_anaphora(tester)
-    print "\n\t# ############################################################## #\n\t### ############ Testing Presupposition Component ############ ###\n\t# ############################################################## #\n\n"
-    #test_presupposition(tester)
-    print "\n\t# ######################################################## #\n\t### ########### Testing Inference Component ############ ###\n\t# ######################################################## #\n\n"
-    #test_inference(tester)
-    print "\n\t# ######################################################## #\n\t### ############ Testing Tempotal Component ############ ###\n\t# ######################################################## #\n\n"
-    test_tenses(tester)
-
     cases_inf = [
     # No background knowledge attached
     (1,"Mia is away","Mia is not away",1),
@@ -258,30 +226,31 @@ def main():
     (8,"Mia is away", "Angus is out or Mia is not away",3),         
     ]
 
-    #tester.inference_test(cases_inf,BK,verbose=True)
+    tester.inference_test(cases_inf,BK,verbose=False)
+
+def main():
+    tester = Tester('file:../data/grammar.fcfg', DrtParser)
+    print "\n\t# ############################################################## #\n\t### ############### Testing Anaphora Component ############### ###\n\t# ############################################################## #\n\n"
+    test_anaphora(tester)
+    print "\n\t# ############################################################## #\n\t### ############ Testing Presupposition Component ############ ###\n\t# ############################################################## #\n\n"
+    test_presupposition(tester)
+    print "\n\t# ######################################################## #\n\t### ########### Testing Inference Component ############ ###\n\t# ######################################################## #\n\n"
+    test_inference(tester)
+    print "\n\t# ######################################################## #\n\t### ############ Testing Tempotal Component ############ ###\n\t# ######################################################## #\n\n"
+    test_tenses(tester)
+    print "\n\t################## THE END ####################"
+
     
     
-    #expr = tester.parse("Mary loves John. If Mary likes his car, she is stupid.")
+    #expr = tester.parse("Mary loves John. Mary does not live John.")
     #interpret, e = expr.inf_resolve(lambda x: (True, None))
     #for i in interpret:
     #    print i
-        #i.draw()  
+        #i.draw()
+        
+    #print tester.interpret("Mary died", "Mary will die.", BK, verbose=False, test=True)  
     
-    
-    #expr = DrtParser().parse("(([z10],[farmer{sg,m}(z10)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))")
-    
-    #expr_2 = DrtParser().parse("(([z299],[farmer{sg,m}(z299)]) -> ([s0300],[like(s0300), AGENT(s0300,z299), PATIENT(s0300,z297), overlap(n,s0300), overlap(s,s0300)]))")
-    
-    #print expr == expr_2
-    
-    #expr = tester.interpret("Angus likes John.","If Angus likes John, Mia is black.", BK, verbose=True, test=True)
-    
-    #print expr
-    #expr.draw()
-    
-    #for read in expr:
-        #print read, "\n"
-
+ 
 
 if __name__ == '__main__':
     main()
