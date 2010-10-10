@@ -109,7 +109,7 @@ class Tester(object):
             readings = []
             try:
                 expression = self.parse(sentence, **args)
-                readings = expression.inf_resolve(lambda x: (False, None), verbose)
+                readings, errors = expression.inf_resolve(lambda x: (True, None), verbose)
                 #print readings
                 #print expected_drs
                 
