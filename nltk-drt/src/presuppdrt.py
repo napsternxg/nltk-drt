@@ -379,9 +379,6 @@ class AbstractDrs(drt.AbstractDrs):
         errors = []
 
         def traverse(base_reading, operations):
-            print "sorted"
-            for i in sorted(operations, key=lambda o: AbstractDrs.RESOLUTION_ORDER[type(o)]):
-                print "operation:", type(i)
             for operation in sorted(operations, key=lambda o: AbstractDrs.RESOLUTION_ORDER[type(o)]):
                 new_reading = base_reading.deepcopy(operation)
                 if verbose:
@@ -400,7 +397,7 @@ class AbstractDrs(drt.AbstractDrs):
                         readings.append(new_reading)
                 else:
                     if traverse(new_reading, new_operations[0]):
-                        if len(operations)==1 or AbstractDrs.RESOLUTION_ORDER[type(operation)] != 0:
+                        if len(operations) == 1 or AbstractDrs.RESOLUTION_ORDER[type(operation)] != 0:
                             return True
             return False
 
@@ -858,7 +855,7 @@ class PresuppositionDRS(DRS):
     def collect_event_data(self, cond, event_data_map, event_strings_map, individuals=None):
         if isinstance(cond.function, DrtApplicationExpression) and \
         isinstance(cond.argument, DrtIndividualVariableExpression) and not isinstance(cond.argument, DrtTimeVariableExpression):
-                event_data_map.setdefault(cond.argument.variable,[]).append((cond.function.argument, cond.function.function.variable.name))
+                event_data_map.setdefault(cond.argument.variable, []).append((cond.function.argument, cond.function.function.variable.name))
         elif cond.__class__ == DrtEventualityApplicationExpression and \
         (isinstance(cond.argument, DrtEventVariableExpression) or isinstance(cond.argument, DrtStateVariableExpression)) and\
         not isinstance(cond.function, DrtApplicationExpression):
@@ -867,7 +864,7 @@ class PresuppositionDRS(DRS):
         # The rest are nouns and attributive adjectives
         elif individuals is not None and cond.__class__ == DrtApplicationExpression and \
         not isinstance(cond.function, DrtApplicationExpression):
-            individuals.setdefault(cond.argument.variable,[]).append(cond)
+            individuals.setdefault(cond.argument.variable, []).append(cond)
         
     def _enrich_event_data_map(self, event_data_map, event_strings_map):
         for individual in event_data_map:
@@ -932,7 +929,7 @@ class PresuppositionDRS(DRS):
         for ind, trailee in enumerate(trail):
             if trailee is superordinate_drs:
                 # The condition might be not in superordinate_drs, but inside one of its conditions (however deep we might need to go)
-                look_for = trail[ind+1] if ind < len(trail) -1 else self
+                look_for = trail[ind + 1] if ind < len(trail) - 1 else self
                 for i, cond in enumerate(superordinate_drs.conds):
                     if cond is look_for:
                         condition_index_cache[superordinate_drs_index] = i
@@ -959,7 +956,7 @@ class PresuppositionDRS(DRS):
             if self.condition_index is None:
                 drs.conds.extend(self.presupp_drs.conds)
             else:
-                drs.conds = drs.conds[:self.condition_index+1]+self.presupp_drs.conds+drs.conds[self.condition_index+1:]
+                drs.conds = drs.conds[:self.condition_index + 1] + self.presupp_drs.conds + drs.conds[self.condition_index + 1:]
             return drs
     
     class Bind(Operation):
@@ -985,7 +982,7 @@ class PresuppositionDRS(DRS):
             if self.condition_index is None: # it is an index, it can be zero
                 drs.conds.extend(conds_to_move)
             else:
-                drs.conds = drs.conds[:self.condition_index+1]+conds_to_move+drs.conds[self.condition_index+1:]
+                drs.conds = drs.conds[:self.condition_index + 1] + conds_to_move + drs.conds[self.condition_index + 1:]
             return drs
             
     class InnerReplace(Operation):
@@ -1114,7 +1111,7 @@ class PronounDRS(PresuppositionDRS):
             return True
         else:  
             variable = cond.argument.variable
-            variable_events = set((event for event, role, event_string in event_data.get(variable,())))
+            variable_events = set((event for event, role, event_string in event_data.get(variable, ())))
         if self.function_name == DrtTokens.PRONOUN:
             return variable_events.isdisjoint(pro_events)
         elif self.function_name == DrtTokens.REFLEXIVE_PRONOUN:
@@ -1189,7 +1186,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
                 intermediate_next = False
             # Find the bindings
             drs_possible_bindings, drs_event_data = self.find_bindings([drs], True, individuals=individuals)
-            for var in drs_event_data: event_data.setdefault(var,[]).extend(drs_event_data[var])
+            for var in drs_event_data: event_data.setdefault(var, []).extend(drs_event_data[var])
             if drs_possible_bindings:
                 possible_bindings[index] = drs_possible_bindings
                 
@@ -1200,9 +1197,9 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
                 return None
             ind = accommod_indices.index(drsindex)
             if ind == 0:
-                return [LocalAccommodationReading, GlobalAccommodationReading, GlobalAccommodationReading][len(accommod_indices)-1]
+                return [LocalAccommodationReading, GlobalAccommodationReading, GlobalAccommodationReading][len(accommod_indices) - 1]
             elif ind == 1:
-                return [LocalAccommodationReading, IntermediateAccommodationReading][len(accommod_indices)-2]
+                return [LocalAccommodationReading, IntermediateAccommodationReading][len(accommod_indices) - 2]
             else:
                 assert ind == 2
                 return LocalAccommodationReading
@@ -1370,7 +1367,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
         (In this project, these readings will be subjected to acceptability checks, but that's it.).
         """
     def _get_free(self):
-        free =  self.free(True)
+        free = self.free(True)
         return free, []
     
     def _get_defdescr_events(self, event_data):
@@ -1380,13 +1377,13 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
     
     def _is_binding(self, variable, var_individuals, defdescr_events, event_data, presupp_event_data, presupp_individuals):
         # No binding is possible to variables having a role in the same event (look for events in drss other than self)
-        variable_events = set((event for event, role, event_string in event_data.get(variable,())))
+        variable_events = set((event for event, role, event_string in event_data.get(variable, ())))
         if not variable_events.isdisjoint(defdescr_events):
             return False
         # Don't allow binding if the potential antecedent participates in the same event (in the relative clause) as self.variable, e.g.:
         # If John has a child, the child that likes him (him = the child in the antecedent of the impl. cond) is away.
-        variable_presupp_events = set((event for event, role, event_string in presupp_event_data.get(variable,())))
-        defdescr_presupp_events = set((event for event, role, event_string in presupp_event_data.get(self.variable,())))
+        variable_presupp_events = set((event for event, role, event_string in presupp_event_data.get(variable, ())))
+        defdescr_presupp_events = set((event for event, role, event_string in presupp_event_data.get(self.variable, ())))
         if not variable_presupp_events.isdisjoint(defdescr_presupp_events):
             return False
 
