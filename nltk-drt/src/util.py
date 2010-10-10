@@ -4,6 +4,7 @@ from nltk import load_parser
 from nltk.sem.drt import AbstractDrs
 from temporaldrt import DRS, DrtApplicationExpression, DrtVariableExpression, unique_variable
 from presuppdrt import DrtParser as PresuppDrtParser
+from presuppdrt import ResolutionException
 import nltk.sem.drt as drt
 import temporaldrt
 import re
@@ -22,7 +23,7 @@ class Tester(object):
     (re.compile("^died$"), ("did", "die")),
      (re.compile("^([A-Z][a-z]+)'s?$"),   lambda m: (m.group(1), "s")),
      (re.compile("^(?P<stem>[a-z]+)s$"),  lambda m: ("does", m.group("stem"))),
-     (re.compile("^([a-z]+(?:[^cvklt]|lk))ed|([a-z]+[cvlkt]e)d$"), lambda m: ("did", m.group(1) if m.group(1) else m.group(2))),
+     (re.compile("^([a-z]+(?:[^cvklt]|lk|nt))ed|([a-z]+[cvlkt]e)d$"), lambda m: ("did", m.group(1) if m.group(1) else m.group(2))),
      (re.compile("^([A-Z]?[a-z]+)one$"), lambda m: (m.group(1), "one")),
      (re.compile("^([A-Z]?[a-z]+)thing$"), lambda m: (m.group(1), "thing")),
       (re.compile("^bit$"), ("did", "bite")),
@@ -91,7 +92,7 @@ class Tester(object):
     def test(self, cases, **args):
         verbose = args.get("verbose", False)
         presupp_parser = PresuppDrtParser()
-        for number, sentence, expected, error in cases:
+        for number, sentence, expected in cases:
             expected_drs = []
             if expected:
                 for item in expected if isinstance(expected, list) else [expected]:
@@ -102,23 +103,25 @@ class Tester(object):
             try:
                 expression = self.parse(sentence, **args)
                 readings = expression.resolve(verbose)
+                #print readings
+                #print expected_drs
                 
-                if error:
-                    print("%s. !error: expected %s" % (number, str(error)))
+                #if ResolutionException:
+                #    print("%s. !error: expected %s" % (number, str(ResolutionException)))
+                #else:
+                if len(expected_drs) == len(readings):
+                    for index, pair in enumerate(zip(expected_drs, readings)):
+                        if pair[0] == pair[1]:
+                            print("%s. %s -- Reading (%s): %s\n" % (number, sentence, index+1, pair[1]))
+                        else:
+                            print("%s. ################# !failed reading (%s)! #################\n\n%s\n\nExpected:\t%s\n\nReturns:\t%s\n" % (number, index+1, sentence, pair[0], pair[1]))
                 else:
-                    if len(expected_drs) == len(readings):
-                        for index, pair in enumerate(zip(expected_drs, readings)):
-                            if pair[0] == pair[1]:
-                                print("%s. %s reading (%s): %s" % (number, sentence, index, pair[1]))
-                            else:
-                                print("%s. !failed %s !failed reading (%s):\n\nexpected %s\nreturns %s\n" % (number, sentence, index, pair[0], pair[1]))
-                    else:
-                        print("%s. !comparison failed!\n%s" % (number, sentence))
+                        print("%s. ################# !comparison failed! #################\n\n%s\n" % (number, sentence))
             except Exception, e:
-                if error and isinstance(e, error):
-                    print("%s. *%s (%s)" % (number, sentence,  e))
+                if ResolutionException:
+                    print("%s. *%s -- Exception:%s\n" % (number, sentence,  e))
                 else:
-                    print("%s. !unexpected error: %s" % (number, e))
+                    print("%s. ################# !unexpected error! #################\n%s\n" % (number, sentence, e))
                     
             
    
@@ -221,7 +224,7 @@ class Tester(object):
 
 def main():
     tester = Tester('file:../data/grammar.fcfg', temporaldrt.DrtParser)
-    sentences = ["Mia walked", "Angus liked a boy"]
+    sentences = ["Mia walked", "Angus wanted a boy"]
     for sentence in sentences:
         print tester._split(sentence)
 
