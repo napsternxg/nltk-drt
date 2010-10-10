@@ -233,19 +233,44 @@ def main():
     print "\n\t# ############################################################## #\n\t### ############### Testing Anaphora Component ############### ###\n\t# ############################################################## #\n\n"
     test_anaphora(tester)
     print "\n\t# ############################################################## #\n\t### ############ Testing Presupposition Component ############ ###\n\t# ############################################################## #\n\n"
-    test_presupposition(tester)
+    #sition(tester)
     print "\n\t# ######################################################## #\n\t### ########### Testing Inference Component ############ ###\n\t# ######################################################## #\n\n"
     #test_inference(tester)
     print "\n\t# ######################################################## #\n\t### ############ Testing Tempotal Component ############ ###\n\t# ######################################################## #\n\n"
-    test_tenses(tester)
+    #test_tenses(tester)
 
+    cases_inf = [
+    # No background knowledge attached
+    (1,"Mia is away","Mia is not away",1),
     
-    #xpr = tester.parse(r"John loves a baroness and Angus loves her.", utter=True)
+    (2,"Mia is away", "Mia is away",2),
+    
+    (3,"Mia is away", "If Mia is away Angus is out",3),
+    
+    (4,"Mia is away", "If Mia is not away Angus is out",2),
+    
+    (5,"Mia is away", "If Angus is out Mia is away",2),
+    
+    (6,"Mia is away", "If Angus is out Mia is not away",3),
+    
+    (7,"Mia is away", "Angus is out or Mia is away",2),
+    
+    (8,"Mia is away", "Angus is out or Mia is not away",3),         
+    ]
+
+    #tester.inference_test(cases_inf,BK,verbose=True)
+    
+    
+    
+    
+    
+    
+    #expr = tester.interpret("Angus likes John.","If Angus likes John, Mia is black.", BK, verbose=True, test=True)
     
     #print expr
     #expr.draw()
     
-    #for read in expr.resolve():
+    #for read in expr:
         #print read, "\n"
 
 
