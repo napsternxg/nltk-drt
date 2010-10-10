@@ -362,6 +362,49 @@ class AbstractDrs(drt.AbstractDrs):
             raise ResolutionException("\n".join(errors))
         return readings
 
+    def inf_resolve(self, inference_check=None, verbose=False):
+        """
+        This method does the whole job of collecting multiple readings.
+        We aim to get new readings from the old ones by resolving
+        presuppositional DRSs one by one. Every time one presupposition
+        is resolved, new readings are created and replace the old ones,
+        until there are no presuppositions left to resolve.
+        """
+        readings = []
+        errors = []
+        def traverse(base_reading, operations):
+            #TODO: sort operations as b,g>i>l
+            for operation in operations:
+                new_reading = base_reading.deepcopy(operation)
+                if verbose:
+                    print("reading: %s" % new_reading)
+                try:
+                    new_operations = new_reading.readings()
+                except Exception as ex:
+                    errors.append(str(ex))
+                    continue
+                if not new_operations:
+                    if inference_check:
+                        if inference_check(new_reading):
+                            readings.append(new_reading)
+                            return True
+                    else:
+                        readings.append(new_reading)
+                else:
+                    if traverse(new_reading, new_operations):
+                        return True
+            return False
+
+        operations = self.readings()
+        if operations:
+            traverse(self, operations)
+        else:
+            return [self]
+
+        if not readings and errors:
+            raise ResolutionException("\n".join(errors))
+        return readings
+
     def readings(self, trail=[]):
         raise NotImplementedError()
 
