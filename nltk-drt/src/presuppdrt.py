@@ -894,24 +894,6 @@ class PresuppositionDRS(DRS):
         return True
         
     def _init_presupp_data(self):
-        """ Return the referent, features and function name of the presupposition condition. Make sure it passes the check.
-        @param check: a boolean function; a check that the presupposition condition must pass.""" 
-        """In DRSs representing sentences like 'John, who owns a dog, feeds it',
-        there will be more than one condition in the presupposition DRS, because the conditions from the relative clause
-        will be put in the same box as the presupposition condition (e.g. 'John' -> John(x); 'the boy' -> boy(x)).
-        This is also the case for presuppositions triggered by the definite article + noun,
-        where, apart from a relative clause, there can be an adjective / adjectives modifying the noun 
-        to complicate the matters.
-        If an adjective and a noun both turn into one-place predicates, how do we distinguish between them?
-        In our system, nouns are DrtFeatureConstantExpressions, and adjectives are simple DrtApplicationExpressions.
-        But this is not set in stone, as we do not require the user to define any syntactic nominal features.
-        """
-        
-        # The referent we are looking for is always the first on the list of referents of the presuppositional DRS.
-        # The head of the presuppositional NP, however, doesn't have to be the first on the list of conditions.
-        # It depends on how the lambda terms are written (e.g. for adjective, for complementizers).
-        # If there are no agreement features in the grammar, we have to consider all unary predicates 
-        # with this referent potential heads of the NP.
         presupp_cond_list = [cond for cond in self.conds if is_unary_predicate(cond) and cond.argument.variable == self.refs[0] and self.is_presupposition_cond(cond)]
         for cond in presupp_cond_list:
             if isinstance(cond.function, DrtFeatureConstantExpression): # this is the one
@@ -935,14 +917,14 @@ class PresuppositionDRS(DRS):
                 
     #____________________________________________________________________________________________
     def _get_condition_index(self, superordinate_drs, trail, condition_index_cache={}):
-        """Use a for loop and 'is' to find the condition. 
-        Do not use index(), because it calls a time-consuming equals method."""
         # Keep a condition index cache
         if not condition_index_cache:
             condition_index_cache = {}
         superordinate_drs_index = id(superordinate_drs)
         if superordinate_drs_index in condition_index_cache:
             return condition_index_cache[superordinate_drs_index]
+        # Use a for loop and 'is' to find the condition. 
+        # Do not use index(), because it calls a time-consuming equals method.
         for ind, trailee in enumerate(trail):
             if trailee is superordinate_drs:
                 # The condition might be not in superordinate_drs, but inside one of its conditions (however deep we might need to go)
@@ -960,10 +942,10 @@ class PresuppositionDRS(DRS):
     
     class Accommodate(Operation):
         def __init__(self, presupp_drs, condition_index):
-            """We need the condition index so that the conditions are not just appended to the list of conditions of the DRS,
-            but inserted where the presuppositional DRS had been. The order of conditions is important, because it reflects
-            the proximity of a possible antecedent, which affects antecedent ranking (and our architecture does not allow us to use the 
-            index on the list of referents to reflect the proximity/focus)."""
+#            We need the condition index so that the conditions are not just appended to the list of conditions of the DRS,
+#            but inserted where the presuppositional DRS had been. The order of conditions is important, because it reflects
+#            the proximity of a possible antecedent, which affects antecedent ranking (and our architecture does not allow us to use the 
+#            index on the list of referents to reflect the proximity/focus).
             self.presupp_drs = presupp_drs
             self.condition_index = condition_index
         def __call__(self, drs):
@@ -984,8 +966,7 @@ class PresuppositionDRS(DRS):
             self.antecedent_cond = antecedent_cond
             self.condition_index = condition_index
         def __call__(self, drs):
-            """Put all conditions from the presupposition DRS
-            (if presupposition condition is a proper name: except the proper name itself) into the drs, 
+            """Put all conditions from the presuppositional DRS into the drs (but do not create duplicates), 
             and replace the presupposition condition referent in them with antecedent referent"""
             #print "BINDING, drs", drs
             newdrs = self.presupp_drs.replace(self.presupp_variable, self.antecedent_cond.argument, True)
@@ -1015,8 +996,6 @@ class PresuppositionDRS(DRS):
         def __init__(self, temporal_conditions):
             self.temporal_conditions = temporal_conditions
         def __call__(self, drs):
-                """In the conditions of the local DRS, replace the 
-                referent of the presupposition condition with antecedent_ref"""
                 drs.conds.extend(self.temporal_conditions)
                 return drs
             
@@ -1075,8 +1054,7 @@ class PresuppositionDRS(DRS):
                             
 class PronounDRS(PresuppositionDRS):
     """
-    A superclass for DRSs for personal, reflexive, 
-    and possessive pronouns
+    A class for DRSs for personal, reflexive, and possessive pronouns
     """
     PRONOUNS = [DrtTokens.PRONOUN, DrtTokens.REFLEXIVE_PRONOUN, DrtTokens.POSSESSIVE_PRONOUN]
 
@@ -1139,7 +1117,7 @@ class PronounDRS(PresuppositionDRS):
 class ProperNameDRS(PresuppositionDRS):
 
     def _presupposition_readings(self, trail=[]):
-        """A proper name always yields one reading: it is either global binding 
+        """A proper name always has one reading: it is either global binding 
         or global accommodation (if binding is not possible)"""
         outer_drs = self._find_outer_drs(trail)
         inner_drs = trail[-1]
@@ -1163,14 +1141,6 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
     
     def _presupposition_readings(self, trail=[], overgenerate=False):
         #trail[0].draw()
-        """
-        If a dog barks, every cat likes the dog.
-        For binding, we need to look for antecedents in the whole trail (i.e. in all candidate drss, see filter_trail)
-        But what about accommodation?
-        If a dog barks, every cat likes the mouse.
-        See Mathematical Methods in Linguistics, top of p 121: P->(Q->R) is logically equivalent to (P&Q)-> R,
-        which means that it doesn't matter whether we accommodate the mouse in P or Q (intermediate accommodation). I chose Q.
-        """
         # If there is a restrictive clause or an adjunct PP, find the perfect binding or accommodate the presupposition
         presupp_event_data = {}
         presupp_event_strings = {}
@@ -1246,150 +1216,12 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
             readings.extend(drs_readings)
         
         return readings, True
-
-        # TODO:
-        """
-        In most cases, we will do only (preferably global) accommodation when there are any events or states 
-        in the presuppositional DRS that the referent takes part in. But not always.
-        ACCOMMODATION ONLY
-        (1) Mia wins a prize. The prize that her neighbours win is a car.
-        BOTH, BINDING PREFERRED? - Or maybe just binding
-        (2) Mia wins a prize, The prize that her neighbours make fun of is a car.
-        BINDING ONLY 3 & 4
-        (3) If Mia wins a prize, the prize that the girl wins is a car.
-        (4) Mia wins a prize. The prize that Mia wins is a car.
-        ACCOMMODATION ONLY
-        (5) A car is going down the road. The car at home is black. 
-        (6) The blue dog that kissed Mia was fat. The red dog that kissed Mia sulked.
-        
-        Compare (1) & (2) to (5) "A car is going down the road. The car at home is black".
-        In these sentences, world knowledge and other checks help us to choose accommodation:
-        1) The same verb, different agents -> different objects. # This can be checked!
-        5) An object can't be going down the road and be at home at the same time
-        6) An object can't be red and blue at the same time.
-        
-        Some clues in the sentences can help us choose between binding and accommodation.
-        Compare these two examples:
-        ACCOMMODATION PREFERRED
-        (7) A dog kissed Mia. The dog that will kiss Mia is fat.
-        (8) A dog kissed Mia. The dog that Mia kissed is fat.
-        BINDING PREFERRED
-        (9) A dog kissed Mia. The dog that will kiss Mia AGAIN is fat.
-        (10) A dog kissed Mia. The dog that Mia kissed BACK is fat.
-        
-        In the previous examples, the head of the presuppositional NP and the potential antecedent
-        were the same nouns. What if we deal with two nouns with hyponym-hypernym relationship?
-        (9) Mia picked up a hammer. The tool Mia picked up was heavy.
-        
-        From these examples stems the following algorithm:
-        Find a perfect match for the noun (for inanimate, a matching string or a hyponym, for animate, a matching string only).
-        (It can be a list of matches).
-        For each variable on the list of matches, find the events and states it takes part in.
-        The dictionary we are interested in is individual : (event, role string, event string), (event, role, event string)
-        Our individual takes part in (at least some of) the events and states found in the relative clause.
-        
-        If event or state is the same (match strings), make sure its participants are the same (one of them is the potential antecedent).
-        If they are not the same, choose accommodation. If they are, choose binding.
-        
-        If the event or state isn't the same, check: not self.conflict(events_states, event_data, antecedent(as event_data key))
-        """
-            # Global accommodation will be preferred over all other accommodations. But we can't guarantee that 
-            # the most preferred reading won't violate acceptability constraints, so we have to keep all of the readings for now.  
-            
-        # No restrictive clause or PP -> try binding
-        """ Van der Sandt's algorithm would favour closest binding. But consider this sentence:
-        (1) 'Mary is at the concert. If a singer kisses John, the woman is happy.'
-        I think, for a discourse to remain coherent, the listener will always try to look for referents in the global DRS.
-        Other readings will be dispreferred. Only if no referent in the global DRS is found could (but does it?) van der Sand's heuristics 
-        come into play: the lower the level of binding, the better.
-        
-        Even then, we should ask ourselves why we used a definite description in the first place.
-        Here are a couple of examples showing that anaphoric pronouns and definite descriptions do not behave in the same way.
-        
-        I.
-        (2) Butch picks up a hammer. Then he picks up a flower. He puts it back on the shelf.
-        In (2), there is some ambiguity as to the antecedent of 'it', but since 'flower' is the closest referent in the topic focus,
-        it will be preferred. Compare (2) to:
-        (3) Butch picks up a hammer. Then he picks up a flower. He puts the tool back on the shelf.
-        The definite description lifts the ambiguity.
-        
-        II.
-        (4) 'If a girl plays piano, then the child is happy'.
-        If we wanted to refer to the girl, it would have been more economical to say 'she is happy'.
-        'The child' is a resource-consuming, marked way. In this sentence, there was no ambiguity that a pronoun could have introduced
-        (then a definite description would have help us stick to the maxim of manner).
-        The referent isn't too far away from the presupposition, either. But (the listener will think) the definite description 
-        was used for some reason. This is why global accommodation will be at least as preferred as the binding to the referent 
-        from the antecendent of the implicative condition.
-        
-        III.
-        With definite descriptions, binding is very tricky.
-        If condition functors are the same, the two referents will be bound (and indeed, this is the only way to do binding for proper names).
-        Since pronouns have little semantic content, we can find referents by simply going through possible antecedents and comparing
-        their features (number and gender) to those of the pronoun. But,
-        (5) The garage is empty. The car is in the driveway.
-        'The garage' and 'the car' are both inanimate singular nouns, but it is clear that these features are an insufficient basis
-        for binding. We have to use ontologies.
-        FOR INANIMATE NOUNS:
-        First, we find the presupposition condition (the head of the presuppositional NP). If the antecedent is a subclass of the
-        presupposition condition synset, there will be binding with little ambiguity.
-        FOR ANIMATE NOUNS:
-        This is even trickier. First of all, the presupposition condition has to be a subclass of 'person' or 'animal'. But how do we
-        account for the gender?
-        (6) Mia plays with John. The mother is happy.
-        In wordnet, 'mother' is not a subclass of 'woman' or 'female'. The same is true for all gender-specific noun, like
-        'seamstress', 'husband', 'bull', etc. We probably have to specify noun gender in the grammar, then.
-        We do this, but we don't restrict the user in any way, for example gender doesn't have to be {m,f,n}, and these letters
-        can be used for other features than gender, too.
-        >>> S('singer.n.1').common_hypernyms(S('person.n.1'))
-        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
-        >>> S('mother.n.1').common_hypernyms(S('person.n.1'))
-        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('person.n.01'), Synset('entity.n.01'), Synset('causal_agent.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
-        >>> S('dog.n.1').common_hypernyms(S('animal.n.1'))
-        [Synset('living_thing.n.01'), Synset('physical_entity.n.01'), Synset('animal.n.01'), Synset('entity.n.01'), Synset('object.n.01'), Synset('organism.n.01'), Synset('whole.n.02')]
-        """
-        # First, try global binding. If we can bind globally, it will be our preferred reading
-        # (not by van der Sand's algorithm, though). Return it.
-        # TODO: THERE CAN BE MORE THAN ONE POSSIBILITIES FOR GLOBAL BINDING. EITHER RANK THEM OR FILTER THEM (or both)
-        # TODO: Even if we find a perfect binding candidate, e.g. hammer-tool, do we return this binding as the only reading?
-        # A dog is outside. If a cat hisses, the animal is afraid.
-        # For this to be a coherent discourse, animal should refer to the dog, but the other binding is also possible (no discourse coherence, though).
-        # At least, if we extend the discourse, the binding to cat may be justified.
-        # A dog is outside. If a cat hisses, the animal is afraid. The dog meets a hissing cat. Or: the dog meets a cat. The cat hisses.
-
-        # Note that 'cat' does not introduce a new individual as such (though it does put the referent on the referents list of the 
-        # antecedent of the implicative condition), like 'dog' does.
-        # If we bind 'animal' to 'cat', 'the animal' still won't refer to an individual, it will refer to a group of individuals that are cats.
-        # This means that the if-sentence just puts some irrelevant background information in the middle of our discourse. 
-        # Naturally, we want to exclde this reading.  
-        
-        # But if we introduce a referent that is a cat (before or after the if-sentence), this background information gets relevant to
-        # our discourse. So maybe, for the future: as long as the bg info is irrelevant, consider only the first reading,
-        # but keep the second reading as a possibility. If after n sentences the info is still irrelevant, throw the 2nd reading away.
-        
-        #-----------------
-        # The cat is black. The cat is fat". Seems to require binding and sounds weird.
-         
-        
-        # We have gone through all boxes in the trail, and nowhere did we find an unambiguous antecedent
-        # self.possible_antecedents is a list of lists (but those lists can be empty)
-        # Return all the readings (binding + accommodation), prefer global binding.
-        # TODO:
-        """
-        If we can't use ontologies and there wasn't a restrictive clause / PP, we are not so sure about which reading is the right one.
-        Self.possible_antecedents holds antecedent candidates for binding, but we would probably need advanced lexical information
-        beyond the scope of this project to lift, or at least narrow down, the ambiguity.
-        So the best option would be to return all possible readings, with some preference order,
-        and maybe have a more sophisticated semantic component filter them later 
-        (In this project, these readings will be subjected to acceptability checks, but that's it.).
-        """
+    
     def _get_free(self):
         free = self.free(True)
         return free, []
     
     def _get_defdescr_events(self, event_data):
-        """E.g. event 'like' from the sentence 'Every girl likes the boy', 
-        state 'angry' from the sentence 'The boy is angry'"""
         return [item[0] for item in event_data.get(self.variable, ())]
     
     def _is_binding(self, variable, var_individuals, defdescr_events, event_data, presupp_event_data, presupp_individuals):
@@ -1415,24 +1247,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
                 return False
         
         # Perform the semantic check
-        if self.semantic_check(var_individuals, presupp_individuals):
-            if not presupp_event_data: return True 
-            return not self.event_conflict(event_data, presupp_event_data)
-        return False
-    
-    # TODO:
-    # Mia walks. Kate sings. The girl that sings is happy. - only binding to Kate
-    # Mia owns a blue bag. Kate owns a red bag. The girl that owns a/the blue bag is happy. A, THE, OR BOTH?
-    # Mia owns a blue bag. Kate owns a red bag. The girl _with_ the blue bag is happy.
-    # Mia owns a flower. Kate owns a hammer. The girl that owns a tool is happy.
-    #----
-    # Predicative adjectives and intransitive stative verbs are treated the same way
-    # (except that the argument of an adjective is its theme, and the argument of a verb is its agent, but that can be changed).
-    # Given that, bind to Kate:
-    # Kate owns a bag. Her bag is blue. Mary owns a red bag. The girl who owns a/the blue bag...
-    #---- 
-    # Use background knowledge for resolution:
-    # Uncle Vernon and Harry are talking. The wizard is upset.
+        return self.semantic_check(var_individuals, presupp_individuals)
         
     def semantic_check(self, individuals, presupp_individuals, strict=False):
         """ Users can plug in their more sophisticated semantic checks here.
@@ -1454,13 +1269,6 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
                 return False
         else:
             return True
-    
-    def event_conflict(self, event_data, presupp_event_data):
-        """Users can plug in their checks here. I just check whether, if the presupposition variable and the potential 
-        antecedent participate in the (possibly) same events (plain string matching, not variable matching), the other 
-        participants are the same. This should wave through the binding for 'boy' and 'boy' in 'A boy kissed Mia. The boy/urchin that 
-        kissed the girl...', but prevent (or disprefer) binding in sentences like 'A boy kissed Mia. The boy that kissed Kate...' """
-        return False
         
     def _free_variable_check(self, drs, free, all_refs):
         if free:
