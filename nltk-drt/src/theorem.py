@@ -20,7 +20,7 @@ class Communicator(Thread):
 
 class Theorem(object):
 
-    BINARY_LOCATIONS = ('/usr/local/bin', '/usr/bin')
+    BINARY_LOCATIONS = ('/usr/local/bin', '/usr/bin', '/home/pmakarov/prover9/bin')
     PROVER_BINARY = None
     BUILDER_BINARY = None
     INTERPFORMAT_BINARY = None
@@ -48,7 +48,7 @@ class Theorem(object):
     def _input(self, goal):
         return "formulas(goals).\n    %s.\nend_of_list.\n\n" % convert_to_prover9(goal)
 
-    def check(self, verbose=True):
+    def check(self, verbose=False):
         prover_input = 'assign(max_seconds, %d).\n\n' % self.prover_timeout if self.prover_timeout > 0 else ""
         prover_input += self._prover9_input()
 
