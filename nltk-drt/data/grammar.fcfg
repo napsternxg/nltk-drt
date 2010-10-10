@@ -196,6 +196,7 @@ LexADJ[SEM=<late>] -> 'late'
 LexADJ[SEM=<stupid>] -> 'stupid'
 LexADJ[SEM=<smart>] -> 'smart'
 LexADJ[SEM=<new>] -> 'new'
+LexADJ[SEM=<fancy>] -> 'fancy'
 
 # Common Nouns:
 ###############
