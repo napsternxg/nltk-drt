@@ -705,6 +705,18 @@ class DrtImpExpression(DrtBooleanExpression, drt.DrtImpExpression):
         else:
             return self.second.readings(trail + [self, self.first])
 
+    def __eq__(self, other):
+        if (isinstance(self, other.__class__) or isinstance(other, self.__class__)):
+            if isinstance(self.first, DRS) and isinstance(self.first, DRS):
+                if len(self.first.conds) == len(other.first.conds) and len(self.second.conds) == len(other.second.conds):
+                    for (r1, r2) in zip(self.first.refs + self.second.refs, other.first.refs + other.second.refs):
+                        varex = self.make_VariableExpression(r1)
+                        other = other.replace(r2, varex, True)
+                    return self.first.conds == other.first.conds and self.second.conds == other.second.conds
+            else:        
+                return self.first == other.first and self.second == other.second
+        return False
+
 class DrtIffExpression(DrtBooleanExpression, drt.DrtIffExpression):
     pass
 
