@@ -214,10 +214,11 @@ class Tester(object):
 #                        except Exception:
 #                            print Exception
                     
-                    print "\nAdmissible interpretations:"
-                    if not test: return interpretations
+                    if verbose: print "\nAdmissible interpretations:"
+                    if test: return interpretations, errors
                     #else: return [int for int, e in interpretations if int]
-                    else: return interpretations, errors
+                    else:
+                        return interpretations
                     
                 except IndexError:
                     print "Input sentences only!"
@@ -228,15 +229,37 @@ class Tester(object):
             return "\nDiscourse uninterpretable"                    
                     
                     
-    def inference_test(self, cases, bk,verbose=False):
+    def inference_test(self,cases,bk,verbose=False):
         for number, discourse, expression, judgement in cases:
-            print "\n%s. %s, %s" % (number, discourse, expression)
-            for interpretation in self.interpret(discourse, expression, bk, verbose, test=True):
-                print interpretation
-                error_message = Tester.INFERROR.get(judgement,False)
-                print error_message
-                if type(interpretation[1]) is error_message:
-                    print "Reading %s returns as expected: %s" % (interpretation[0], interpretation[1])
+            print "\n%s. %s %s" % (number, discourse, expression)
+            #print  "input: "
+            #print self.interpret(discourse, expression, bk, verbose=False, test=True)
+            #exit()
+            interpretations, errors = self.interpret(discourse, expression, bk, verbose=False, test=True)
+            
+            for interpretation in interpretations:
+                #TODO: Add expected and compare
+                print "\nAdmissible interpretation: ", interpretation
+            
+            if judgement:
+                
+                if not isinstance(judgement, list):
+                    judgement = [judgement]
+                
+                if len(judgement) == len(errors):
+                    for index, error in enumerate(errors):
+                        error_message = Tester.INFERROR.get(judgement[index],False)
+                        if verbose:
+                            print "\nexpected error:%s" % error_message
+                            print "\nreturned error:%s" % error[1]
+                        if type(error[1]) is error_message:
+                            print "\nInadmissible reading %s returns as expected:\n\t%s" % (error[0], error_message.__name__)
+                        else:
+                            print "\n#!!!#: Inadmissible reading %s returned with unexpected error: %s" % (error[0], error[1])
+                else:
+                    print "\n#!!!#: !Unexpected error! #!!!#"
+            
+            else: print "\nNo inadmissible readings"
 
 def main():
     tester = Tester('file:../data/grammar.fcfg', temporaldrt.DrtParser)
