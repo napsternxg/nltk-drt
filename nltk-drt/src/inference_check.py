@@ -5,6 +5,7 @@ from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtCons
                         ConcatenationDRS, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
                         ReverseIterator, DrtTokens, DrtEventualityApplicationExpression
 
+
 """
 As Mace looks for a minimal solution, those are the things we need to have so that 
 models make sense:
@@ -69,9 +70,9 @@ def inference_check(expr, background_knowledge=False,verbose=False):
     consistency, global and local informativity"""
     
     assert isinstance(expr, DRS), "Expression %s is not a DRS"
-    
+        
     expression = expr.deepcopy()
-    print expression, "\n"
+    print "\n##### Inference check initiated #####\n\nExpression:\t%s\n" % expression
     
     def _remove_temporal_conds(e):
         """Removes discourse structuring temporal conditions that could
@@ -101,7 +102,7 @@ def inference_check(expr, background_knowledge=False,verbose=False):
             if verbose: print "performing check on:", e
             t = Theorem(NegatedExpression(e), e)
         else:
-            if verbose: print "performing check on:", expression
+            if verbose: print "performing check on:", expression.fol()
             t = Theorem(NegatedExpression(expression), expression)
         
         result, output = t.check()
@@ -109,18 +110,24 @@ def inference_check(expr, background_knowledge=False,verbose=False):
             if output:
                 print "\nMace4 returns:\n%s\n" % output
             else:
-                print "\nProver9 returns: %s\n" % result
+                print "\nProver9 returns: %s\n" % (not result)
         return result      
     
     def consistency_check(expression):
         """1. Consistency check"""
-        if verbose: print "consistency check initiated...\n"
-        return _check(expression)
+        if verbose: print "### Consistency check initiated...\n"
+        if not _check(expression):
+            error_message = "New discourse is inconsistent on the following interpretation:\n\n%s" % expression
+            if verbose: print "#!!!#: ", error_message
+            return ConsistencyOuput(error_message)
+        else:
+            if verbose: print "##OK##: Expression is consistent\n"
+            return True
         
     
     def informativity_check(expression):
         """2. Global informativity check"""
-        if verbose: print "informativity check initiated...\n"
+        if verbose: print "### Informativity check initiated...\n"
         local_check = []
         for cond in ReverseIterator(expression.conds):
             if isinstance(cond, DRS) and \
@@ -135,13 +142,15 @@ def inference_check(expr, background_knowledge=False,verbose=False):
                     print "expression for global check: %s \n" % e
                 if not _check(e):
                     """new discourse is uninformative"""
-                    return False
+                    error_message = "#!!!#: ew expression is uninformative on the following interpretation:\n\n%s" % expression
+                    if verbose: print "#!!!#", error_message
+                    return InformativityOuput(error_message)
                 else:
                     temp = (expression.conds[:expression.conds.index(cond)]+
                     expression.conds[expression.conds.index(cond)+1:])
                     """Put sub-DRS into main DRS and start informativity check"""
-                    return informativity_check(prenex_normal_form(expression.__class__(expression.refs,temp),cond))
-                
+                    return informativity_check(expression.__class__(expression.refs+cond.refs,temp+cond.conds))
+                            
                 """generates tuples for local admissibility check"""
 
             elif isinstance(cond, DrtOrExpression) and \
@@ -163,61 +172,72 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         if not local_check == []:
             return local_informativity_check(local_check)
         else:
-            if verbose: print "Expression %s is informativ\n" % expression
+            if verbose: print "##OK##: Expression is informative\n"
             return True
         
     def local_informativity_check(check_list):
         """3. Local admissibility constraints"""
-        if verbose: print "local admissibility check initiated...\n%s\n" % check_list
+        if verbose: print "### Local admissibility check initiated...\n%s\n" % check_list
 
         for main,sub in check_list:
             assert isinstance(main, DRS), "Expression %s is not a DRS"
             assert isinstance(sub, DRS), "Expression %s is not a DRS"
 
             if not _check(main.__class__(main.refs,main.conds+[DrtNegatedExpression(sub)])):
-                if verbose: print "main %s entails sub %s \n" % (main,sub)
-                raise InferenceCheckException("New discourse is inadmissible due to local uninformativity:\n\n%s entails %s" % (main, sub))
+                error_message = "New discourse is inadmissible due to local uninformativity:\n\n%s entails %s" % (main, sub)
+                if verbose: print "#!!!#: ", error_message
+                return AdmissibilityOuput(error_message)
                 
             elif not _check(main.__class__(main.refs,main.conds+[sub])):
-                if verbose: print "main %s entails negation of sub %s \n" % (main,sub)
-                raise InferenceCheckException("New discourse is inadmissible due to local uninformativity:\n\n%s entails the negation of %s" % (main, sub))
+                error_message = "New discourse is inadmissible due to local uninformativity:\n\n%s entails the negation of %s" % (main, sub)
+                if verbose: print "#!!!#: ", error_message
+                return AdmissibilityOuput(error_message)
                 
-        if verbose: print "main %s does not entail sub %s nor its negation\n" % (main,sub)
+        if verbose: print "##OK##: Main %s does not entail sub %s nor its negation\n" % (main,sub)
         return True                
 
     _remove_temporal_conds(expression)
     if verbose: print "Expression without eventuality-relating conditions: %s \n" % expression
     
-    if not consistency_check(expression):
-            if verbose: print "Expression %s is inconsistent\n" % expression
-            raise InferenceCheckException("New discourse is inconsistent on the following interpretation:\n\n%s" % expression)
+    cons_check = consistency_check(expression)
     
-    if not informativity_check(expression):
-            if verbose: print "Expression %s is uninformative\n" % expression            
-            raise InferenceCheckException("New expression is uninformative on the following interpretation:\n\n%s" % expression)
- 
-    
-    for cond in expr.conds:
-        """Merge DRS of the new expression into the previous discourse"""
-        if isinstance(cond, DRS):
-            #change to NewInfoDRS when done
-            return prenex_normal_form(expr.__class__(expr.refs,
-                    expression.conds[:expr.conds.index(cond)]+
-                    expression.conds[expr.conds.index(cond)+1:]), cond)
-    return expr
-
-
-class InferenceCheckException(Exception):
-    def __init__(self, value):
-        self.value = value
+    if cons_check is True:
+        inf_check = informativity_check(expression)
         
-    def __str__(self):
-        return repr(self.value)
+        if inf_check is True: 
+            for cond in expr.conds:
+                #Merge DRS of the new expression into the previous discourse
+                result = expr
+                if isinstance(cond, DRS):
+                    #change to NewInfoDRS when done
+                    result = expr.__class__(expr.refs+cond.refs,
+                            (expression.conds[:expr.conds.index(cond)]+
+                            expression.conds[expr.conds.index(cond)+1:])+cond.conds)
+            if verbose: print "\n#### Inference check passed ####\n"
+            return result, "Sentence admitted"
+        
+        else:
+            print "\n###!!!# Inference check failed #!!!###\n"
+            return False, inf_check
+    
+    else:
+        print "\n###!!!# Inference check failed #!!!###\n"
+        return False, cons_check
+
+    
+class AdmissibilityOuput(str):
+    pass
+
+class ConsistencyOuput(str):
+    pass
+
+class InformativityOuput(str):
+    pass
 
 
 def prenex_normal_form(expression,subexpression):
     """Combines sub-DRS with superordinate DRS"""
-    #needed any longer?
+    #Not used currently
     assert isinstance(subexpression, DRS), "Expression %s is not a DRS" % subexpression
     assert isinstance(expression, DRS), "Expression %s is not a DRS" % expression
 
@@ -231,7 +251,6 @@ def prenex_normal_form(expression,subexpression):
     return expr.__class__(expr.refs+subexpr.refs,expr.conds+subexpr.conds)
 
 
-  
 def get_bk(drs, dictionary):
     """Collects background knowledge relevant for a given expression.
     DrtConstantExpression variable names are used as keys"""
