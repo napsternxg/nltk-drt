@@ -362,6 +362,11 @@ class AbstractDrs(drt.AbstractDrs):
             raise ResolutionException("\n".join(errors))
         return readings
 
+    RESOLUTION_ORDER = {Reading:0, 
+                        GlobalAccommodationReading:1,
+                        IntermediateAccommodationReading:2,
+                        LocalAccommodationReading:3}
+
     def inf_resolve(self, inference_check=None, verbose=False):
         """
         This method does the whole job of collecting multiple readings.
@@ -372,9 +377,12 @@ class AbstractDrs(drt.AbstractDrs):
         """
         readings = []
         errors = []
+
         def traverse(base_reading, operations):
-            #TODO: sort operations as b,g>i>l
-            for operation in operations:
+            print "sorted"
+            for i in sorted(operations, key=lambda o: AbstractDrs.RESOLUTION_ORDER[type(o)]):
+                print "operation:", type(i)
+            for operation in sorted(operations, key=lambda o: AbstractDrs.RESOLUTION_ORDER[type(o)]):
                 new_reading = base_reading.deepcopy(operation)
                 if verbose:
                     print("reading: %s" % new_reading)
@@ -391,18 +399,19 @@ class AbstractDrs(drt.AbstractDrs):
                     else:
                         readings.append(new_reading)
                 else:
-                    if traverse(new_reading, new_operations):
-                        return True
+                    if traverse(new_reading, new_operations[0]):
+                        if len(operations)==1 or AbstractDrs.RESOLUTION_ORDER[type(operation)] != 0:
+                            return True
             return False
 
         operations = self.readings()
         if operations:
-            traverse(self, operations)
+            traverse(self, operations[0])
         else:
             return [self]
 
         if not readings and errors:
-            raise ResolutionException("\n".join(errors))
+            raise ResolutionException(". ".join(errors))
         return readings
 
     def readings(self, trail=[]):
