@@ -362,7 +362,7 @@ class AbstractDrs(drt.AbstractDrs):
             raise ResolutionException("\n".join(errors))
         return readings
 
-    RESOLUTION_ORDER = {Reading:0, 
+    RESOLUTION_ORDER = {Reading:0,
                         GlobalAccommodationReading:1,
                         IntermediateAccommodationReading:2,
                         LocalAccommodationReading:3}
