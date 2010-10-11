@@ -28,7 +28,6 @@ from presuppdrt import ConditionRemover
 from presuppdrt import DrtEqualityExpression
 from presuppdrt import DrtConstantExpression
 from presuppdrt import unique_variable
-from presuppdrt import DrtNegatedExpression
 from presuppdrt import is_statevar
 from presuppdrt import is_eventvar
 from presuppdrt import is_timevar
@@ -38,12 +37,6 @@ from presuppdrt import DrtUtterVariableExpression
 from presuppdrt import DrtIndividualVariableExpression
 from presuppdrt import DefiniteDescriptionDRS
 from presuppdrt import DrtEventualityApplicationExpression
-from presuppdrt import DrtLambdaExpression
-from presuppdrt import DrtBooleanExpression
-from presuppdrt import ConcatenationDRS
-from presuppdrt import DrtImpExpression
-from presuppdrt import DrtOrExpression
-from presuppdrt import DrtFeatureConstantExpression
 
 class DrtTokens(drt.DrtTokens):
     NEWINFO_DRS = 'NEWINFO'
