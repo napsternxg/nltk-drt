@@ -8,8 +8,10 @@ __date__ = "Tue, 24 Aug 2010"
 import nltkfixtemporal
 from nltk.sem.drt import AbstractDrs
 from util import Tester
-from temporaldrt import DrtParser, AnaphoraResolutionException
-from presuppdrt import DrtParser as presuppparser
+#from temporaldrt import DrtParser
+from wntemporaldrt import DrtParser
+
+#from presuppdrt import DrtParser as presuppparser
 
 #background knowledge
 BK = {
@@ -128,6 +130,7 @@ def test_presupposition(tester):
     (20, "Angus is away. Every farmer likes his donkey.", ["([n,s,x],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10,z8],[farmer{sg,m}(z10), POSS(z8,z10), donkey{sg,n}(z8)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)]))])","([n,s,x,z8],[Angus{sg,m}(x), away(s), THEME(s,x), overlap(n,s), (([z10],[farmer{sg,m}(z10)]) -> ([s011],[like(s011), AGENT(s011,z10), PATIENT(s011,z8), overlap(n,s011), overlap(s,s011)])), POSS(z8,x), donkey{sg,n}(z8)])"])
     ]
     
+    
     admissibility_cases = [
     #admissibility check
     (21,None,"If Mary owns a car, Mary's car is black.", 3),
@@ -146,9 +149,28 @@ def test_presupposition(tester):
 
     (28,None,"If Mary is married, her husband is away.", 3),
     ]   
+
     
+    cases_wn = [
+    (24,"Angus owns a garden but wants a hammer. He needs the tool.", "([n,z12,s,z9,s010,s019,x],[Angus{sg,m}(x), garden{sg,n}(z12), own(s), AGENT(s,x), PATIENT(s,z12), overlap(n,s), hammer{sg,n}(z9), want(s010), AGENT(s010,x), PATIENT(s010,z9), overlap(n,s010), overlap(s,s010), tool{sg,n}(z9), need(s019), AGENT(s019,x), PATIENT(s019,z9), overlap(n,s019), overlap(s010,s019)])"),
+    
+    (25,"The garden is abloom. The car is broken.", "([n,s,s010,x,z9],[garden{sg,n}(x), abloom(s), THEME(s,x), overlap(n,s), car{sg,n}(z9), broken(s010), THEME(s010,z9), overlap(n,s010), overlap(s,s010)])"),
+    
+    (26,"A farmer owned a hammer. Fido bit him. The animal was stupid.", "([n,t,x,z6,s,t012,e,t018,s017,z11],[earlier(t,n), farmer{sg,m}(x), hammer{sg,n}(z6), own(s), AGENT(s,x), PATIENT(s,z6), overlap(t,s), earlier(t012,n), Fido{sg,n}(z11), bite(e), AGENT(e,z11), PATIENT(e,x), include(t012,e), include(s,e), earlier(t018,n), animal{sg,n}(z11), stupid(s017), THEME(s017,z11), overlap(t018,s017), include(s017,e)])"),
+    
+#    (27,"A woman wrote a letter. Her child had kicked a cat. The kitty was lovely and the mother was upset.", None),
+    
+    (28,"A dog bit a cat. The feline was upset.", "([n,t,x,z6,e,t011,s],[earlier(t,n), dog{sg,n}(x), cat{sg,n}(z6), bite(e), AGENT(e,x), PATIENT(e,z6), include(t,e), earlier(t011,n), feline{sg,n}(z6), upset(s), THEME(s,z6), overlap(t011,s), include(s,e)])"),
+#    expr = tester.parse("Angus owns a hammer. Angus owns a garden. He likes the tool.", utter=True) # Should be one reading (tool=hammer). OK.
+#    expr = tester.parse("The garden is dead. The car is broken.", utter=True) # No binding. OK.
+#    expr = tester.parse("Fido bites a farmer. If a donkey dances, the animal is stupid.", utter=True) # Animal=Fido or animal=donkey. OK.
+#    expr = tester.parse("A woman writes a letter. Her child beats a cat. The kitty is black. The mother is upset.", utter=True)
+#    expr = tester.parse("A dog bites a cat. The feline is upset", utter=True)
+     ]
+
     tester.test(cases)
     tester.inference_test(admissibility_cases,BK)
+    tester.test(cases_wn)
 
 def test_tenses(tester):
     cases = [
@@ -201,6 +223,7 @@ def test_tenses(tester):
     case_inf = [(22,"Mia died", "Mia will die",1),
                 
     (23,"Jones has died", "Jones is dead",2)]
+        
     
     tester.test(cases)
     tester.inference_test(case_inf,BK,verbose=False)
@@ -242,11 +265,11 @@ def main():
 
     
     
-    #expr = tester.parse("Mary loves John. Mary does not live John.")
+    #expr = tester.parse("A dog bit a cat. The feline was upset.")
     #interpret, e = expr.inf_resolve(lambda x: (True, None))
     #for i in interpret:
     #    print i
-        #i.draw()
+    #    i.draw()
         
     #print tester.interpret("Mary died", "Mary will die.", BK, verbose=False, test=True)  
     

@@ -197,6 +197,8 @@ LexADJ[SEM=<stupid>] -> 'stupid'
 LexADJ[SEM=<smart>] -> 'smart'
 LexADJ[SEM=<new>] -> 'new'
 LexADJ[SEM=<fancy>] -> 'fancy'
+LexADJ[SEM=<lovely>] -> 'lovely'
+LexADJ[SEM=<abloom>] -> 'abloom'
 
 # Common Nouns:
 ###############
@@ -278,6 +280,7 @@ Neg[SEM=<\Q P.Q(\x.DRS([],[-P(x)]))>] -> 'not'
 
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<die>] -> 'die'
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<smile>] -> 'smile'
+LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<scream>] -> 'scream'
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<walk>] -> 'walk'
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<dance>] -> 'dance'
 LexV[SUBCAT=iv,FORM=inf,TYPE=e,SEM=<commute>] -> 'commute'
@@ -310,6 +313,7 @@ LexV[SUBCAT=tv,FORM=inf,TYPE=s,SEM=<underestimate>] -> 'underestimate'
 
 
 LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<write>] -> 'written'
+LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<kicked>] -> 'kicked'
 LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<leave>] -> 'left'
 LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<vote>] -> 'voted'
 LexV[SUBCAT=tv,FORM=perf,TYPE=e,SEM=<elect>] -> 'elected'
