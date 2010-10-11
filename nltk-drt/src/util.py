@@ -12,7 +12,7 @@ from types import LambdaType
 
 from nltk import LogicParser
 from nltk.sem.logic import AndExpression, ParseException
-from inference_check import inference_check, get_bk, AdmissibilityOuput, ConsistencyOuput, InformativityOuput
+from inference import inference_check, get_bk, AdmissibilityOuput, ConsistencyOuput, InformativityOuput
 
 
 class Tester(object):
