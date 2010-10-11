@@ -109,7 +109,7 @@ class Tester(object):
             readings = []
             try:
                 expression = self.parse(sentence, **args)
-                readings, errors = expression.inf_resolve(lambda x: (True, None), verbose)
+                readings, errors = expression.resolve(lambda x: (True, None), verbose)
                 #print readings
                 #print expected_drs
                 
@@ -198,7 +198,7 @@ class Tester(object):
                             #catches dictionary exceptions 
                             print e
                             
-                    interpretations, errors = new_discourse.inf_resolve(lambda x: inference_check(x, background_knowledge, verbose), verbose) 
+                    interpretations, errors = new_discourse.resolve(lambda x: inference_check(x, background_knowledge, verbose), verbose) 
                     
                     index = 1
                     

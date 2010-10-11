@@ -318,56 +318,8 @@ class AbstractDrs(drt.AbstractDrs):
                                          'value into an expression: %r' % (val,))
                 expr = expr.replace(var, val)
         return expr.simplify()
-    
-    def resolve(self, verbose=False):
-        """
-        This method does the whole job of collecting multiple readings.
-        We aim to get new readings from the old ones by resolving
-        presuppositional DRSs one by one. Every time one presupposition
-        is resolved, new readings are created and replace the old ones,
-        until there are no presuppositions left to resolve.
-        """
-        readings = []
-        errors = []
-        def get_operations(expr):
-            try:
-                ops = expr.readings()
-            except Exception as ex:
-                errors.append(str(ex))
-                return []
-            if ops:
-                return [(expr, ops[0])]
-            else:
-                readings.append(expr)
-                return []
 
-        operations = get_operations(self)
-
-        while operations:
-            # Go through the list of readings we already have
-            new_operations = []
-            for reading, operation_list in operations:
-                # If a presupposition resolution took place, readings() 
-                # returns a tuple (DRS, operation). Otherwise
-                # it will return a None.
-                for operation in operation_list:
-                    new_reading = reading.deepcopy(operation)
-                    if verbose:
-                        print("reading: %s" % new_reading)
-                    new_operations.extend(get_operations(new_reading))
-
-            operations = new_operations
-
-        if not readings and errors:
-            raise ResolutionException("\n".join(errors))
-        return readings
-
-    RESOLUTION_ORDER = {Reading:0,
-                        GlobalAccommodationReading:1,
-                        IntermediateAccommodationReading:2,
-                        LocalAccommodationReading:3}
-
-    def inf_resolve(self, inference_check=None, verbose=False):
+    def resolve(self, inference_check=None, verbose=False):
         """
         This method does the whole job of collecting multiple readings.
         We aim to get new readings from the old ones by resolving
