@@ -1,10 +1,10 @@
-from temporaldrt import DefiniteDescriptionDRS, DrtParser, DrtTokens,\
- DrtFeatureConstantExpression
+import temporaldrt as drt
+from temporaldrt import DrtTokens, DrtFeatureConstantExpression
 
-class DefiniteDescriptionDRSwithWordNet(DefiniteDescriptionDRS):
+class DefiniteDescriptionDRS(drt.DefiniteDescriptionDRS):
     def __init__(self, refs, conds):
         self.wn = WordNetLookup()
-        super(DefiniteDescriptionDRSwithWordNet, self).__init__(refs, conds)
+        super(drt.DefiniteDescriptionDRS, self).__init__(refs, conds)
         
     def _strict_check (self, presupp_noun, other_cond):
         other_noun = other_cond.function.variable.name
@@ -59,15 +59,15 @@ class DefiniteDescriptionDRSwithWordNet(DefiniteDescriptionDRS):
                         return True
             return False
     
-class DrtParserWN(DrtParser):
+class DrtParser(drt.DrtParser):
 
     def handle_PresuppositionDRS(self, tok, context):
         if tok == DrtTokens.DEFINITE_DESCRIPTION_DRS:
             self.assertNextToken(DrtTokens.OPEN)
             drs = self.handle_DRS(tok, context)
-            return DefiniteDescriptionDRSwithWordNet(drs.refs, drs.conds)
+            return DefiniteDescriptionDRS(drs.refs, drs.conds)
         else:
-            return DrtParser.handle_PresuppositionDRS(self, tok, context)
+            return drt.DrtParser.handle_PresuppositionDRS(self, tok, context)
 
 #--------------------------------------------
 from nltk.corpus.reader.wordnet import WordNetCorpusReader
