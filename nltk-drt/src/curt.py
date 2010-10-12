@@ -89,7 +89,7 @@ def main():
                 print "Model: %s" % str(curt)
 
 def test_curt():
-    input = ["Mia is away", "Angus is out", "Mia is not away", "Mia is away", "If Mia is away Angus is out", ]
+    input = ["If Mia is away Angus is out", "Mia is away", "Angus is out", "Mia is not away", "Mia is away"]
     curt = Curt(background=BK)
     for i in input:
         print i
@@ -100,4 +100,4 @@ def test():
     tester.interpret("Mia is away","Mia is away", bk=BK, verbose=True, test=False)
 
 if __name__ == "__main__":
-    test_curt()
+    main()
