@@ -1,11 +1,9 @@
 import nltkfixtemporal
 
 from nltk import load_parser
-from nltk.sem.drt import AbstractDrs
 from temporaldrt import DRS, DrtApplicationExpression, DrtVariableExpression, unique_variable
 from presuppdrt import DrtParser as PresuppDrtParser
 from presuppdrt import ResolutionException
-import nltk.sem.drt as drt
 import temporaldrt
 import re
 from types import LambdaType
@@ -150,58 +148,57 @@ class Tester(object):
             buffer = self.logic_parser.parse(r'\Q P.(Q+DRS([],[P]))')
             #buffer = parser_obj.parse(r'\Q P.(NEWINFO([],[P])+Q)')
             try:
-                try:
-                    if expr_1:
-                        discourse = self.parse(expr_1, utter=True)
-                        
-                        expression = self.parse(expr_2, utter=False)
-                        
-                        for ref in set(expression.get_refs(True)) & set(discourse.get_refs(True)):
-                            newref = DrtVariableExpression(unique_variable(ref))
-                            expression = expression.replace(ref,newref,True)                   
-                        
-                        new_discourse = DrtApplicationExpression(DrtApplicationExpression(buffer,discourse),expression).simplify()
+                if expr_1:
+                    discourse = self.parse(expr_1, utter=True)
                     
-                    else: new_discourse = self.parse(expr_2, utter=True)
-                                       
-                    background_knowledge = None
-                    if bk:
-                        lp = LogicParser().parse
-                        
-                        #in order for bk in DRT-language to be parsed without REFER
-                        #as this affects inference
-                        parser_obj = PresuppDrtParser()
-                        #takes bk in both DRT language and FOL
-                        try:
-                                                      
-                            for formula in get_bk(new_discourse, bk):
-                                if background_knowledge:
+                    expression = self.parse(expr_2, utter=False)
+                    
+                    for ref in set(expression.get_refs(True)) & set(discourse.get_refs(True)):
+                        newref = DrtVariableExpression(unique_variable(ref))
+                        expression = expression.replace(ref,newref,True)                   
+                    
+                    new_discourse = DrtApplicationExpression(DrtApplicationExpression(buffer,discourse),expression).simplify()
+                
+                else: new_discourse = self.parse(expr_2, utter=True)
+                                   
+                background_knowledge = None
+                if bk:
+                    lp = LogicParser().parse
+                    
+                    #in order for bk in DRT-language to be parsed without REFER
+                    #as this affects inference
+                    parser_obj = PresuppDrtParser()
+                    #takes bk in both DRT language and FOL
+                    try:
+                                                  
+                        for formula in get_bk(new_discourse, bk):
+                            if background_knowledge:
+                                try:
+                                    background_knowledge = AndExpression(background_knowledge, parser_obj.parse(formula).fol())
+                                except ParseException:
                                     try:
-                                        background_knowledge = AndExpression(background_knowledge, parser_obj.parse(formula).fol())
-                                    except ParseException:
-                                        try:
-                                            background_knowledge = AndExpression(background_knowledge, lp(formula))
-                                        except Exception:
-                                            print Exception
-                                else:
+                                        background_knowledge = AndExpression(background_knowledge, lp(formula))
+                                    except Exception:
+                                        print Exception
+                            else:
+                                try:
+                                    background_knowledge = parser_obj.parse(formula).fol()
+                                except ParseException:
                                     try:
-                                        background_knowledge = parser_obj.parse(formula).fol()
-                                    except ParseException:
-                                        try:
-                                            background_knowledge = lp(formula)
-                                        except Exception:
-                                            print Exception
-                                            
-                            if verbose: print "Generated background knowledge:\n%s" % background_knowledge
+                                        background_knowledge = lp(formula)
+                                    except Exception:
+                                        print Exception
+                                        
+                        if verbose: print "Generated background knowledge:\n%s" % background_knowledge
+                    
+                    except AssertionError as e:
+                        #catches dictionary exceptions 
+                        print e
                         
-                        except AssertionError as e:
-                            #catches dictionary exceptions 
-                            print e
-                            
-                    interpretations, errors = new_discourse.resolve(lambda x: inference_check(x, background_knowledge, verbose), verbose) 
-                    
-                    index = 1
-                    
+                interpretations, errors = new_discourse.resolve(lambda x: inference_check(x, background_knowledge, verbose), verbose) 
+                
+                index = 1
+                
 #                    for reading in new_discourse.resolve():
 #                        print "\nGenerated reading (%s):" % index
 #                        index = index + 1
@@ -213,22 +210,84 @@ class Tester(object):
 #                            if verbose: print interpretation[1]
 #                        except Exception:
 #                            print Exception
-                    
-                    if verbose: print "\nAdmissible interpretations:"
-                    if test: return interpretations, errors
-                    #else: return [int for int, e in interpretations if int]
-                    else:
-                        return interpretations
-                    
-                except IndexError:
-                    print "Input sentences only!"
+                
+                if verbose: print "\nAdmissible interpretations:"
+                if test: return interpretations, errors
+                #else: return [int for int, e in interpretations if int]
+                else:
+                    return interpretations
+                
+            except IndexError:
+                print "Input sentences only!"
                 
             except ValueError as e:
                 print "Error:", e
         
-            return "\nDiscourse uninterpretable"                    
+            return "\nDiscourse uninterpretable"
+        
+    def collect_background(self, discourse, background, verbose=False):
+        background_knowledge = None
+        #in order for bk in DRT-language to be parsed without REFER
+        #as this affects inference
+        parser_obj = PresuppDrtParser()
+        #takes bk in both DRT language and FOL                  
+        for formula in get_bk(discourse, background):
+            if background_knowledge:
+                try:
+                    background_knowledge = AndExpression(background_knowledge, parser_obj.parse(formula).fol())
+                except ParseException:
+                    try:
+                        background_knowledge = AndExpression(background_knowledge, self.logic_parser.parse(formula))
+                    except Exception as e:
+                        print "Error: %s" % e
+            else:
+                try:
+                    background_knowledge = parser_obj.parse(formula).fol()
+                except ParseException:
+                    try:
+                        background_knowledge = self.logic_parser.parse(formula)
+                    except Exception as e:
+                        print "Error: %s" % e
+                            
+        if verbose:
+            print "Generated background knowledge:\n%s" % background_knowledge
+
+        return background_knowledge
+
+    def parse_new(self, discourse, expression_str):
+        """parse the new expression and make sure that it has unique variables"""
+        expression = self.parse(expression_str, utter=False)
+        for ref in set(expression.get_refs(True)) & set(discourse.get_refs(True)):
+            newref = DrtVariableExpression(unique_variable(ref))
+            expression = expression.replace(ref,newref,True)
+        return expression
+
+    def interpret_new(self, discourse, expression, background=None, verbose=False):
+        """Interprets a new expression with respect to some previous discourse 
+        and background knowledge. The function first generates relevant background
+        knowledge and then performs inference check on readings generated by 
+        the resolve() method. It returns a list of admissible interpretations in
+        the form of DRSs."""
+
+        buffer = self.logic_parser.parse(r'\Q P.(Q+DRS([],[P]))')
+        try:
+            new_discourse = DrtApplicationExpression(DrtApplicationExpression(buffer,discourse),expression).simplify()
+
+            if background:      
+                background_knowledge = self.collect_background(new_discourse, background, verbose)
+            else:
+                background_knowledge = None
                     
-                    
+            interpretations, errors = new_discourse.resolve(lambda x: inference_check(x, background_knowledge, verbose), verbose) 
+
+            return interpretations, errors
+            
+        except IndexError:
+            print "Input sentences only!"
+            
+        except ValueError as e:
+            print "Error: %s" % e
+
     def inference_test(self,cases,bk,verbose=False):
         for number, discourse, expression, judgement in cases:
             print "\n%s. %s %s" % (number, discourse, expression)
