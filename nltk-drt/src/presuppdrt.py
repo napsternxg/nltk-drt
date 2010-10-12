@@ -319,6 +319,11 @@ class AbstractDrs(drt.AbstractDrs):
                 expr = expr.replace(var, val)
         return expr.simplify()
 
+    RESOLUTION_ORDER = {Reading:0,
+                        GlobalAccommodationReading:1,
+                        IntermediateAccommodationReading:2,
+                        LocalAccommodationReading:3}
+
     def resolve(self, inference_check=None, verbose=False):
         """
         This method does the whole job of collecting multiple readings.
