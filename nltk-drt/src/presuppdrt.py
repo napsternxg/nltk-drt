@@ -1096,7 +1096,7 @@ class ProperNameDRS(PresuppositionDRS):
     
 class DefiniteDescriptionDRS(PresuppositionDRS):
     
-    def _presupposition_readings(self, trail=[], overgenerate=False):
+    def _presupposition_readings(self, trail=[], overgenerate=False, generate_intermediate=True):
         #trail[0].draw()
         # If there is a restrictive clause or an adjunct PP, find the perfect binding or accommodate the presupposition
         presupp_event_data = {}
@@ -1167,7 +1167,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
             if not overgenerate and drs_readings: accommod_indices = [None]
             else:
                 acc_cite = accommodation_cite(drsindex)
-                if acc_cite:
+                if acc_cite and not (generate_intermediate is False and acc_cite is IntermediateAccommodationReading):
                     drs_readings.append(self.accommodation_reading(drs, trail, temporal_conditions, local_drs, acc_cite))
                     accommod_indices.remove(drsindex)
             readings.extend(drs_readings)
