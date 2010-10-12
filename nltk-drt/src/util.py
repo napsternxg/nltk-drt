@@ -145,8 +145,8 @@ class Tester(object):
             return "\nDiscourse uninterpretable. Background knowledge is not in dictionary format"
             
         else:
-            buffer = self.logic_parser.parse(r'\Q P.(Q+DRS([],[P]))')
-            #buffer = parser_obj.parse(r'\Q P.(NEWINFO([],[P])+Q)')
+            #buffer = self.logic_parser.parse(r'\Q P.(Q+DRS([],[P]))')
+            buffer = self.logic_parser.parse(r'\Q P.(NEWINFO([],[P])+Q)')
             try:
                 if expr_1:
                     discourse = self.parse(expr_1, utter=True)
@@ -269,7 +269,8 @@ class Tester(object):
         the resolve() method. It returns a list of admissible interpretations in
         the form of DRSs."""
 
-        buffer = self.logic_parser.parse(r'\Q P.(Q+DRS([],[P]))')
+        #buffer = self.logic_parser.parse(r'\Q P.(Q+DRS([],[P]))')
+        buffer = self.logic_parser.parse(r'\Q P.(NEWINFO([],[P])+Q)')
         try:
             new_discourse = DrtApplicationExpression(DrtApplicationExpression(buffer,discourse),expression).simplify()
 
