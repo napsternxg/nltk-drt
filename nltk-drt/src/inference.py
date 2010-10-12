@@ -2,7 +2,7 @@ from nltk.sem.logic import AndExpression, NegatedExpression
 from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
                         DrtApplicationExpression, DrtVariableExpression, unique_variable, \
                         ConcatenationDRS, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
-                        ReverseIterator, DrtTokens, DrtEventualityApplicationExpression
+                        ReverseIterator, DrtTokens, DrtEventualityApplicationExpression, NewInfoDRS
 
 import subprocess
 import nltk
@@ -123,11 +123,11 @@ class Theorem(object):
         val = []
         for line in valuation_standard_format.splitlines(False):
             l = line.strip()
-            
+
             if l.startswith('interpretation'):
                 # find the number of entities in the model
                 num_entities = int(l[l.index('(')+1:l.index(',')].strip())
-            
+
             elif l.startswith('function') and l.find('_') == -1:
                 # replace the integer identifier with a corresponding alphabetic character
                 name = l[l.index('(')+1:l.index(',')].strip()
@@ -135,7 +135,7 @@ class Theorem(object):
                     name = name.upper()
                 value = int(l[l.index('[')+1:l.index(']')].strip())
                 val.append((name, MaceCommand._make_model_var(value)))
-            
+
             elif l.startswith('relation'):
                 l = l[l.index('(')+1:]
                 if '(' in l:
@@ -187,46 +187,51 @@ class Theorem(object):
             print 'Builder Input:\n', builder_input, '\n'
 
         prover_process = subprocess.Popen([Theorem.PROVER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-        builder_process = subprocess.Popen([Theorem.BUILDER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+        #builder_process = subprocess.Popen([Theorem.BUILDER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
         prover_thread = Communicator(prover_process, prover_input)
-        builder_thread = Communicator(builder_process, builder_input)
+        #builder_thread = Communicator(builder_process, builder_input)
         
         prover_thread.start()
-        builder_thread.start()
+        #builder_thread.start()
 
-        while prover_thread.is_alive() and builder_thread.is_alive():
+        while prover_thread.is_alive(): #and builder_thread.is_alive():
             pass
 
-        if not prover_thread.is_alive():
-            if verbose:
-                print "Prover done, Builder %s " % ("done" if not builder_thread.is_alive() else "running")
-            stdout, stderr = prover_thread.result
-            returncode = prover_process.poll()
-            result = not (returncode == 0)
-            output = None
-            if builder_process.poll() is None:
-                if verbose:
-                    print "builder is still running, terminating..."
-                try:
-                    builder_process.terminate()
-                except OSError:
-                    pass
+        stdout, stderr = prover_thread.result
+        returncode = prover_process.poll()
+        result = not (returncode == 0)
+        output = None
 
-        elif not builder_thread.is_alive():
-            if verbose:
-                print "Prover %s, Builder done " % ("done" if not prover_thread.is_alive() else "running")
-            stdout, stderr = builder_thread.result
-            returncode = builder_process.poll()
-            result = (returncode == 0)
-            output = stdout
-            if prover_process.poll() is None:
-                if verbose:
-                    print "prover is still running, terminating..."
-                try:
-                    prover_process.terminate()
-                except OSError:
-                    pass
+#        if not prover_thread.is_alive():
+#            if verbose:
+#                print "Prover done, Builder %s " % ("done" if not builder_thread.is_alive() else "running")
+#            stdout, stderr = prover_thread.result
+#            returncode = prover_process.poll()
+#            result = not (returncode == 0)
+#            output = None
+#            if builder_process.poll() is None:
+#                if verbose:
+#                    print "builder is still running, terminating..."
+#                try:
+#                    builder_process.terminate()
+#                except OSError:
+#                    pass
+#
+#        elif not builder_thread.is_alive():
+#            if verbose:
+#                print "Prover %s, Builder done " % ("done" if not prover_thread.is_alive() else "running")
+#            stdout, stderr = builder_thread.result
+#            returncode = builder_process.poll()
+#            result = (returncode == 0)
+#            output = stdout
+#            if prover_process.poll() is None:
+#                if verbose:
+#                    print "prover is still running, terminating..."
+#                try:
+#                    prover_process.terminate()
+#                except OSError:
+#                    pass
 
         if verbose:
             if stdout: print('output:\t%s' % stdout)
@@ -244,7 +249,7 @@ def inference_check(expr, background_knowledge=False,verbose=False):
     consistency, global and local informativity"""
     
     assert isinstance(expr, DRS), "Expression %s is not a DRS"
-        
+
     expression = expr.deepcopy()
     if verbose: print "\n##### Inference check initiated #####\n\nExpression:\t%s\n" % expression
     
@@ -391,7 +396,7 @@ def inference_check(expr, background_knowledge=False,verbose=False):
             for cond in expr.conds:
                 #Merge DRS of the new expression into the previous discourse
                 result = expr
-                if isinstance(cond, DRS):
+                if isinstance(cond, NewInfoDRS):
                     #change to NewInfoDRS when done
                     result = expr.__class__(expr.refs+cond.refs,
                             (expression.conds[:expr.conds.index(cond)]+
