@@ -158,7 +158,7 @@ def test_presupposition(tester):
     
     (26,"A farmer owned a hammer. Fido bit him. The animal was stupid.", "([n,t,x,z6,s,t012,e,t018,s017,z11],[earlier(t,n), farmer{sg,m}(x), hammer{sg,n}(z6), own(s), AGENT(s,x), PATIENT(s,z6), overlap(t,s), earlier(t012,n), Fido{sg,n}(z11), bite(e), AGENT(e,z11), PATIENT(e,x), include(t012,e), include(s,e), earlier(t018,n), animal{sg,n}(z11), stupid(s017), THEME(s017,z11), overlap(t018,s017), include(s017,e)])"),
     
-    (28,"A dog bit a cat. The feline was upset.", "([n,t,x,z6,e,t011,s],[earlier(t,n), dog{sg,n}(x), cat{sg,n}(z6), bite(e), AGENT(e,x), PATIENT(e,z6), include(t,e), earlier(t011,n), feline{sg,n}(z6), upset(s), THEME(s,z6), overlap(t011,s), include(s,e)])"),
+    (27,"A dog bit a cat. The feline was upset.", "([n,t,x,z6,e,t011,s],[earlier(t,n), dog{sg,n}(x), cat{sg,n}(z6), bite(e), AGENT(e,x), PATIENT(e,z6), include(t,e), earlier(t011,n), feline{sg,n}(z6), upset(s), THEME(s,z6), overlap(t011,s), include(s,e)])"),
 #    expr = tester.parse("Angus owns a hammer. Angus owns a garden. He likes the tool.", utter=True) # Should be one reading (tool=hammer). OK.
 #    expr = tester.parse("The garden is dead. The car is broken.", utter=True) # No binding. OK.
 #    expr = tester.parse("Fido bites a farmer. If a donkey dances, the animal is stupid.", utter=True) # Animal=Fido or animal=donkey. OK.
