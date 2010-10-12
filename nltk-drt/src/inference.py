@@ -157,7 +157,7 @@ class Theorem(object):
             Theorem.INTERPFORMAT_BINARY = self._find_binary('interpformat', verbose)
 
         if verbose:
-            print 'Calling:', Theorem.INTERPFORMAT_BINARY
+            print 'Calling Interpformat:', Theorem.INTERPFORMAT_BINARY
             print 'Args:', format
             print 'Input:\n', input_str, '\n'
 
@@ -173,7 +173,7 @@ class Theorem(object):
             
         return stdout
 
-    def _call(self, prover_input, builder_input, verbose=False):
+    def _call(self, prover_input, builder_input, verbose):
         if Theorem.PROVER_BINARY is None:
             Theorem.PROVER_BINARY = self._find_binary('prover9', verbose)
 
@@ -187,21 +187,7 @@ class Theorem(object):
             print 'Builder Input:\n', builder_input, '\n'
 
         prover_process = subprocess.Popen([Theorem.PROVER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-
-#        stdout, stderr = prover_process.communicate(prover_input)
-#        returncode = prover_process.poll()
-#        result = not (returncode == 0)
-#        output = None
-#        print "prover done"
-        
         builder_process = subprocess.Popen([Theorem.BUILDER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-#
-#        stdout, stderr = builder_process.communicate(builder_input)
-#        returncode = builder_process.poll()
-#        result = (returncode == 0)
-#        output = self._model(stdout, verbose)
-#        
-#        print "builder done"
 
         prover_thread = Communicator(prover_process, prover_input)
         builder_thread = Communicator(builder_process, builder_input)
@@ -212,63 +198,46 @@ class Theorem(object):
         while prover_thread.is_alive() and builder_thread.is_alive():
             pass
 
-        if verbose:
-            print "Prover %s, Builder %s " % ("done" if not prover_thread.is_alive() else "running", "done" if not builder_thread.is_alive() else "running")
-
         if not prover_thread.is_alive():
+            if verbose:
+                print "Prover done, Builder %s " % ("done" if not builder_thread.is_alive() else "running")
             stdout, stderr = prover_thread.result
             returncode = prover_process.poll()
             result = not (returncode == 0)
             output = None
             if builder_process.poll() is None:
+                if verbose:
+                    print "builder is still running, terminating..."
                 try:
                     builder_process.terminate()
                 except OSError:
                     pass
-                if verbose:
-                    print "builder is still running, terminating..."
 
         elif not builder_thread.is_alive():
+            if verbose:
+                print "Prover %s, Builder done " % ("done" if not prover_thread.is_alive() else "running")
             stdout, stderr = builder_thread.result
-            returncode = prover_process.poll()
+            returncode = builder_process.poll()
             result = (returncode == 0)
-            output = self._model(stdout, verbose)
+            output = stdout
             if prover_process.poll() is None:
+                if verbose:
+                    print "prover is still running, terminating..."
                 try:
                     prover_process.terminate()
                 except OSError:
                     pass
-                if verbose:
-                    print "prover is still running, terminating..."
-  
+
         if verbose:
             if stdout: print('output:\t%s' % stdout)
             if stderr: print('error:\t%s' % stderr)
             print 'return code:', returncode
 
+        # transform the model if one is available
+        if output is not None:
+            output = self._model(stdout, verbose)
+
         return (result, output)
-
-def main():
-    from nltk.sem.logic import LogicParser
-    a = LogicParser().parse('(exists n (exists z128 (exists s (exists x (exists z138 (((((((((Mia = x) & husband(z128)) & own(s)) & AGENT(s,x)) & PATIENT(s,z128)) & overlap(n,s)) & all s0140(((married(s0140) & THEME(s0140,x)) & overlap(n,s0140)) -> exists t0135 (exists e ((((earlier(t0135,n) & walk(e)) & AGENT(e,z138)) & include(t0135,e)) & event(e)) & time(t0135)))) & (Angus = z138)) & individual(z138)) & individual(x)) & state(s)) & individual(z128)) & time(n)) & ((((all x all y all z ((include(x,y) & include(z,y)) -> overlap(x,z)) & (all x all y all z ((earlier(x,y) & earlier(y,z)) -> earlier(x,z)) & all x all y (earlier(x,y) -> -(overlap(x,y))))) & all t all s (((married(s) & THEME(s,x)) & overlap(t,s)) -> exists x (exists y ((POSS(y,x) & husband(y)) & individual(y)) & individual(x)))) & all s all x all y (((own(s) & AGENT(s,x)) & PATIENT(s,y)) -> POSS(y,x))) & all t all x all y ((POSS(y,x) & husband(y)) -> exists s (((married(s) & THEME(s,x)) & overlap(t,s)) & state(s)))))')
-    t = Theorem(a, a, 120, 60)
-    res = t.check(True)
-    print "check returned:", res
-
-def test():
-    from nltk.sem.logic import LogicParser
-    from nltk.inference.prover9 import Prover9Command 
-
-    g = LogicParser().parse('p and -p')
-    #p = Prover9Command(g)
-    #out = p.prove(verbose=True)
-    #print out
-    #print p.proof()
-    m = MaceCommand(g)
-    out = m.build_model(verbose=True)
-    print out
-    print m.model('standard')
-
 
 def inference_check(expr, background_knowledge=False,verbose=False):
     """General function for all kinds of inference-based checks:
@@ -304,10 +273,12 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         """method performing check"""
         if background_knowledge:
             e = AndExpression(expression.fol(),background_knowledge)
-            if verbose: print "performing check on:", e
+            if verbose:
+                print "performing check on:", e
             t = Theorem(NegatedExpression(e), e)
         else:
-            if verbose: print "performing check on:", expression.fol()
+            if verbose:
+                print "performing check on:", expression.fol()
             t = Theorem(NegatedExpression(expression), expression)
         
         result, output = t.check()
@@ -323,16 +294,19 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         if verbose: print "### Consistency check initiated...\n"
         if not _check(expression):
             error_message = "New discourse is inconsistent on the following interpretation:\n\n%s" % expression
-            if verbose: print "#!!!#: ", error_message
+            if verbose:
+                print "#!!!#: ", error_message
             return ConsistencyOuput(error_message)
         else:
-            if verbose: print "##OK##: Expression is consistent\n"
+            if verbose:
+                print "##OK##: Expression is consistent\n"
             return True
         
     
     def informativity_check(expression):
         """2. Global informativity check"""
-        if verbose: print "### Informativity check initiated...\n"
+        if verbose:
+            print "### Informativity check initiated...\n"
         local_check = []
         for cond in ReverseIterator(expression.conds):
             if isinstance(cond, DRS) and \
@@ -348,7 +322,8 @@ def inference_check(expr, background_knowledge=False,verbose=False):
                 if not _check(e):
                     """new discourse is uninformative"""
                     error_message = "New expression is uninformative on the following interpretation:\n\n%s" % expression
-                    if verbose: print "#!!!#", error_message
+                    if verbose:
+                        print "#!!!#", error_message
                     return InformativityOuput(error_message)
                 else:
                     temp = (expression.conds[:expression.conds.index(cond)]+
@@ -377,7 +352,8 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         if not local_check == []:
             return local_informativity_check(local_check)
         else:
-            if verbose: print "##OK##: Expression is informative\n"
+            if verbose:
+                print "##OK##: Expression is informative\n"
             return True
         
     def local_informativity_check(check_list):
@@ -390,12 +366,14 @@ def inference_check(expr, background_knowledge=False,verbose=False):
 
             if not _check(main.__class__(main.refs,main.conds+[DrtNegatedExpression(sub)])):
                 error_message = "New discourse is inadmissible due to local uninformativity:\n\n%s entails %s" % (main, sub)
-                if verbose: print "#!!!#: ", error_message
+                if verbose:
+                    print "#!!!#: ", error_message
                 return AdmissibilityOuput(error_message)
                 
             elif not _check(main.__class__(main.refs,main.conds+[sub])):
                 error_message = "New discourse is inadmissible due to local uninformativity:\n\n%s entails the negation of %s" % (main, sub)
-                if verbose: print "#!!!#: ", error_message
+                if verbose:
+                    print "#!!!#: ", error_message
                 return AdmissibilityOuput(error_message)
                 
         if verbose: print "##OK##: Main %s does not entail sub %s nor its negation\n" % (main,sub)
@@ -418,15 +396,18 @@ def inference_check(expr, background_knowledge=False,verbose=False):
                     result = expr.__class__(expr.refs+cond.refs,
                             (expression.conds[:expr.conds.index(cond)]+
                             expression.conds[expr.conds.index(cond)+1:])+cond.conds)
-            if verbose: print "\n#### Inference check passed ####\n"
+            if verbose:
+                print "\n#### Inference check passed ####\n"
             return result, "Sentence admitted"
         
         else:
-            if verbose: print "\n###!!!# Inference check failed #!!!###\n"
+            if verbose:
+                print "\n###!!!# Inference check failed #!!!###\n"
             return False, inf_check
     
     else:
-        if verbose: print "\n###!!!# Inference check failed #!!!###\n"
+        if verbose:
+            print "\n###!!!# Inference check failed #!!!###\n"
         return False, cons_check
 
     
@@ -673,4 +654,3 @@ def test_1():
     
 if __name__ == "__main__":
     test_1()
-     
