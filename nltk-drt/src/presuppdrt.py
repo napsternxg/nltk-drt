@@ -664,7 +664,7 @@ class DrtImpExpression(DrtBooleanExpression, drt.DrtImpExpression):
 
     def __eq__(self, other):
         if (isinstance(self, other.__class__) or isinstance(other, self.__class__)):
-            if isinstance(self.first, DRS) and isinstance(self.first, DRS):
+            if isinstance(self.first, DRS) and isinstance(self.second, DRS) and isinstance(other.first, DRS) and isinstance(other.second, DRS):
                 if len(self.first.conds) == len(other.first.conds) and len(self.second.conds) == len(other.second.conds):
                     for (r1, r2) in zip(self.first.refs + self.second.refs, other.first.refs + other.second.refs):
                         varex = self.make_VariableExpression(r1)
