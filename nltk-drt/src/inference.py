@@ -1,18 +1,4 @@
-from nltk.sem.logic import AndExpression, NegatedExpression
-from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
-                        DrtApplicationExpression, DrtVariableExpression, unique_variable, \
-                        ConcatenationDRS, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
-                        ReverseIterator, DrtTokens, DrtEventualityApplicationExpression, NewInfoDRS
-
-import subprocess
-import nltk
-from nltk.sem import Valuation
-from nltk.sem.logic import is_indvar
-from nltk.inference.mace import MaceCommand
-from nltk.inference.prover9 import convert_to_prover9
-from threading import Thread
-
-""" 
+"""
 Admissibility Constraints:
 
 An expression to be checked for admissibility should be a DRS which embeds a NewInfoDRS:
@@ -59,8 +45,26 @@ Local Constraints (Kartunen's Filters):
         pairs: Put each of the disjuncts into the second place of each pair, remove the
         DrtORExpression and put the result into the first place of that pair. 
 """
+__author__ = "Peter Makarov, Alex Kislev, Emma Li"
+__version__ = "1.0"
+__date__ = "Tue, 24 Aug 2010"
+
+from nltk.sem.logic import AndExpression, NegatedExpression
+from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
+                        DrtApplicationExpression, DrtVariableExpression, unique_variable, \
+                        ConcatenationDRS, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
+                        ReverseIterator, DrtTokens, DrtEventualityApplicationExpression, NewInfoDRS
+
+import subprocess
+import nltk
+from nltk.sem import Valuation
+from nltk.sem.logic import is_indvar
+from nltk.inference.mace import MaceCommand
+from nltk.inference.prover9 import convert_to_prover9
+from threading import Thread
 
 class Communicator(Thread):
+    """a thread communicating with a process, terminates once the communication is over"""
     def __init__(self, process, input=None):
         Thread.__init__(self)
         self.process = process
