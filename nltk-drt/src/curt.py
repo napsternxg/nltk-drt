@@ -1,4 +1,3 @@
-import sys
 import random
 from test import BK
 from util import Tester
@@ -34,28 +33,31 @@ class Curt(object):
     def goodbye(self):
         return self.randomize(Curt.GOODBYE)
     
-    def respond(self, s, human_readable):
+    def respond(self, s, explicit):
         if isinstance(s, AdmissibilityOuput):
-            return "%s(%s)" % (self.inadmissible(), "inadmissible" if human_readable else "")
+            return "%s%s" % (self.inadmissible(), "(inadmissible)" if explicit else "")
         elif isinstance(s, ConsistencyOuput):
-            return "%s(%s)" % (self.inconsistent(), "inconsistent" if human_readable else "")
+            return "%s%s" % (self.inconsistent(), "(inconsistent)" if explicit else "")
         elif isinstance(s, InformativityOuput):
-            return "%s(%s)" % (self.uninformative(), "uninformative" if human_readable else "")
+            return "%s%s" % (self.uninformative(), "(uninformative)" if explicit else "")
 
-    def process(self, utterance, human_readable=False, verbose=False):
+    def process(self, utterance, explicit=False, verbose=False):
         if self.discourse is None:
             self.discourse = self.tester.parse(utterance, utter=True)
         else:
             expression = self.tester.parse_new(self.discourse, utterance)
-            inferences, errors = self.tester.interpret_new(self.discourse, expression, background=self.background, verbose=verbose)
+            inferences, errors = self.tester.interpret_new(self.discourse, expression, background=self.background)
             if not inferences:
                 out = []
                 for reading, error in errors:
                     if verbose:
-                        print error
-                    out.append(self.respond(error, human_readable))
+                        print "Error: %s" % error
+                    out.append(self.respond(error, explicit))
                 return ", ".join(out)
             else:
+                if verbose:
+                    for inference in inferences:
+                        print "reading: %s" % inference
                 self.discourse = (self.discourse + expression).simplify()
 
         return self.ok()
@@ -66,7 +68,9 @@ class Curt(object):
 def main():
     show_model = False
     explicit = False
+    verbose = False
     curt = Curt(background=BK)
+    print "Welcome to Curt, type 'h' for help"
     while True:
         s = raw_input("What say you? ")
         if s == "bye":
@@ -77,11 +81,20 @@ def main():
             print "display models: %s" % ("on" if  show_model else "off")
         elif s == "e":
             explicit = False if explicit else True
-            print "explicit errors: %s" % ("on" if  explicit else "off")
+            print "explicit mode: %s" % ("on" if  explicit else "off")
+        elif s == "v":
+            verbose = False if verbose else True
+            print "verbose mode: %s" % ("on" if  verbose else "off")
+        elif s == "h":
+            print "e\t toggle explicit mode"
+            print "m\t toggle model printing"
+            print "v\t toggle verbose mode"
+            print "h\t show this message"
+            print "bye\t exit"
         else:
             print "You say:\t%s" % s
             try:
-                print "Curt says:\t%s" % curt.process(s)
+                print "Curt says:\t%s" % curt.process(s, explicit, verbose)
             except ValueError as e:
                 print "Error: %s" % e
                 
@@ -94,10 +107,6 @@ def test_curt():
     for i in input:
         print i
         print curt.process(i, True)
-
-def test():
-    tester = Tester('file:../data/grammar.fcfg', DrtParser)
-    tester.interpret("Mia is away","Mia is away", bk=BK, verbose=True, test=False)
 
 if __name__ == "__main__":
     main()
