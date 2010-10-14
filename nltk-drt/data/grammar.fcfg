@@ -14,7 +14,7 @@ IP[SEM=<?ibar(?subj)>] -> NP[NUM=?n,SEM=?subj] Ibar[NUM=?n,SEM=?ibar]
 
 Ibar[NUM=?n,SEM=<?i(?vp)>] -> I[NUM=?n,FORM=?f,SEM=?i] VP[FORM=?f,SEM=?vp]
 
-I[NUM=?n,SEM=<?neg(?i)>] -> I[NUM=?n,SEM=?i] Neg[SEM=?neg]
+I[NUM=?n,-POS,SEM=<?neg(?i)>] -> I[NUM=?n,+POS,SEM=?i] Neg[SEM=?neg]
 
 VP[FORM=?f,SEM=?v] -> V[SUBCAT=iv,FORM=?f,SEM=?v]
 
@@ -29,13 +29,13 @@ RC[NUM=?n,GEN=?g,SEM=<?rpro(?ibar)>] -> Rpro[GEN=?g,SEM=?rpro] Ibar[NUM=?n,SEM=?
 
 NP[NUM=?n,SEM=<?det(?nom)>] -> Det[NUM=?n,SEM=?det]  Nbar[NUM=?n,SEM=?nom]
 
-Nbar[NUM=?n,SEM=<?rc(?nom)>] -> N[NUM=?n,GEN=?g,SEM=?nom] RC[NUM=?n,GEN=?g,SEM=?rc]
+Nbar[NUM=?n,SEM=<?rc(?nom)>] -> Nbar[NUM=?n,GEN=?g,SEM=?nom] RC[NUM=?n,GEN=?g,SEM=?rc]
 
 Nbar[NUM=?n,SEM=<?nom>] -> N[NUM=?n,SEM=?nom]
 
-N[NUM=?n,SEM=<?adj(?nom)>] -> ADJ[SEM=?adj] N[NUM=?n,SEM=?nom]
+Nbar[NUM=?n,SEM=<?adj(?nom)>] -> ADJ[SEM=?adj] Nbar[NUM=?n,SEM=?nom]
 
-N[NUM=?n,SEM=<?pp(?nom)>] -> N[NUM=?n,SEM=?nom] PP[SEM=?pp]
+Nbar[NUM=?n,SEM=<?pp(?nom)>] -> N[NUM=?n,SEM=?nom] PP[SEM=?pp]
 
 Det[SEM=<?p(?np)>] -> NP[SEM=?np] PosMarker[SEM=?p]
 
