@@ -1,6 +1,6 @@
 ## Natural Language Toolkit: tenseaspect.fcfg
 ## 
-## Author: Peter Makarov <peter.makarov.russia@gmail.com> 
+## Authors: Peter Makarov, Alex Kislev, Emma Li
 
 % start IP
 #############################
@@ -162,7 +162,7 @@ Det[SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'some' | 'Some'
 Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
 PredDet[NUM=sg,SEM=<\P x.(P(s)+DRS([s,t],[THEME(s,x),LOCPRO(t)]))>] -> 'a'
 Det[NUM=sg,SEM=<\P Q.(DRS([], [not ((DRS([x],[])+P(x))+Q(x))]))>] -> 'no' | 'No'
-# Pre-Determiner:
+# Pre-determiner:
 Not[SEM=<\ Q P Z.(DRS([],[-Q(P,Z)]))>] -> 'not' | 'Not'
 
 # Presuppositional Determiners and Markers:
@@ -266,7 +266,6 @@ I[FORM=inf,SEM=<\X Y.(DRS([t],[FUT(t)])+Y(X))>] -> 'will'
 I[FORM=inf,SEM=<\X Y.(DRS([t],[PAST(t)])+Y(X))>] -> 'did'
 I[NUM=sg,FORM=perf,SEM=<\X Y.(DRS([t,s],[PRES(t),include(s,t)])+Y(X))>] -> 'has'
 I[FORM=perf,SEM=<\X Y.(DRS([t,s],[PAST(t),overlap(s,t)])+Y(X))>] -> 'had'
-
 I[NUM=sg,FORM=pred,SEM=<\X Y.(DRS([t],[PRES(t)])+Y(X))>] -> 'is'
 I[NUM=sg,FORM=pred,SEM=<\X Y.(DRS([t],[PAST(t)])+Y(X))>] -> 'was'
 

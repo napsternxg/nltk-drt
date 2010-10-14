@@ -21,10 +21,8 @@ Global Informativity: Negate new discourse. Give a NegatedExpression of the resu
     discourse to the prover. If the prover returns True, then the resulting discourse
     is uninformative. Give the resulting discourse to the builder. If it returns a model,
     the new reading is informative.
-    [if (phi -> psi) is a theorem, then -(phi -> psi) is a contradiction and could not
-    have a model. Thus, if there is a model, (phi -> psi) is not a theorem.]
     
-Local Constraints (Kartunen's Filters):
+Local Constraints:
 
     Superordinate DRSs should entail neither a DRS nor its negation.  
     Generate a list of ordered pairs such that the first element of the pair is the DRS
@@ -49,19 +47,18 @@ __author__ = "Peter Makarov, Alex Kislev, Emma Li"
 __version__ = "1.0"
 __date__ = "Tue, 24 Aug 2010"
 
-from nltk.sem.logic import AndExpression, NegatedExpression
-from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
-                        DrtApplicationExpression, DrtVariableExpression, unique_variable, \
-                        ConcatenationDRS, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
-                        ReverseIterator, DrtTokens, DrtEventualityApplicationExpression, NewInfoDRS
-
 import subprocess
-import nltk
+from threading import Thread
+from nltk.internals import find_binary
 from nltk.sem import Valuation
 from nltk.sem.logic import is_indvar
 from nltk.inference.mace import MaceCommand
 from nltk.inference.prover9 import convert_to_prover9
-from threading import Thread
+from nltk.sem.logic import AndExpression, NegatedExpression
+from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
+                        DrtApplicationExpression, ReverseIterator, DrtTokens, NewInfoDRS, \
+                        ConcatenationDRS, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
+                        DrtEventualityApplicationExpression
 
 class Communicator(Thread):
     """a thread communicating with a process, terminates once the communication is over"""
@@ -78,7 +75,7 @@ class Communicator(Thread):
 
 class Theorem(object):
 
-    BINARY_LOCATIONS = ('/usr/local/bin', '/usr/bin', '/home/pmakarov/prover9/bin')
+    BINARY_LOCATIONS = ('/usr/local/bin', '/usr/bin')
     PROVER_BINARY = None
     BUILDER_BINARY = None
     INTERPFORMAT_BINARY = None
@@ -90,8 +87,8 @@ class Theorem(object):
         self.builder_max_models = builder_max_models
     
     def _find_binary(self, name, verbose=False):
-        return nltk.internals.find_binary(name, 
-            searchpath=Theorem.BINARY_LOCATIONS, 
+        return find_binary(name,
+            searchpath=Theorem.BINARY_LOCATIONS,
             env_vars=['PROVER9HOME'],
             url='http://www.cs.unm.edu/~mccune/prover9/',
             binary_names=[name],
@@ -106,14 +103,14 @@ class Theorem(object):
     def _input(self, goal):
         return "formulas(goals).\n    %s.\nend_of_list.\n\n" % convert_to_prover9(goal)
 
-    def check(self, verbose=False):
+    def check(self, run_builder=False, verbose=False):
         prover_input = 'assign(max_seconds, %d).\n\n' % self.prover_timeout if self.prover_timeout > 0 else ""
         prover_input += self._prover9_input()
 
         builder_input = 'assign(end_size, %d).\n\n' % self.builder_max_models if self.builder_max_models > 0 else ""
         builder_input += self._mace_input()
 
-        return self._call(prover_input, builder_input, verbose)
+        return self._call(prover_input, builder_input, run_builder, verbose)
 
     def _model(self, valuation_str, verbose=False):
         """
@@ -130,27 +127,27 @@ class Theorem(object):
 
             if l.startswith('interpretation'):
                 # find the number of entities in the model
-                num_entities = int(l[l.index('(')+1:l.index(',')].strip())
+                num_entities = int(l[l.index('(') + 1:l.index(',')].strip())
 
             elif l.startswith('function') and l.find('_') == -1:
                 # replace the integer identifier with a corresponding alphabetic character
-                name = l[l.index('(')+1:l.index(',')].strip()
+                name = l[l.index('(') + 1:l.index(',')].strip()
                 if is_indvar(name):
                     name = name.upper()
-                value = int(l[l.index('[')+1:l.index(']')].strip())
+                value = int(l[l.index('[') + 1:l.index(']')].strip())
                 val.append((name, MaceCommand._make_model_var(value)))
 
             elif l.startswith('relation'):
-                l = l[l.index('(')+1:]
+                l = l[l.index('(') + 1:]
                 if '(' in l:
                     #relation is not nullary
                     name = l[:l.index('(')].strip()
-                    values = [int(v.strip()) for v in l[l.index('[')+1:l.index(']')].split(',')]
+                    values = [int(v.strip()) for v in l[l.index('[') + 1:l.index(']')].split(',')]
                     val.append((name, MaceCommand._make_relation_set(num_entities, values)))
                 else:
                     #relation is nullary
                     name = l[:l.index(',')].strip()
-                    value = int(l[l.index('[')+1:l.index(']')].strip())
+                    value = int(l[l.index('[') + 1:l.index(']')].strip())
                     val.append((name, value == 1))
 
         return Valuation(val)
@@ -177,7 +174,7 @@ class Theorem(object):
             
         return stdout
 
-    def _call(self, prover_input, builder_input, verbose):
+    def _call(self, prover_input, builder_input, run_builder, verbose):
         if Theorem.PROVER_BINARY is None:
             Theorem.PROVER_BINARY = self._find_binary('prover9', verbose)
 
@@ -191,15 +188,14 @@ class Theorem(object):
             print 'Builder Input:\n', builder_input, '\n'
 
         prover_process = subprocess.Popen([Theorem.PROVER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-        #builder_process = subprocess.Popen([Theorem.BUILDER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-
         prover_thread = Communicator(prover_process, prover_input)
-        #builder_thread = Communicator(builder_process, builder_input)
-        
         prover_thread.start()
-        #builder_thread.start()
+        if run_builder:
+            builder_process = subprocess.Popen([Theorem.BUILDER_BINARY], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+            builder_thread = Communicator(builder_process, builder_input)
+            builder_thread.start()
 
-        while prover_thread.is_alive(): #and builder_thread.is_alive():
+        while prover_thread.is_alive() and (not run_builder or builder_thread.is_alive()):
             pass
 
         stdout, stderr = prover_thread.result
@@ -207,35 +203,35 @@ class Theorem(object):
         result = not (returncode == 0)
         output = None
 
-#        if not prover_thread.is_alive():
-#            if verbose:
-#                print "Prover done, Builder %s " % ("done" if not builder_thread.is_alive() else "running")
-#            stdout, stderr = prover_thread.result
-#            returncode = prover_process.poll()
-#            result = not (returncode == 0)
-#            output = None
-#            if builder_process.poll() is None:
-#                if verbose:
-#                    print "builder is still running, terminating..."
-#                try:
-#                    builder_process.terminate()
-#                except OSError:
-#                    pass
-#
-#        elif not builder_thread.is_alive():
-#            if verbose:
-#                print "Prover %s, Builder done " % ("done" if not prover_thread.is_alive() else "running")
-#            stdout, stderr = builder_thread.result
-#            returncode = builder_process.poll()
-#            result = (returncode == 0)
-#            output = stdout
-#            if prover_process.poll() is None:
-#                if verbose:
-#                    print "prover is still running, terminating..."
-#                try:
-#                    prover_process.terminate()
-#                except OSError:
-#                    pass
+        if not prover_thread.is_alive():
+            if verbose:
+                print "Prover done, Builder %s " % ("done" if not builder_thread.is_alive() else "running")
+            stdout, stderr = prover_thread.result
+            returncode = prover_process.poll()
+            result = not (returncode == 0)
+            output = None
+            if run_builder and builder_process.poll() is None:
+                if verbose:
+                    print "builder is still running, terminating..."
+                try:
+                    builder_process.terminate()
+                except OSError:
+                    pass
+
+        elif run_builder and not builder_thread.is_alive():
+            if verbose:
+                print "Prover %s, Builder done " % ("done" if not prover_thread.is_alive() else "running")
+            stdout, stderr = builder_thread.result
+            returncode = builder_process.poll()
+            result = (returncode == 0)
+            output = stdout
+            if prover_process.poll() is None:
+                if verbose:
+                    print "prover is still running, terminating..."
+                try:
+                    prover_process.terminate()
+                except OSError:
+                    pass
 
         if verbose:
             if stdout: print('output:\t%s' % stdout)
@@ -248,14 +244,15 @@ class Theorem(object):
 
         return (result, output)
 
-def inference_check(expr, background_knowledge=False,verbose=False):
+def inference_check(expr, background_knowledge=False, verbose=False):
     """General function for all kinds of inference-based checks:
     consistency, global and local informativity"""
     
     assert isinstance(expr, DRS), "Expression %s is not a DRS"
 
     expression = expr.deepcopy()
-    if verbose: print "\n##### Inference check initiated #####\n\nExpression:\t%s\n" % expression
+    if verbose:
+        print "\n##### Inference check initiated #####\n\nExpression:\t%s\n" % expression
     
     def _remove_temporal_conds(e):
         """Removes discourse structuring temporal conditions that could
@@ -281,13 +278,13 @@ def inference_check(expr, background_knowledge=False,verbose=False):
     def _check(expression):
         """method performing check"""
         if background_knowledge:
-            e = AndExpression(expression.fol(),background_knowledge)
+            e = AndExpression(expression.fol(), background_knowledge)
             if verbose:
-                print "performing check on:", e
+                print "performing check on: %s" % e
             t = Theorem(NegatedExpression(e), e)
         else:
             if verbose:
-                print "performing check on:", expression.fol()
+                print "performing check on: %s" % expression.fol()
             t = Theorem(NegatedExpression(expression), expression)
         
         result, output = t.check()
@@ -300,12 +297,13 @@ def inference_check(expr, background_knowledge=False,verbose=False):
     
     def consistency_check(expression):
         """1. Consistency check"""
-        if verbose: print "### Consistency check initiated...\n"
+        if verbose:
+            print "### Consistency check initiated...\n"
         if not _check(expression):
             error_message = "New discourse is inconsistent on the following interpretation:\n\n%s" % expression
             if verbose:
-                print "#!!!#: ", error_message
-            return ConsistencyOuput(error_message)
+                print "#!!!#: %s" % error_message
+            return ConsistencyError(error_message)
         else:
             if verbose:
                 print "##OK##: Expression is consistent\n"
@@ -320,42 +318,43 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         for cond in ReverseIterator(expression.conds):
             if isinstance(cond, DRS) and \
             not isinstance(cond, PresuppositionDRS):
-                """New discourse in the previous discourse"""
-                temp = (expression.conds[:expression.conds.index(cond)]+
-                        [DrtNegatedExpression(cond)]+
-                    expression.conds[expression.conds.index(cond)+1:])
-                e = expression.__class__(expression.refs,temp)
+                #New discourse in the previous discourse
+                temp = (expression.conds[:expression.conds.index(cond)] + 
+                        [DrtNegatedExpression(cond)] + 
+                    expression.conds[expression.conds.index(cond) + 1:])
+                e = expression.__class__(expression.refs, temp)
                 if verbose:
-                    print "new discourse %s found in %s \n" % (cond,expression)
+                    print "new discourse %s found in %s \n" % (cond, expression)
                     print "expression for global check: %s \n" % e
                 if not _check(e):
-                    """new discourse is uninformative"""
-                    error_message = "New expression is uninformative on the following interpretation:\n\n%s" % expression
+                    #new discourse is uninformative
+                    error_message = ("New expression is uninformative on the following interpretation:\n\n%s"
+                                                                % expression)
                     if verbose:
-                        print "#!!!#", error_message
-                    return InformativityOuput(error_message)
+                        print "#!!!# %s" % error_message
+                    return InformativityError(error_message)
                 else:
-                    temp = (expression.conds[:expression.conds.index(cond)]+
-                    expression.conds[expression.conds.index(cond)+1:])
-                    """Put sub-DRS into main DRS and start informativity check"""
-                    return informativity_check(expression.__class__(expression.refs+cond.refs,temp+cond.conds))
+                    temp = (expression.conds[:expression.conds.index(cond)] + 
+                    expression.conds[expression.conds.index(cond) + 1:])
+                    #Put sub-DRS into main DRS and start informativity check
+                    return informativity_check(expression.__class__(expression.refs + cond.refs, temp + cond.conds))
                             
-                """generates tuples for local admissibility check"""
+                #generates tuples for local admissibility check
 
             elif isinstance(cond, DrtOrExpression) and \
                 isinstance(cond.first, DRS) and isinstance(cond.second, DRS):
-                temp = (expression.conds[:expression.conds.index(cond)]+
-                    expression.conds[expression.conds.index(cond)+1:])
-                local_check.append((expression.__class__(expression.refs,temp),cond.first))
-                local_check.append((expression.__class__(expression.refs,temp),cond.second))
+                temp = (expression.conds[:expression.conds.index(cond)] + 
+                    expression.conds[expression.conds.index(cond) + 1:])
+                local_check.append((expression.__class__(expression.refs, temp), cond.first))
+                local_check.append((expression.__class__(expression.refs, temp), cond.second))
     
             elif isinstance(cond, DrtImpExpression) and \
                 isinstance(cond.first, DRS) and isinstance(cond.second, DRS):
-                temp = (expression.conds[:expression.conds.index(cond)]+
-                    expression.conds[expression.conds.index(cond)+1:])
-                local_check.append((expression.__class__(expression.refs,temp),cond.first))
-                local_check.append((ConcatenationDRS(expression.__class__(expression.refs,temp),
-                                                         cond.first).simplify(),cond.second))
+                temp = (expression.conds[:expression.conds.index(cond)] + 
+                    expression.conds[expression.conds.index(cond) + 1:])
+                local_check.append((expression.__class__(expression.refs, temp), cond.first))
+                local_check.append((ConcatenationDRS(expression.__class__(expression.refs, temp),
+                                                         cond.first).simplify(), cond.second))
 
 
         if not local_check == []:
@@ -369,23 +368,23 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         """3. Local admissibility constraints"""
         if verbose: print "### Local admissibility check initiated...\n%s\n" % check_list
 
-        for main,sub in check_list:
+        for main, sub in check_list:
             assert isinstance(main, DRS), "Expression %s is not a DRS"
             assert isinstance(sub, DRS), "Expression %s is not a DRS"
 
-            if not _check(main.__class__(main.refs,main.conds+[DrtNegatedExpression(sub)])):
+            if not _check(main.__class__(main.refs, main.conds + [DrtNegatedExpression(sub)])):
                 error_message = "New discourse is inadmissible due to local uninformativity:\n\n%s entails %s" % (main, sub)
                 if verbose:
                     print "#!!!#: ", error_message
-                return AdmissibilityOuput(error_message)
+                return AdmissibilityError(error_message)
                 
-            elif not _check(main.__class__(main.refs,main.conds+[sub])):
+            elif not _check(main.__class__(main.refs, main.conds + [sub])):
                 error_message = "New discourse is inadmissible due to local uninformativity:\n\n%s entails the negation of %s" % (main, sub)
                 if verbose:
                     print "#!!!#: ", error_message
-                return AdmissibilityOuput(error_message)
+                return AdmissibilityError(error_message)
                 
-        if verbose: print "##OK##: Main %s does not entail sub %s nor its negation\n" % (main,sub)
+        if verbose: print "##OK##: Main %s does not entail sub %s nor its negation\n" % (main, sub)
         return True                
 
     _remove_temporal_conds(expression)
@@ -402,9 +401,9 @@ def inference_check(expr, background_knowledge=False,verbose=False):
                 result = expr
                 if isinstance(cond, NewInfoDRS):
                     #change to NewInfoDRS when done
-                    result = expr.__class__(expr.refs+cond.refs,
-                            (expression.conds[:expr.conds.index(cond)]+
-                            expression.conds[expr.conds.index(cond)+1:])+cond.conds)
+                    result = expr.__class__(expr.refs + cond.refs,
+                            (expression.conds[:expr.conds.index(cond)] + 
+                            expression.conds[expr.conds.index(cond) + 1:]) + cond.conds)
             if verbose:
                 print "\n#### Inference check passed ####\n"
             return result, "Sentence admitted"
@@ -420,31 +419,14 @@ def inference_check(expr, background_knowledge=False,verbose=False):
         return False, cons_check
 
     
-class AdmissibilityOuput(str):
+class AdmissibilityError(str):
     pass
 
-class ConsistencyOuput(str):
+class ConsistencyError(str):
     pass
 
-class InformativityOuput(str):
+class InformativityError(str):
     pass
-
-
-def prenex_normal_form(expression,subexpression):
-    """Combines sub-DRS with superordinate DRS"""
-    #Not used currently
-    assert isinstance(subexpression, DRS), "Expression %s is not a DRS" % subexpression
-    assert isinstance(expression, DRS), "Expression %s is not a DRS" % expression
-
-    subexpr = subexpression.__class__(subexpression.refs,subexpression.conds)
-    expr = expression.__class__(expression.refs, expression.conds)
-    
-    for ref in set(subexpression.get_refs(True)) & set(expression.get_refs(True)):
-        newref = DrtVariableExpression(unique_variable(ref))
-        subexpr = subexpr.replace(ref,newref,True)
-       
-    return expr.__class__(expr.refs+subexpr.refs,expr.conds+subexpr.conds)
-
 
 def get_bk(drs, dictionary):
     """Collects background knowledge relevant for a given expression.
@@ -457,209 +439,34 @@ def get_bk(drs, dictionary):
     for cond in drs.conds:
         if isinstance(cond, DrtApplicationExpression):
             if isinstance(cond.function, DrtConstantExpression):
-                bk_formula = dictionary.get(cond.function.variable.name,False)
+                bk_formula = dictionary.get(cond.function.variable.name, False)
                
             elif isinstance(cond.function, DrtApplicationExpression) and \
              isinstance(cond.function.function, DrtConstantExpression):
-                bk_formula = dictionary.get(cond.function.function.variable.name,False)
+                bk_formula = dictionary.get(cond.function.function.variable.name, False)
                
             if bk_formula:
                 bk_list.append(bk_formula)
                 
         elif isinstance(cond, DRS):
-            bk_list.extend(get_bk(cond,dictionary))
+            bk_list.extend(get_bk(cond, dictionary))
             
         elif isinstance(cond, DrtNegatedExpression) and \
             isinstance(cond.term, DRS):
-            bk_list.extend(get_bk(cond.term,dictionary))
+            bk_list.extend(get_bk(cond.term, dictionary))
             
         elif isinstance(cond, DrtBooleanExpression) and \
             isinstance(cond.first, DRS) and isinstance(cond.second, DRS):
-            bk_list.extend(get_bk(cond.first,dictionary))
-            bk_list.extend(get_bk(cond.second,dictionary))
+            bk_list.extend(get_bk(cond.first, dictionary))
+            bk_list.extend(get_bk(cond.second, dictionary))
             
     
     return list(set(bk_list))
-
-
-
-    
-#with ontology
-bk_0 = {'individual' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
+   
+#ontology
+ONTOLOGY = {
+        'individual' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
         'time' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
         'state' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))',
         'event' : r'all x.((individual(x) -> -(eventuality(x) | time(x))) & (eventuality(t) -> -time(x)) & (state(x) -> (eventuality(x) & -event(x))) & (event(x) -> eventuality(x)))'
         }
-
-
-bk_2 = {'earlier' : r'all x y z.(earlier(x,y) & earlier(y,z) -> earlier(x,z)) & all x y.(earlier(x,y) -> -overlap(x,y))',
-        'include' : r'all x y z.((include(x,y) & include(z,y)) -> (overlap(x,z)))',
-        'die' : r'all x z y.((die(x) & AGENT(x,y) & die(z) & AGENT(z,y)) -> x = z)',
-        
-        'husband' : r'(([t,x,y],[POSS(y,x), husband(y)]) -> ([s],[married(s),THEME(s,x),overlap(t,s)]))',
-        'married' : r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))',
-        'own' : r'(([s,x,y],[own(s),AGENT(s,x),PATIENT(s,y)]) -> ([],[POSS(y,x)]))',
-        'POSS' : r'(([t,y,x],[POSS(y,x)]) -> ([s],[own(s),AGENT(s,x),PATIENT(s,y),overlap(t,s)]))',
-        
-        #bk should be got from readings, not from unresolved expression
-        #'PERF' : r'all x y z v.((include(x,y),abut(z,y),(z = end(v))) -> -(overlap(x,v)))',
-        #'dead' : r'(([t,e,x],[die(e),AGENT(e,x)]) -> ([s1],[dead(s1),THEME(s1,x),overlap(t,s1),abut(e,s1)]))',
-        
-        'dead' : r'(([t,s,e,x],[include(s,t),abut(e,s),die(e),AGENT(e,x)]) -> ([],[dead(s),THEME(s,x),overlap(t,s)]))'
-        }
-        
-    #TODO: Double referents of same name (because of buffer)
-    #TODO: Double outer accommodation readings because of NewInfroDRS
-    #TODO: POSS(x,x) should be ruled out
-    #TODO: Free variable check
-    #TODO: Recursive substitution of bound variable names, otherwise temporal conditions fail
-    #TODO: bk update after reading is generated
-    #TODO: add get_refs() into buffer merge
-    #TODO: Add Negative DRS admissibility condition 
-      
-    # No background knowledge attached:
-    ###################################
-    #
-    #"Mia is away", "Mia is away" -- uninformative
-    #
-    #"Mia is away", "Mia is not away" -- inconsistent
-    #
-    #"Mia is away", "If Mia is away Angus walked" -- inadmissible
-    #
-    #"Mia is away", "If Mia is not away Angus walked" -- uninformative
-    #
-    #"Mia is away", "If Angus walked Mia is away" -- uninformative
-    #
-    #"Mia is away", "If Angus walked Mia is not away" -- inadmissible
-    #
-    #"Mia is away", "Angus walked or Mia is away" -- uninformative
-    #
-    #"Mia is away", "Angus walked or Mia is not away" -- inadmissible
-    
-    ##################################################################
-    
-    # Background knowledge (not temporal):
-    ######################################
-    #
-    #"Mia owns a husband", "Mia is married" -- uninformative
-    #
-    #"Mia owns a husband", "Mia is not married" -- inconsistent
-    #
-    #"Mia owns a husband", "If Mia is married Angus walked" -- inadmissible
-    #
-    #"Mia owns a husband", "If Mia is not married Angus walked" -- uninformative
-    #
-    #"Mia owns a husband", "If Angus walked Mia is married" -- uninformative
-    #
-    #"Mia owns a husband", "If Angus walked Mia is not married" -- inadmissible
-    #
-    #"Mia owns a husband", "Angus walked or Mia is married" -- uninformative
-    #
-    #"Mia owns a husband", "Angus walked or Mia is not married" -- inadmissible
-    
-    ###################################################################
-
-    # Background knowledge (temporal):
-    ######################################
-    #
-    #"Mia died", "Mia will die" -- inconsistent, DRT-language & FOL used to write bk input
-    #
-    #"Mia died", "Mia will not die" -- ok
-    #
-    #"Mia died", "If Angus lives Mia will die" -- inadmissible 
-    #
-    #"Mia died", "If Angus lives Mia will not die" -- ok
-    #
-    #"Mia died", "Angus lives or Mia will die" -- inadmissible
-    #
-    #"Mia died", "Angus lives or Mia will not die" -- ok
-    
-    ###################################################################
-    
-    # Background knowledge (not temporal), multiple readings:
-    #########################################################
-    #
-    #"Mia is away", "If Mia kissed someone her husband is away"
-    #
-    #global - ok, local - ok, intermediate - ok
-    #
-    #"Mia is away", "If Mia is married Mia's husband is away"
-    #
-    #global - inadmissible, local - ok, intermediate - ok
-    #
-    #"Mia is away", "If Mia owns a car her car is red"
-    #
-    #global - inadmissible, local - ok, intermediate - ok
-    #No binding!!!
-    #
-    #"Mia is away", "Mia does not own a car or her car is red"
-    #
-    #global - inadmissible, local - ok
-    
-    # Free variable check:
-    ######################
-    #
-    #"Mia is away", "Every boy loves his car"
-    #
-    #Not implemented
-    
-    # Miscellaneous:
-    ################
-    #
-    #"Angus is away", "If Angus owns a child his child is away"
-    #
-    # 'his' binds both child and Angus which is good. No free variable check.
-    #
-    #"Mia is away", "If a child kissed his dog he is red"
-    #
-    #AnaphoraResolutionException
-    #
-    #"Mia is away", "If Angus has sons his children are happy" - not tried yet
-    
-    # Temporal logic:
-    #################
-    #
-    #"Mia died", "Mia will die" -- inconsistent due to bk
-    #
-    #"Mia lives and she does not live"  -- inconsistent  (backgrounding turned off)
-    #
-    #"Jones has owned a car", "Jones owns it" - worked on PERF
-    #
-    #"Jones has died", "Jones is dead" -- uninformative
-    #
-    
-        ####################################################################
-        ############################# TEST #################################
-        ####################################################################
-        
-def test_1():
-    from nltk.inference.prover9 import Prover9Command
-    from temporaldrt import DrtParser
-    from nltk import LogicParser   
-    parser_obj = DrtParser()
-    parser = LogicParser().parse
-    expression_4 = parser_obj.parse(r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))')
-    expression_1 = parser_obj.parse(r'(([s,x,y],[own(s),AGENT(s,x),PATIENT(s,y)]) -> ([],[POSS(y,x)]))')
-    expression_2 = parser_obj.parse(r'(([t,y,x],[POSS(y,x)]) -> ([s],[own(s),AGENT(s,x),PATIENT(s,y),overlap(t,s)]))')
-    expression_3 = parser_obj.parse(r'(([t,x,y],[POSS(y,x), husband(y)]) -> ([s],[married(s),THEME(s,x),overlap(t,s)]))')
-    #expression_4 = parser_obj.parse(r'(([t,s],[married(s),THEME(s,x),overlap(t,s)]) -> ([x,y],[POSS(y,x), husband(y)]))')
-    #expression_2 = parser(r'exists x.((POSS(x, Mia) & husband(x)) -> -married(Mia))')
-    #expression = parser_obj.parse(r'DRS([n,e,x,t],[Mia(x),die(e),AGENT(e,x),include(t,e),earlier(t,n),-DRS([t02,e01],[die(e01),AGENT(e01,x),include(t02,e01),earlier(t02,n)]) ])')
-    #expression = parser_obj.parse(r'([n,t,e,x,y],[-([s],[married(s), THEME(s,x), overlap(n,s)]), POSS(y,x), husband{sg,m}(y), Mia{sg,f}(x), earlier(t,n), walk(e), AGENT(e,x), include(t,e)])')
-    #expression = parser_obj.parse(r'([x],[POSS(x,Mia),husband(x),-([s],[married(s),THEME(s,Mia)])])')
-    expression = parser_obj.parse(r'([n,z6,s,x],[Mia{sg,f}(x), husband{sg,m}(z6), own(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), -([s011],[married(s011), THEME(s011,x), overlap(n,s011)])])')
-    #expression = parser(r'DRS([],[die(Mia),-(DRS([],[die(Mia)])])')
-    #expression = parser(r'(p & -(-p -> q))')
-    parsed = NegatedExpression(AndExpression(expression.fol(),
-                    AndExpression(AndExpression(expression_1.fol(),expression_3.fol()),
-                                  AndExpression(expression_2.fol(),expression_4.fol()))) )
-    
-    #parsed = r'-(([n,z6,s,x],[Mia{sg,f}(x), husband{sg,m}(z6), own(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s), ([s011],[married(s011), THEME(s011,x), overlap(n,s011)])]) & ((all t s.((((married(s) & THEME(s,x)) & overlap(t,s)) & REFER(s)) -> exists x.(exists y.((POSS(y,x) & husband(y)) & individual(y)) & individual(x))) & all s x y.((((own(s) & AGENT(s,x)) & PATIENT(s,y)) & REFER(s)) -> POSS(y,x))) & all t x y.((POSS(y,x) & husband(y)) -> exists s.((((married(s) & THEME(s,x)) & overlap(t,s)) & REFER(s)) & state(s)))))'
-    print parsed
-    #expression = parser('m')
-    #assumption = parser('m')
-    prover = Prover9Command(parsed,timeout=60)
-    print prover.prove()
-    
-if __name__ == "__main__":
-    test_1()
