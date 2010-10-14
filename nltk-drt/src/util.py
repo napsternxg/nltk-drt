@@ -1,44 +1,42 @@
 """
 Common Utilities for parsing and testing
 """
-__author__ = "Peter Makarov, Alex Kislev, Emma Li"
+__author__ = "Alex Kislev, Emma Li, Peter Makarov"
 __version__ = "1.0"
 __date__ = "Tue, 24 Aug 2010"
 
 import re
-import temporaldrt
-import nltkfixtemporal
 from nltk import load_parser
-from nltk import LogicParser
-from temporaldrt import DrtApplicationExpression, DrtVariableExpression, unique_variable
-from presuppdrt import DrtParser as PresuppDrtParser
-from presuppdrt import ResolutionException
+from temporaldrt import DrtVariableExpression, unique_variable, NewInfoDRS
+from presuppdrt import ResolutionException, DrtParser as PresuppDrtParser
 from types import LambdaType
-from nltk.sem.logic import AndExpression, ParseException
-from inference import inference_check, get_bk, AdmissibilityOuput, ConsistencyOuput, InformativityOuput
+from nltk.sem.logic import AndExpression, ParseException, LogicParser
+from inference import inference_check, get_bk, AdmissibilityError, ConsistencyError, InformativityError
 
+class UngrammaticalException(Exception):
+    pass
 
 class Tester(object):
     
     INFERROR = {
-    3 : AdmissibilityOuput,
-    2 : InformativityOuput,
-    1 : ConsistencyOuput           
+    3 : AdmissibilityError,
+    2 : InformativityError,
+    1 : ConsistencyError           
     }
     
     WORD_SPLIT = re.compile(" |, |,")
     EXCLUDED_NEXT = re.compile("^ha[sd]|is|was|not|will$")
     EXCLUDED = re.compile("^does|h?is|red|[a-z]+ness$")
     SUBSTITUTIONS = [
-    (re.compile("^died$"), ("did", "die")),
-     (re.compile("^([A-Z][a-z]+)'s?$"),   lambda m: (m.group(1), "s")),
-     (re.compile("^(?P<stem>[a-z]+)s$"),  lambda m: ("does", m.group("stem"))),
+     (re.compile("^died$"), ("did", "die")),
+     (re.compile("^([A-Z][a-z]+)'s?$"), lambda m: (m.group(1), "s")),
+     (re.compile("^(?P<stem>[a-z]+)s$"), lambda m: ("does", m.group("stem"))),
      (re.compile("^([a-z]+(?:[^cvklt]|lk|nt))ed|([a-z]+[cvlkt]e)d$"), lambda m: ("did", m.group(1) if m.group(1) else m.group(2))),
      (re.compile("^([A-Z]?[a-z]+)one$"), lambda m: (m.group(1), "one")),
      (re.compile("^([A-Z]?[a-z]+)thing$"), lambda m: (m.group(1), "thing")),
-      (re.compile("^bit$"), ("did", "bite")),
-      (re.compile("^bought$"), ("did", "buy")),
-      (re.compile("^wrote$"), ("did", "write")),
+     (re.compile("^bit$"), ("did", "bite")),
+     (re.compile("^bought$"), ("did", "buy")),
+     (re.compile("^wrote$"), ("did", "write")),
     ]
     
     def __init__(self, grammar, drt_parser):
@@ -89,7 +87,10 @@ class Tester(object):
                 if verbose:
                     print words
                 trees = self.parser.nbest_parse(words)
-                new_drs = trees[0].node['SEM'].simplify()
+                try:
+                    new_drs = trees[0].node['SEM'].simplify()
+                except IndexError:
+                    raise UngrammaticalException()
                 if verbose:
                     print(new_drs)
                 if drs:
@@ -115,16 +116,17 @@ class Tester(object):
                 if len(expected_drs) == len(readings):
                     for index, pair in enumerate(zip(expected_drs, readings)):
                         if pair[0] == pair[1]:
-                            print("%s. %s -- Reading (%s): %s\n" % (number, sentence, index+1, pair[1]))
+                            print("%s. %s -- Reading (%s): %s\n" % (number, sentence, index + 1, pair[1]))
                         else:
-                            print("%s. ################# !failed reading (%s)! #################\n\n%s\n\nExpected:\t%s\n\nReturns:\t%s\n" % (number, index+1, sentence, pair[0], pair[1]))
+                            print("%s. !!!failed reading (%s)!!!\n\n%s\n\nExpected:\t%s\n\nReturns:\t%s\n" %
+                                  (number, index + 1, sentence, pair[0], pair[1]))
                 else:
-                        print("%s. ################# !comparison failed! #################\n\n%s\n" % (number, sentence))
+                        print("%s. !!!comparison failed!!!\n\n%s\n" % (number, sentence))
             except Exception as e:
                 if type(e) is ResolutionException:
-                    print("%s. *%s -- Exception:%s\n" % (number, sentence,  e))
+                    print("%s. *%s -- Exception:%s\n" % (number, sentence, e))
                 else:
-                    print("%s. ################# !unexpected error! #################\n%s\n%s" % (number, sentence, e))
+                    print("%s. !!!unexpected error!!!\n%s\n%s" % (number, sentence, e))
 
     def interpret(self, expr_1, expr_2, background=None, verbose=False, test=False):
         """Interprets a new expression with respect to some previous discourse 
@@ -183,7 +185,7 @@ class Tester(object):
         expression = self.parse(expression_str, utter=False)
         for ref in set(expression.get_refs(True)) & set(discourse.get_refs(True)):
             newref = DrtVariableExpression(unique_variable(ref))
-            expression = expression.replace(ref,newref,True)
+            expression = expression.replace(ref, newref, True)
         return expression
 
     def interpret_new(self, discourse, expression, background=None, verbose=False):
@@ -195,9 +197,7 @@ class Tester(object):
 
         try:
             if discourse:
-                #buffer = self.drt_parser.parse(r'\Q P.(Q+DRS([],[P]))')
-                buffer = self.drt_parser.parse(r'\Q P.(NEWINFO([],[P])+Q)')
-                new_discourse = DrtApplicationExpression(DrtApplicationExpression(buffer,discourse),expression).simplify()
+                new_discourse = (NewInfoDRS([], [expression]) + discourse).simplify()
             else:
                 new_discourse = expression
 
@@ -220,7 +220,6 @@ class Tester(object):
             interpretations, errors = self.interpret(discourse, expression, bk, verbose=False, test=True)
             
             for interpretation in interpretations:
-                #TODO: Add expected and compare
                 print "\nAdmissible interpretation: ", interpretation
             
             if judgement:
@@ -230,7 +229,7 @@ class Tester(object):
                 
                 if len(judgement) == len(errors):
                     for index, error in enumerate(errors):
-                        error_message = Tester.INFERROR.get(judgement[index],False)
+                        error_message = Tester.INFERROR.get(judgement[index], False)
                         if verbose:
                             print "\nexpected error:%s" % error_message
                             print "\nreturned error:%s" % error[1]

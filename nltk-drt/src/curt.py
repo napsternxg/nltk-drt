@@ -1,22 +1,30 @@
+"""
+NLTK DRT module extended with presuppositions  
+"""
+
+__author__ = "Alex Kislev, Emma Li, Peter Makarov"
+__version__ = "1.0"
+__date__ = "Tue, 24 Aug 2010"
+
 import random
 from test import BK
-from util import Tester
+from util import Tester, UngrammaticalException
 from temporaldrt import DrtParser
-from inference import AdmissibilityOuput, ConsistencyOuput, InformativityOuput
+from inference import AdmissibilityError, ConsistencyError, InformativityError
 
 class Curt(object):
     INADMISSIBLE = ["That's Greek to me", "Do you get my drift?", "Now, hold your horses!", "Well, I dunno...", "Neither rhyme nor reason."]
     INCONSISTENT = ["I don't believe that!", "Nice try!", "That's a switch!", "Don't try to butter me up!", "I smell a rat.", "Tell it to the marines!"]
     UNINFORMATIVE = ["I know that already!", "Whatever!", "You ain't seen nothing yet!", "Hey, that's an oldie.", "Betcha don't know.", "It's all one to me "]
-    OK = ["Nice to know", "OK", "Go on!", "Go ahead!", "No problem!", "Do your thing!", "No kiddin'?", "Really?", "Is that so?", "That's more like it", "What are you driving at?", "C'mon, shake a leg!", "Well, that's the way the cookie crumbles.", "Spill the beans!",  "While you live, tell truth and shame the Devil!"]
-    GOODBYE = ["See ya!", "Nice talking to you!", "Bye!", "Take care!"]
+    OK = ["Nice to know", "OK", "Go on!", "Go ahead!", "No problem!", "Do your thing!", "No kiddin'?", "Really?", "Is that so?", "That's more like it", "What are you driving at?", "C'mon, shake a leg!", "Well, that's the way the cookie crumbles.", "Spill the beans!", "While you live, tell truth and shame the Devil!"]
+    GOODBYE = ["See ya!", "Nice talking to you!", "Bye!", "Take care!", "Cheers!", "So long and thanks for all the fish!"]
     def __init__(self, grammar_file='file:../data/grammar.fcfg', logic_parser=DrtParser, background=None):
         self.tester = Tester(grammar_file, logic_parser)
         self.background = background
         self.discourse = None
         
     def randomize(self, option_list):
-        return option_list[random.randint(0, len(option_list)-1)]
+        return option_list[random.randint(0, len(option_list) - 1)]
 
     def inadmissible(self):
         return self.randomize(Curt.INADMISSIBLE)
@@ -34,11 +42,11 @@ class Curt(object):
         return self.randomize(Curt.GOODBYE)
     
     def respond(self, s, explicit):
-        if isinstance(s, AdmissibilityOuput):
+        if isinstance(s, AdmissibilityError):
             return "%s%s" % (self.inadmissible(), "(inadmissible)" if explicit else "")
-        elif isinstance(s, ConsistencyOuput):
+        elif isinstance(s, ConsistencyError):
             return "%s%s" % (self.inconsistent(), "(inconsistent)" if explicit else "")
-        elif isinstance(s, InformativityOuput):
+        elif isinstance(s, InformativityError):
             return "%s%s" % (self.uninformative(), "(uninformative)" if explicit else "")
 
     def process(self, utterance, explicit=False, verbose=False):
@@ -97,7 +105,8 @@ def main():
                 print "Curt says:\t%s" % curt.process(s, explicit, verbose)
             except ValueError as e:
                 print "Error: %s" % e
-                
+            except UngrammaticalException:
+                print "Curt says:\tWhat was that again?"
             if show_model:
                 print "Model: %s" % str(curt)
 

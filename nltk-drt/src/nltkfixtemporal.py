@@ -1,12 +1,5 @@
 from temporaldrt import DRS, DrtLambdaExpression, DrtApplicationExpression, DrtAbstractVariableExpression, DrtNegatedExpression, DrsDrawer
 from nltk.sem.logic import BinaryExpression
-#from nltk.sem.drt import AbstractDrs
-#
-#def gr(s, recursive=False):
-#    print "I am %s, %s" % (s, type(s))
-#    return []
-#
-#AbstractDrs.get_refs = gr
 
 def _handle(self, expression, command, x=0, y=0):
     """

@@ -1,3 +1,13 @@
+"""
+Extension of temporaldrt using WordNet ontology
+"""
+
+__author__ = " Emma Li, Peter Makarov, Alex Kislev"
+__version__ = "1.0"
+__date__ = "Tue, 24 Aug 2010"
+
+import nltk
+from nltk.corpus.reader.wordnet import WordNetCorpusReader
 import temporaldrt as drt
 from temporaldrt import DrtTokens, DrtFeatureConstantExpression
 
@@ -10,7 +20,7 @@ class DefiniteDescriptionDRS(drt.DefiniteDescriptionDRS):
         other_noun = other_cond.function.variable.name
         return (
                 presupp_noun == other_noun or 
-                self.wn.is_superclasss_of(other_noun, presupp_noun) or 
+                self.wn.is_superclass_of(other_noun, presupp_noun) or 
                 (other_cond.is_propername() and (self.wn.is_person(presupp_noun) or self.wn.is_animal(presupp_noun)))
                 )
         
@@ -21,14 +31,10 @@ class DefiniteDescriptionDRS(drt.DefiniteDescriptionDRS):
         other_noun = other_cond.function.variable.name
         return (
                 (self.wn.is_person(presupp_noun) and self.wn.is_person(other_noun))
-                or 
-                self.wn.is_superclasss_of(presupp_noun, other_noun) # cat, kitty
-                #or
-                #(self.wn.is_animal(presupp_noun) and self.wn.is_animal(other_noun))
-               )
+                or self.wn.is_superclass_of(presupp_noun, other_noun)) # cat, kitty
         
     def semantic_check(self, individuals, presupp_individuals, strict=False):
-        check = {True : self._strict_check, 
+        check = {True : self._strict_check,
                  False: self._non_strict_check}[strict]
         # Strict check - passes if features match and 1) string matching 2) hyponym-hypernym relation, and
         # 3) self.funcname is a person or animal and the antecedent is a proper name
@@ -59,19 +65,6 @@ class DefiniteDescriptionDRS(drt.DefiniteDescriptionDRS):
                         return True
             return False
     
-class DrtParser(drt.DrtParser):
-
-    def handle_PresuppositionDRS(self, tok, context):
-        if tok == DrtTokens.DEFINITE_DESCRIPTION_DRS:
-            self.assertNextToken(DrtTokens.OPEN)
-            drs = self.handle_DRS(tok, context)
-            return DefiniteDescriptionDRS(drs.refs, drs.conds)
-        else:
-            return drt.DrtParser.handle_PresuppositionDRS(self, tok, context)
-
-#--------------------------------------------
-from nltk.corpus.reader.wordnet import WordNetCorpusReader
-import nltk
 
 class WordNetLookup(object):
     def __init__(self, path='corpora/wordnet'):
@@ -81,22 +74,15 @@ class WordNetLookup(object):
     def wn(self):
         if not self.WN:
             self.WN = WordNetCorpusReader(nltk.data.find(self.path))
-            
-#    def is_superclasss_of(self, first, second):
-#        "Debugging"
-#        print "IS SUPERCLASS", first, second,
-#        r = self._is_superclasss_of(first, second)
-#        print r
-#        return r
-        
-    def is_superclasss_of(self, first, second):
+                    
+    def is_superclass_of(self, first, second):
         "Is the second noun the superclass of the first one?"
         self.wn()
         # We cannot guarantee it is a noun. By the time we deal with DRSs, this is just a condition, and could have easily
         # come from an adjective (if the user does not provide features for nouns, as we do in our grammar)
         try:
             num_of_senses_first = self._num_of_senses(first)
-            num_of_senses_second =self._num_of_senses(second)
+            num_of_senses_second = self._num_of_senses(second)
         except: return False
         # At first I wanted to take the first senses of both words, but the first sense is not always the basic meaning of the word, e.g.:
         # S('hammer.n.1').definition: the part of a gunlock that strikes the percussion cap when the trigger is pulled'
@@ -125,12 +111,23 @@ class WordNetLookup(object):
         return len(self.WN._lemma_pos_offset_map[word][pos])
     
     def is_person(self, word):
-        return self.is_superclasss_of(word, 'person')
+        return self.is_superclass_of(word, 'person')
     
     def is_animal(self, word):
-        return self.is_superclasss_of(word, 'animal')
-    
-if __name__ == '__main__':
+        return self.is_superclass_of(word, 'animal')
+
+
+class DrtParser(drt.DrtParser):
+
+    def handle_PresuppositionDRS(self, tok, context):
+        if tok == DrtTokens.DEFINITE_DESCRIPTION_DRS:
+            self.assertNextToken(DrtTokens.OPEN)
+            drs = self.handle_DRS(tok, context)
+            return DefiniteDescriptionDRS(drs.refs, drs.conds)
+        else:
+            return drt.DrtParser.handle_PresuppositionDRS(self, tok, context)
+
+def test():
     wn = WordNetLookup()
     
     dog_syn = wn._noun_synset('dog', ind=1)
@@ -164,9 +161,12 @@ if __name__ == '__main__':
     print wn.is_adjective('dog')    # False
     
     
-    print wn.is_superclasss_of('kitty', 'animal')
-    print wn.is_superclasss_of('cat', 'animal')
+    print wn.is_superclass_of('kitty', 'animal')
+    print wn.is_superclass_of('cat', 'animal')
     print 'is animal kitty', wn.is_animal('kitty')
     
-    print 'kitty is a cat', wn.is_superclasss_of('kitty', 'cat')
-    print 'mother is a woman', wn.is_superclasss_of('mother', 'woman')
+    print 'kitty is a cat', wn.is_superclass_of('kitty', 'cat')
+    print 'mother is a woman', wn.is_superclass_of('mother', 'woman')
+    
+if __name__ == '__main__':
+    test()
