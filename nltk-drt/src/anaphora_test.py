@@ -42,9 +42,9 @@ def main():
     tester.test(cases)
 
 #    tester = Tester('file:../data/grammar.fcfg', DrtParser)
-#    drs = tester.parse("Bill likes Jones's picture of himself.")
+#    drs = tester.parse("Bill likes Jones's picture of him.")
 #    print drs
-#    readings = drs.readings(True)
+#    readings, errors = drs.resolve()
 #    print readings
 #    for reading in readings:
 #        for cond in reading.conds:
