@@ -323,8 +323,3 @@ LexV[SUBCAT=tv,FORM=perf,TYPE=s,SEM=<own>] -> 'owned'
 #################
 
 LexV[SUBCAT=dv,FORM=inf,TYPE=e,SEM=<show>] -> 'show'
-
-# Copula:
-##########
-
-#V[SUBCAT=tv,+FIN,NUM=sg,SEM=<\X Y.(DRS([t],[PRES(t)])+Y(\x.(X(\y.DRS([s],[eq(s,x,y)])))))>] -> 'is'
