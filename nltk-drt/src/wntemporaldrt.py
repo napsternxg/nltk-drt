@@ -11,6 +11,66 @@ from nltk.corpus.reader.wordnet import WordNetCorpusReader
 import temporaldrt as drt
 from temporaldrt import DrtTokens, DrtFeatureConstantExpression
 
+def singleton(cls):
+    instance_container = []
+    def getinstance():
+        if not len(instance_container):
+            instance_container.append(cls())
+        return instance_container[0]
+    return getinstance
+
+@singleton
+class WordNetLookup(object):
+    def __init__(self, path='corpora/wordnet'):
+        self.path = path
+        self.WN = None
+    
+    def wn(self):
+        if not self.WN:
+            self.WN = WordNetCorpusReader(nltk.data.find(self.path))
+                    
+    def is_superclass_of(self, first, second):
+        "Is the second noun the superclass of the first one?"
+        self.wn()
+        # We cannot guarantee it is a noun. By the time we deal with DRSs, this is just a condition, and could have easily
+        # come from an adjective (if the user does not provide features for nouns, as we do in our grammar)
+        try:
+            num_of_senses_first = self._num_of_senses(first)
+            num_of_senses_second = self._num_of_senses(second)
+        except: return False
+        # At first I wanted to take the first senses of both words, but the first sense is not always the basic meaning of the word, e.g.:
+        # S('hammer.n.1').definition: the part of a gunlock that strikes the percussion cap when the trigger is pulled'
+        # S('hammer.n.2').definition: 'a hand tool with a heavy rigid head and a handle; used to deliver an impulsive force by striking'
+        for n in range(num_of_senses_second):
+            synset_second = self._noun_synset(second, ind=n)
+            for i in range(num_of_senses_first):
+                #print synset_second, self._noun_synset(first, i).common_hypernyms(synset_second)
+                if synset_second in self._noun_synset(first, i).common_hypernyms(synset_second):
+                    #print "+++ first", first, "second", second, True
+                    return True
+        return False
+                
+    def is_adjective(self, word):
+        try: 
+            self._num_of_senses(word, 'a')
+            return True
+        except: return False
+    
+    def _noun_synset(self, noun, ind):
+        self.wn()
+        return self.WN.synset("%s.n.%s" % (noun, ind))
+    
+    def _num_of_senses (self, word, pos='n'):
+        self.wn()
+        return len(self.WN._lemma_pos_offset_map[word][pos])
+    
+    def is_person(self, word):
+        return self.is_superclass_of(word, 'person')
+    
+    def is_animal(self, word):
+        return self.is_superclass_of(word, 'animal')
+
+
 class DefiniteDescriptionDRS(drt.DefiniteDescriptionDRS):
     def __init__(self, refs, conds):
         self.wn = WordNetLookup()
@@ -64,58 +124,6 @@ class DefiniteDescriptionDRS(drt.DefiniteDescriptionDRS):
                     if check (presupp_noun, individual): 
                         return True
             return False
-    
-
-class WordNetLookup(object):
-    def __init__(self, path='corpora/wordnet'):
-        self.path = path
-        self.WN = None
-    
-    def wn(self):
-        if not self.WN:
-            self.WN = WordNetCorpusReader(nltk.data.find(self.path))
-                    
-    def is_superclass_of(self, first, second):
-        "Is the second noun the superclass of the first one?"
-        self.wn()
-        # We cannot guarantee it is a noun. By the time we deal with DRSs, this is just a condition, and could have easily
-        # come from an adjective (if the user does not provide features for nouns, as we do in our grammar)
-        try:
-            num_of_senses_first = self._num_of_senses(first)
-            num_of_senses_second = self._num_of_senses(second)
-        except: return False
-        # At first I wanted to take the first senses of both words, but the first sense is not always the basic meaning of the word, e.g.:
-        # S('hammer.n.1').definition: the part of a gunlock that strikes the percussion cap when the trigger is pulled'
-        # S('hammer.n.2').definition: 'a hand tool with a heavy rigid head and a handle; used to deliver an impulsive force by striking'
-        for n in range(num_of_senses_second):
-            synset_second = self._noun_synset(second, ind=n)
-            for i in range(num_of_senses_first):
-                #print synset_second, self._noun_synset(first, i).common_hypernyms(synset_second)
-                if synset_second in self._noun_synset(first, i).common_hypernyms(synset_second):
-                    #print "+++ first", first, "second", second, True
-                    return True
-        return False
-                
-    def is_adjective(self, word):
-        try: 
-            self._num_of_senses(word, 'a')
-            return True
-        except: return False
-    
-    def _noun_synset(self, noun, ind):
-        self.wn()
-        return self.WN.synset("%s.n.%s" % (noun, ind))
-    
-    def _num_of_senses (self, word, pos='n'):
-        self.wn()
-        return len(self.WN._lemma_pos_offset_map[word][pos])
-    
-    def is_person(self, word):
-        return self.is_superclass_of(word, 'person')
-    
-    def is_animal(self, word):
-        return self.is_superclass_of(word, 'animal')
-
 
 class DrtParser(drt.DrtParser):
 
