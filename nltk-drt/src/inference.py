@@ -75,7 +75,7 @@ class Communicator(Thread):
 
 class Theorem(object):
 
-    BINARY_LOCATIONS = ('/usr/local/bin', '/usr/bin')
+    BINARY_LOCATIONS = ('/usr/local/bin', '/usr/bin', '/usr/share/prover9/bin')
     PROVER_BINARY = None
     BUILDER_BINARY = None
     INTERPFORMAT_BINARY = None

@@ -32,21 +32,14 @@ class WordNetLookup(object):
     def is_superclass_of(self, first, second):
         "Is the second noun the superclass of the first one?"
         self.wn()
-        # We cannot guarantee it is a noun. By the time we deal with DRSs, this is just a condition, and could have easily
-        # come from an adjective (if the user does not provide features for nouns, as we do in our grammar)
         try:
             num_of_senses_first = self._num_of_senses(first)
             num_of_senses_second = self._num_of_senses(second)
         except: return False
-        # At first I wanted to take the first senses of both words, but the first sense is not always the basic meaning of the word, e.g.:
-        # S('hammer.n.1').definition: the part of a gunlock that strikes the percussion cap when the trigger is pulled'
-        # S('hammer.n.2').definition: 'a hand tool with a heavy rigid head and a handle; used to deliver an impulsive force by striking'
         for n in range(num_of_senses_second):
             synset_second = self._noun_synset(second, ind=n)
             for i in range(num_of_senses_first):
-                #print synset_second, self._noun_synset(first, i).common_hypernyms(synset_second)
                 if synset_second in self._noun_synset(first, i).common_hypernyms(synset_second):
-                    #print "+++ first", first, "second", second, True
                     return True
         return False
                 
@@ -134,47 +127,3 @@ class DrtParser(drt.DrtParser):
             return DefiniteDescriptionDRS(drs.refs, drs.conds)
         else:
             return drt.DrtParser.handle_PresuppositionDRS(self, tok, context)
-
-def test():
-    wn = WordNetLookup()
-    
-    dog_syn = wn._noun_synset('dog', ind=1)
-    canine_syn = wn._noun_synset('canine', ind=1)
-    print canine_syn.definition
-    animal_syn = wn._noun_synset('animal', ind=1)
-    print "Dog is canine", dog_syn.common_hypernyms(canine_syn)
-    print "Dog is animal", dog_syn.common_hypernyms(animal_syn)
-    print "Canine is animal", canine_syn.common_hypernyms(animal_syn)
-    
-    dog_syn = wn._noun_synset('dog', ind=1)
-    canine_syn = wn._noun_synset('canine', ind=2)
-    print canine_syn.definition
-    animal_syn = wn._noun_synset('animal', ind=1)
-    print "Dog is canine", dog_syn.common_hypernyms(canine_syn)
-    print "Dog is animal", dog_syn.common_hypernyms(animal_syn)
-    print "Canine is animal", canine_syn.common_hypernyms(animal_syn)
-    
-    cat_syn = wn._noun_synset('cat', ind=1)
-    feline_syn = wn._noun_synset('feline', ind=1)
-    animal_syn = wn._noun_synset('animal', ind=1)
-    kitty_syn = wn._noun_synset('kitty', ind=3)
-    print kitty_syn.definition
-    print "cat and feline", cat_syn.common_hypernyms(feline_syn) 
-    print "cat and animal", cat_syn.common_hypernyms(animal_syn)
-    print "cat and kitty", cat_syn.common_hypernyms(kitty_syn) 
-    print "feline and animal", feline_syn.common_hypernyms(animal_syn)
-    
-    print wn.is_adjective('colour') # True
-    print wn.is_adjective('stone')  # True
-    print wn.is_adjective('dog')    # False
-    
-    
-    print wn.is_superclass_of('kitty', 'animal')
-    print wn.is_superclass_of('cat', 'animal')
-    print 'is animal kitty', wn.is_animal('kitty')
-    
-    print 'kitty is a cat', wn.is_superclass_of('kitty', 'cat')
-    print 'mother is a woman', wn.is_superclass_of('mother', 'woman')
-    
-if __name__ == '__main__':
-    test()
