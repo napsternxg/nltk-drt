@@ -247,7 +247,7 @@ def print_header(header):
 TESTS = [("Anaphora Component", test_anaphora),
          ("Presupposition Component", test_presupposition),
          ("Inference Component ", test_inference),
-         ("Tempotal Component", test_tenses)
+         ("Temporal Component", test_tenses)
          ]
 def main():
     tester = Tester('file:../data/grammar.fcfg', DrtParser)

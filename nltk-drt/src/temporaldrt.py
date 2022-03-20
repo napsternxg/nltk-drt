@@ -14,6 +14,7 @@ from presuppdrt import AnaphoraResolutionException
 from presuppdrt import DrtApplicationExpression
 from presuppdrt import DrtTimeVariableExpression
 from presuppdrt import DRS
+from presuppdrt import DrtExpression
 from presuppdrt import DrtVariableExpression
 from presuppdrt import DrtStateVariableExpression
 from presuppdrt import Binding

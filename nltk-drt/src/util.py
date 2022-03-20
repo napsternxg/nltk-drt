@@ -87,9 +87,10 @@ class Tester(object):
                 if verbose:
                     print(words)
                 trees = [tree for tree in self.parser.parse(words)]
+                #print("TREES", trees)
                 #trees = self.parser.nbest_parse(words)
                 try:
-                    new_drs = trees[0].node['SEM'].simplify()
+                    new_drs = trees[0].label()["SEM"].simplify()
                 except IndexError:
                     raise UngrammaticalException()
                 if verbose:
@@ -146,6 +147,8 @@ class Tester(object):
             else:
                 discourse = None
                 expression = self.parse(expr_2, utter=True)
+            
+            print("Type of discourse 2:", type(discourse))
 
             interpretations, errors = self.interpret_new(discourse, expression, background=background, verbose=verbose)
 
@@ -201,6 +204,8 @@ class Tester(object):
                 new_discourse = (NewInfoDRS([], [expression]) + discourse).simplify()
             else:
                 new_discourse = expression
+            
+            print("Type of new_discourse:", type(new_discourse))
 
             if background:
                 background_knowledge = self.collect_background(new_discourse, background, verbose)
@@ -218,6 +223,7 @@ class Tester(object):
     def inference_test(self, cases, bk, verbose=False):
         for number, discourse, expression, judgement in cases:
             print("\n%s. %s %s" % (number, discourse, expression))
+            print("Type of discourse:", type(discourse))
             interpretations, errors = self.interpret(discourse, expression, bk, verbose=False, test=True)
 
             for interpretation in interpretations:

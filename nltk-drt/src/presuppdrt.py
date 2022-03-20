@@ -30,6 +30,7 @@ from functools import reduce
 import copy
 
 
+
 class TimeType(BasicType):
     """
     Basic type of times added on top of nltk.sem.logic.
@@ -244,6 +245,9 @@ class DrtExpression(drt.DrtExpression):
     A base abstract DRT Expression from which every DRT Expression inherits.
     """
 
+    def deepcopy(self, memo=None):
+        return copy.deepcopy(self)
+
     def applyto(self, other):
         return DrtApplicationExpression(self, other)
 
@@ -263,7 +267,7 @@ class DrtExpression(drt.DrtExpression):
         return DrtIffExpression(self, other)
 
     def __add__(self, other):
-        return ConcatenationDRS(self, other)
+        return DrtConcatenation(self, other)
 
     def __deepcopy__(self, memo):
         return self.deepcopy()
@@ -337,8 +341,7 @@ class DrtExpression(drt.DrtExpression):
 
         def traverse(base_reading, operations):
             for operation in sorted(operations, key=lambda o: DrtExpression.RESOLUTION_ORDER[type(o)]):
-                print("OPERATION", operation)
-                new_reading = copy.deepcopy(base_reading) #.deepcopy(operation)
+                new_reading = base_reading.deepcopy(operation)
                 if verbose:
                     print(("reading: %s" % new_reading))
                 try:
@@ -517,7 +520,8 @@ class DrtAbstractVariableExpression(DrtExpression, drt.DrtAbstractVariableExpres
         return self.__class__(self.variable)
 
 class DrtIndividualVariableExpression(DrtAbstractVariableExpression, drt.DrtIndividualVariableExpression):
-    pass
+    def deepcopy(self, operations=[]):
+        return self.__class__(self.variable)
 
 class DrtFunctionVariableExpression(DrtAbstractVariableExpression, drt.DrtFunctionVariableExpression):
     pass
@@ -618,7 +622,7 @@ class DrtLambdaExpression(DrtExpression, drt.DrtLambdaExpression):
         return self.term.readings(trail + [self])
 
     def deepcopy(self, operations=[]):
-        return self.__class__(self.variable, copy.deepcopy(self.term)) #.deepcopy(operations))
+        return self.__class__(self.variable, self.term.deepcopy(operations))
 
     def get_refs(self, recursive=False):
         """@see: AbstractExpression.get_refs()"""
@@ -709,10 +713,14 @@ class DrtEqualityExpression(DrtExpression, drt.DrtEqualityExpression):
     def deepcopy(self, operations=[]):
         return self.__class__(self.first.deepcopy(operations), self.second.deepcopy(operations))
 
-class DrtConcatenation(drt.DrtConcatenation):
+class DrtConcatenation(DrtExpression, drt.DrtConcatenation):
 
     def __hash__(self):
         return hash(repr(self))
+    
+    def deepcopy(self, memo=None):
+        # Try to implement deepcopy
+        return self.__class__(self.first, self.second)
 
     """DRS of the form '(DRS + DRS)'"""
     def replace(self, variable, expression, replace_bound=False, alpha_convert=True):
@@ -1428,3 +1436,6 @@ class DrtParser(drt.DrtParser):
 
     def make_LambdaExpression(self, variables, term):
         return DrtLambdaExpression(variables, term)
+
+drt.DRS.deepcopy = lambda self, *args: copy.deepcopy(self)
+drt.DrtIndividualVariableExpression.deepcopy = DrtIndividualVariableExpression.deepcopy

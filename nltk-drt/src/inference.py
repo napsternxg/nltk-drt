@@ -60,6 +60,7 @@ from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtCons
                         DrtConcatenation, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
                         DrtEventualityApplicationExpression
 
+
 class Communicator(Thread):
     """a thread communicating with a process, terminates once the communication is over"""
     def __init__(self, process, input=None):
@@ -431,6 +432,8 @@ class InformativityError(str):
 def get_bk(drs, dictionary):
     """Collects background knowledge relevant for a given expression.
     DrtConstantExpression variable names are used as keys"""
+
+    #print("Type of")
 
     assert isinstance(drs, DRS), "Expression %s is not a DRS" % drs
     assert isinstance(dictionary, dict), "%s is not a dictionary" % dictionary
