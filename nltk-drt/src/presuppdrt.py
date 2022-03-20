@@ -762,8 +762,8 @@ class DrtConcatenation(DrtExpression, drt.DrtConcatenation):
     def simplify(self):
         first = self.first.simplify()
         second = self.second.simplify()
-
-        if isinstance(first, DRS) and isinstance(second, DRS):
+        
+        if isinstance(first, (DRS, drt.DRS)) and isinstance(second, (DRS, drt.DRS)):
             # For any ref that is in both 'first' and 'second'
             for ref in (set(first.get_refs(True)) & set(second.get_refs(True))):
                 # alpha convert the ref in 'second' to prevent collision

@@ -52,10 +52,11 @@ from threading import Thread
 from nltk.internals import find_binary
 from nltk.sem import Valuation
 from nltk.sem.logic import is_indvar
+from nltk.sem import drt
 from nltk.inference.mace import MaceCommand
 from nltk.inference.prover9 import convert_to_prover9
 from nltk.sem.logic import AndExpression, NegatedExpression
-from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
+from temporaldrt import DRS, DrtExpression, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
                         DrtApplicationExpression, ReverseIterator, DrtTokens, NewInfoDRS, \
                         DrtConcatenation, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
                         DrtEventualityApplicationExpression
@@ -249,7 +250,7 @@ def inference_check(expr, background_knowledge=False, verbose=False):
     """General function for all kinds of inference-based checks:
     consistency, global and local informativity"""
 
-    assert isinstance(expr, DRS), "Expression %s is not a DRS"
+    assert isinstance(expr, (DRS, drt.DRS)), "Expression %s is not a DRS"
 
     expression = expr.deepcopy()
     if verbose:
@@ -370,8 +371,8 @@ def inference_check(expr, background_knowledge=False, verbose=False):
         if verbose: print("### Local admissibility check initiated...\n%s\n" % check_list)
 
         for main, sub in check_list:
-            assert isinstance(main, DRS), "Expression %s is not a DRS"
-            assert isinstance(sub, DRS), "Expression %s is not a DRS"
+            assert isinstance(main, (DRS, drt.DRS)), "Expression %s is not a DRS"
+            assert isinstance(sub, (DRS, drt.DRS)), "Expression %s is not a DRS"
 
             if not _check(main.__class__(main.refs, main.conds + [DrtNegatedExpression(sub)])):
                 error_message = "New discourse is inadmissible due to local uninformativity:\n\n%s entails %s" % (main, sub)
@@ -433,9 +434,8 @@ def get_bk(drs, dictionary):
     """Collects background knowledge relevant for a given expression.
     DrtConstantExpression variable names are used as keys"""
 
-    #print("Type of")
 
-    assert isinstance(drs, DRS), "Expression %s is not a DRS" % drs
+    assert isinstance(drs, (DRS, drt.DRS)), "Expression %s is not a DRS" % drs
     assert isinstance(dictionary, dict), "%s is not a dictionary" % dictionary
     bk_list = []
 
