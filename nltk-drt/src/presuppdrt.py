@@ -17,6 +17,7 @@ from nltk.sem.logic import BasicType
 from nltk.sem.logic import Expression
 from nltk.sem.logic import LogicalExpressionException
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
+#from nltk.sem.drt import DrtConcatenation
 
 # additional imports
 from nltk.sem.logic import ImpExpression, IffExpression, APP
@@ -24,6 +25,9 @@ from nltk.sem.logic import ImpExpression, IffExpression, APP
 
 import nltk.sem.drt as drt
 from functools import reduce
+
+#from copy import deepcopy
+import copy
 
 
 class TimeType(BasicType):
@@ -233,6 +237,8 @@ class DrtTokens(drt.DrtTokens):
     NLTK = 1
     PROVER9  = 2
 
+
+
 class DrtExpression(drt.DrtExpression):
     """
     A base abstract DRT Expression from which every DRT Expression inherits.
@@ -331,7 +337,8 @@ class DrtExpression(drt.DrtExpression):
 
         def traverse(base_reading, operations):
             for operation in sorted(operations, key=lambda o: DrtExpression.RESOLUTION_ORDER[type(o)]):
-                new_reading = base_reading.deepcopy(operation)
+                print("OPERATION", operation)
+                new_reading = copy.deepcopy(base_reading) #.deepcopy(operation)
                 if verbose:
                     print(("reading: %s" % new_reading))
                 try:
@@ -368,6 +375,7 @@ class DrtExpression(drt.DrtExpression):
     def readings(self, trail=[]):
         raise NotImplementedError()
 
+
 class DRS(DrtExpression, drt.DRS):
     """A Temporal Discourse Representation Structure."""
 
@@ -394,7 +402,7 @@ class DRS(DrtExpression, drt.DRS):
         return DrtApplicationExpression(ref_cond, DrtAbstractVariableExpression(referent))
 
 
-    def replace(self, variable, expression, replace_bound=False):
+    '''def replace(self, variable, expression, replace_bound=False):
         """Replace all instances of variable v with expression E in self,
         where v is free in self."""
         if variable in self.get_refs():
@@ -429,12 +437,12 @@ class DRS(DrtExpression, drt.DRS):
             #replace in the conditions
             return self.__class__(self.refs,
                        [cond.replace(variable, expression, replace_bound)
-                        for cond in self.conds])
+                        for cond in self.conds])'''
 
     def free(self, indvar_only=True):
         """@see: Expression.free()"""
         conds_free = reduce(operator.or_,
-                            [c.free(indvar_only) for c in self.conds], set())
+                            [c.variables() for c in self.conds], set()) # .free(indvar_only)
         return conds_free - (set(self.refs) | reduce(operator.or_, [set(c.refs) for c in self.conds if isinstance(c, PresuppositionDRS)], set()))
 
     def get_refs(self, recursive=False):
@@ -542,7 +550,7 @@ class DrtFeatureConstantExpression(DrtConstantExpression):
         DrtConstantExpression.__init__(self, variable)
         self.features = features
 
-    def replace(self, variable, expression, replace_bound=False):
+    def replace(self, variable, expression, replace_bound=False, alpha_convert=True):
         """@see: Expression.replace()"""
         assert isinstance(variable, Variable), "%s is not a Variable" % variable
         assert isinstance(expression, Expression), "%s is not an Expression" % expression
@@ -583,7 +591,7 @@ class DrtLambdaExpression(DrtExpression, drt.DrtLambdaExpression):
         return self.__class__(newvar, self.term.replace(self.variable,
                           DrtVariableExpression(newvar), True))
 
-    def replace(self, variable, expression, replace_bound=False):
+    '''def replace(self, variable, expression, replace_bound=False):
         """@see: Expression.replace()"""
         assert isinstance(variable, Variable), "%s is not a Variable" % variable
         assert isinstance(expression, Expression), "%s is not an Expression" % expression
@@ -604,13 +612,13 @@ class DrtLambdaExpression(DrtExpression, drt.DrtLambdaExpression):
 
             #replace in the term
             return self.__class__(self.variable,
-                                  self.term.replace(variable, expression, replace_bound))
+                                  self.term.replace(variable, expression, replace_bound))'''
 
     def readings(self, trail=[]):
         return self.term.readings(trail + [self])
 
     def deepcopy(self, operations=[]):
-        return self.__class__(self.variable, self.term.deepcopy(operations))
+        return self.__class__(self.variable, copy.deepcopy(self.term)) #.deepcopy(operations))
 
     def get_refs(self, recursive=False):
         """@see: AbstractExpression.get_refs()"""
@@ -646,6 +654,7 @@ class DrtOrExpression(DrtBooleanExpression, drt.DrtOrExpression):
 
 
 class DrtImpExpression(DrtBooleanExpression, ImpExpression):
+
     def fol(self):
         first_drs = self.first
         second_drs = self.second
@@ -700,10 +709,13 @@ class DrtEqualityExpression(DrtExpression, drt.DrtEqualityExpression):
     def deepcopy(self, operations=[]):
         return self.__class__(self.first.deepcopy(operations), self.second.deepcopy(operations))
 
-class ConcatenationDRS(DrtBooleanExpression):
+class DrtConcatenation(drt.DrtConcatenation):
+
+    def __hash__(self):
+        return hash(repr(self))
 
     """DRS of the form '(DRS + DRS)'"""
-    def replace(self, variable, expression, replace_bound=False):
+    def replace(self, variable, expression, replace_bound=False, alpha_convert=True):
         """Replace all instances of variable v with expression E in self,
         where v is free in self."""
         first = self.first
@@ -1387,7 +1399,7 @@ class DrtParser(drt.DrtParser):
         have different boolean operators"""
 
         if tok == DrtTokens.DRS_CONC:
-            return ConcatenationDRS
+            return DrtConcatenation
         elif tok in DrtTokens.OR:
             return DrtOrExpression
         elif tok in DrtTokens.IMP:

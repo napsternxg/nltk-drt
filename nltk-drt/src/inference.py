@@ -57,7 +57,7 @@ from nltk.inference.prover9 import convert_to_prover9
 from nltk.sem.logic import AndExpression, NegatedExpression
 from temporaldrt import DRS, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
                         DrtApplicationExpression, ReverseIterator, DrtTokens, NewInfoDRS, \
-                        ConcatenationDRS, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
+                        DrtConcatenation, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
                         DrtEventualityApplicationExpression
 
 class Communicator(Thread):
@@ -353,7 +353,7 @@ def inference_check(expr, background_knowledge=False, verbose=False):
                 temp = (expression.conds[:expression.conds.index(cond)] +
                     expression.conds[expression.conds.index(cond) + 1:])
                 local_check.append((expression.__class__(expression.refs, temp), cond.first))
-                local_check.append((ConcatenationDRS(expression.__class__(expression.refs, temp),
+                local_check.append((DrtConcatenation(expression.__class__(expression.refs, temp),
                                                          cond.first).simplify(), cond.second))
 
 

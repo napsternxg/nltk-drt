@@ -36,7 +36,7 @@ from presuppdrt import DefiniteDescriptionDRS
 from presuppdrt import DrtEventualityApplicationExpression
 from presuppdrt import DrtLambdaExpression
 from presuppdrt import DrtBooleanExpression
-from presuppdrt import ConcatenationDRS
+from presuppdrt import DrtConcatenation
 from presuppdrt import DrtImpExpression
 from presuppdrt import DrtOrExpression
 from presuppdrt import DrtFeatureConstantExpression

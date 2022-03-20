@@ -241,7 +241,7 @@ def test_inference(tester):
 HASH_LINE = "#"*80
 
 def print_header(header):
-    len_hash = (74 - len(header))/2
+    len_hash = (74 - len(header)) // 2
     print("\n\t# {0} #\n\t### {1} {2} {1} ###\n\t# {0} #\n\n".format(HASH_LINE, "#"*len_hash, header))
 
 TESTS = [("Anaphora Component", test_anaphora),

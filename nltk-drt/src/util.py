@@ -86,7 +86,8 @@ class Tester(object):
                 words = self._split(sentence)
                 if verbose:
                     print(words)
-                trees = self.parser.nbest_parse(words)
+                trees = [tree for tree in self.parser.parse(words)]
+                #trees = self.parser.nbest_parse(words)
                 try:
                     new_drs = trees[0].node['SEM'].simplify()
                 except IndexError:
