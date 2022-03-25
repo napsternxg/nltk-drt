@@ -1,0 +1,462 @@
+
+	# ################################################################################ #
+	### ######################## Testing Anaphora Component ######################## ###
+	# ################################################################################ #
+
+
+1. !!!comparison failed!!!
+
+He wants a car. Jones needs it.
+
+2. !!!unexpected error!!!
+He invited Jones.
+Variable 'x' does not resolve to anything.
+3. !!!unexpected error!!!
+Jones loves Charlotte and Bill loves her. He hates himself.
+Variable 'z23' does not resolve to anything.
+4. !!!unexpected error!!!
+Jones loves Charlotte and Bill loves her. He hates him.
+Variable 'z35' does not resolve to anything.
+5. !!!comparison failed!!!
+
+Jones loves Charlotte and Bill loves her. Himself hates him.
+
+6. !!!failed reading (1)!!!
+
+Jones likes the picture of himself.
+
+Expected:	([n,s,x,z245],[Jones(x), REL(z245,x), picture(z245), like(s), AGENT(s,x), PATIENT(s,z245), overlap(n,s)])
+
+Returns:	([n,s,t,t054],[UTTER(t), ([x],[Jones(x)]), ([z53],[([z52],[RPRO(z52)]), REL(z53,x3), picture(z53)]), like(s), AGENT(s,x2), PATIENT(s,x5), LOCPRO(t054), overlap(t054,s), REFER(s)])
+
+7. !!!unexpected error!!!
+Jones likes the picture of him.
+Variable 'z58' does not resolve to anything.
+8. !!!failed reading (1)!!!
+
+Bill likes Jones's picture of himself.
+
+Expected:	([n,s,x,y,z15],[Bill(x), POSS(y,z15), REL(y,z15), picture(y), Jones(z15), like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)])
+
+Returns:	([n,s,t,t067],[UTTER(t), ([x],[Bill(x)]), ([y],[([z66],[Jones(z66)]), POSS(y,x5), ([z65],[RPRO(z65)]), REL(y2,x3), picture(y2)]), like(s), AGENT(s,x2), PATIENT(s,y2), LOCPRO(t067), overlap(t067,s), REFER(s)])
+
+9. !!!failed reading (1)!!!
+
+Bill likes Jones's picture of him.
+
+Expected:	([n,s,x,y,z15],[Bill(x), POSS(y,z15), REL(y,x), picture(y), Jones(z15), like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)])
+
+Returns:	([n,s,t,t074],[UTTER(t), ([x],[Bill(x)]), ([y],[([z73],[Jones(z73)]), POSS(y,x5), ([z72],[(z72 = y)]), REL(y2,x3), picture(y2)]), like(s), AGENT(s,x2), PATIENT(s,y2), LOCPRO(t074), overlap(t074,s), REFER(s)])
+
+10. !!!unexpected error!!!
+Jones showed Bill his room. He liked it.
+Variable 'z80' does not resolve to anything.
+11. !!!unexpected error!!!
+If Jones is away, he has left London.
+Variable 'x' does not resolve to anything.
+12. !!!unexpected error!!!
+No one dated Charlotte and she was upset.
+Variable 'z88' does not resolve to anything.
+13. !!!unexpected error!!!
+If Jones is smart, everyone underestimates him.
+Grammar does not cover some of the input words: "'every'".
+14. !!!unexpected error!!!
+Jones owns a porsche. He likes it.
+Variable 'z94' does not resolve to anything.
+15. !!!unexpected error!!!
+Jones does not own a porsche. He likes it.
+Variable 'z101' does not resolve to anything.
+16. !!!unexpected error!!!
+Every farmer who owns a donkey likes it.
+Grammar does not cover some of the input words: "'Every'".
+17. !!!unexpected error!!!
+Every farmer owns a donkey. He likes it.
+Grammar does not cover some of the input words: "'Every'".
+18. !!!unexpected error!!!
+Jones owns a car or he commutes.
+Variable 'x' does not resolve to anything.
+19. !!!unexpected error!!!
+Jones owns a porsche or Brown owns it
+Variable 'z109' does not resolve to anything.
+20. !!!unexpected error!!!
+Jones owns it or Brown owns a porsche
+Variable 'z111' does not resolve to anything.
+22. !!!unexpected error!!!
+Jones loves the baroness and Bill loves her.
+Variable 'z117' does not resolve to anything.
+23. !!!unexpected error!!!
+Jones loves her and Bill loves the baroness.
+Variable 'z122' does not resolve to anything.
+
+	# ################################################################################ #
+	### ##################### Testing Presupposition Component ##################### ###
+	# ################################################################################ #
+
+
+1. !!!failed reading (1)!!!
+
+Mary likes the president.
+
+Expected:	([n,s,x,z6],[Mary(x), president(z6), like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)])
+
+Returns:	([n,s,t,t0130],[UTTER(t), ([x],[Mary(x)]), ([z129],[president(z129)]), like(s), AGENT(s,x2), PATIENT(s,x3), LOCPRO(t0130), overlap(t0130,s), REFER(s)])
+
+2. !!!failed reading (1)!!!
+
+Mary does not like the president.
+
+Expected:	([n,x,z6],[Mary(x), -([s],[like(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)]), president(z6)])
+
+Returns:	([n,t],[UTTER(t), ([x],[Mary(x)]), -([s,t0133],[([z132],[president(z132)]), like(s), AGENT(s,x2), PATIENT(s,x3), LOCPRO(t0133), overlap(t0133,s), REFER(s)])])
+
+3. !!!unexpected error!!!
+If Mary likes the president, she will vote him.
+Variable 'x' does not resolve to anything.
+4. !!!unexpected error!!!
+Mary likes the president or she will not vote him.
+Variable 'x' does not resolve to anything.
+5. !!!unexpected error!!!
+If Mary does not like the president, she will not vote him.
+Variable 'x' does not resolve to anything.
+6. !!!failed reading (1)!!!
+
+France has elected a new president. Mary likes the president.
+
+Expected:	([e,n,s,s011,x,z6,z10],[include(s,n), France(x), new(z6), president(z6), elect(e), AGENT(e,x), PATIENT(e,z6), abut(e,s), Mary(z10), like(s011), AGENT(s011,z10), PATIENT(s011,z6), overlap(n,s011), include(s011,e)])
+
+Returns:	([e,n,s,t,t0148,z146,z150,z151],[UTTER(t), include(s,t), REFER(s), ([x],[France(x)]), new(z146), president(z146), elect(e), AGENT(e,x2), PATIENT(e,x3), PERF(e), UTTER(z150), ([z149],[Mary(z149)]), ([z147],[president(z147)]), like(z151), AGENT(z151,x2), PATIENT(z151,x3), LOCPRO(t0148), overlap(t0148,z151), REFER(z151)])
+
+7. !!!failed reading (1)!!!
+
+France has elected a new president. Mary does not like the president.
+
+Expected:	([e,n,s,x,z6,z11],[include(s,n), France(x), new(z6), president(z6), elect(e), AGENT(e,x), PATIENT(e,z6), abut(e,s), Mary(z11), -([s012],[like(s012), AGENT(s012,z11), PATIENT(s012,z6), overlap(n,s012), include(s012,e)])])
+
+Returns:	([e,n,s,t,z152,z156],[UTTER(t), include(s,t), REFER(s), ([x],[France(x)]), new(z152), president(z152), elect(e), AGENT(e,x2), PATIENT(e,x3), PERF(e), UTTER(z156), ([z155],[Mary(z155)]), -([t0154,z157],[([z153],[president(z153)]), like(z157), AGENT(z157,x2), PATIENT(z157,x3), LOCPRO(t0154), overlap(t0154,z157), REFER(z157)])])
+
+8. !!!unexpected error!!!
+France has elected a new president. If Mary likes the president, she has voted him.
+Variable 'z164' does not resolve to anything.
+9. !!!unexpected error!!!
+France has elected a new president. Mary likes the president or she has not voted him.
+Variable 'z172' does not resolve to anything.
+10. !!!unexpected error!!!
+France has elected a new president. If Mary does not like the president, she has not voted him
+Variable 'z180' does not resolve to anything.
+11. !!!failed reading (1)!!!
+
+Mary likes John's car.
+
+Expected:	([n,s,x,y,z10],[Mary(x), POSS(y,z10), car(y), John(z10), like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)])
+
+Returns:	([n,s,t,t0186],[UTTER(t), ([x],[Mary(x)]), ([y],[([z185],[John(z185)]), POSS(y,x3), car(y2)]), like(s), AGENT(s,x2), PATIENT(s,y2), LOCPRO(t0186), overlap(t0186,s), REFER(s)])
+
+12. !!!failed reading (1)!!!
+
+Mary does not like John's car.
+
+Expected:	([n,x,y,z11],[Mary(x), -([s],[like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]), POSS(y,z11), car(y), John(z11)])
+
+Returns:	([n,t],[UTTER(t), ([x],[Mary(x)]), -([s,t0190],[([y],[([z189],[John(z189)]), POSS(y,x3), car(y2)]), like(s), AGENT(s,x2), PATIENT(s,y2), LOCPRO(t0190), overlap(t0190,s), REFER(s)])])
+
+13. !!!unexpected error!!!
+If Mary likes John's car, she is stupid.
+Variable 'x' does not resolve to anything.
+14. !!!unexpected error!!!
+Mary likes John's car or she hates it.
+Variable 'x' does not resolve to anything.
+15. !!!unexpected error!!!
+Mary likes John's car or she hates his car.
+Variable 'x' does not resolve to anything.
+16. !!!unexpected error!!!
+Mary loves John and she likes his car.
+Variable 'z212' does not resolve to anything.
+17. !!!unexpected error!!!
+Mary loves John but she does not like his car.
+Variable 'z219' does not resolve to anything.
+18. !!!unexpected error!!!
+Mary loves John. If Mary likes his car, she is stupid.
+Variable 'z227' does not resolve to anything.
+19. !!!unexpected error!!!
+Mary loves John. She likes his car or hates it.
+Variable 'z238' does not resolve to anything.
+20. !!!unexpected error!!!
+Angus is away. Every farmer likes his donkey.
+Grammar does not cover some of the input words: "'Every'".
+
+21. None If Mary owns a car, Mary's car is black.
+
+Admissible interpretation:  ([n],[(([s,t,t0243,z242],[UTTER(t), ([x],[Mary(x)]), car(z242), own(s), AGENT(s,x4), PATIENT(s,x5), LOCPRO(t0243), overlap(t0243,s), REFER(s)]) -> ([s,t,t0244],[UTTER(t), ([y],[([x],[Mary(x)]), POSS(y,x2), car(y3)]), black(s), THEME(s,y3), LOCPRO(t0244), overlap(t0244,s), REFER(s)]))])
+
+#!!!#: !Unexpected error! #!!!#
+
+22. None If Mary owns a car, her car is black.
+
+Admissible interpretation:  ([n],[(([s,t,t0246,z245],[UTTER(t), ([x],[Mary(x)]), car(z245), own(s), AGENT(s,x4), PATIENT(s,x5), LOCPRO(t0246), overlap(t0246,s), REFER(s)]) -> ([s,t,t0247],[UTTER(t), ([x],[POSS(x,y2), ([y],[PPRO(y)]), car(x2)]), black(s), THEME(s,x2), LOCPRO(t0247), overlap(t0247,s), REFER(s)]))])
+
+#!!!#: !Unexpected error! #!!!#
+
+23. None Mary does not own a car or Mary's car is black.
+
+Admissible interpretation:  ([n],[(([t],[UTTER(t), ([x],[Mary(x)]), -([s,t0249,z248],[car(z248), own(s), AGENT(s,x4), PATIENT(s,x5), LOCPRO(t0249), overlap(t0249,s), REFER(s)])]) | ([s,t,t0250],[UTTER(t), ([y],[([x],[Mary(x)]), POSS(y,x2), car(y3)]), black(s), THEME(s,y3), LOCPRO(t0250), overlap(t0250,s), REFER(s)]))])
+
+#!!!#: !Unexpected error! #!!!#
+
+24. None Mary does not own a car or her car is black.
+
+Admissible interpretation:  ([n],[(([t],[UTTER(t), ([x],[Mary(x)]), -([s,t0252,z251],[car(z251), own(s), AGENT(s,x4), PATIENT(s,x5), LOCPRO(t0252), overlap(t0252,s), REFER(s)])]) | ([s,t,t0253],[UTTER(t), ([x],[POSS(x,y2), ([y],[PPRO(y)]), car(x2)]), black(s), THEME(s,x2), LOCPRO(t0253), overlap(t0253,s), REFER(s)]))])
+
+#!!!#: !Unexpected error! #!!!#
+
+25. None If Mary is out, Mary's husband is away.
+
+Admissible interpretation:  ([n],[(([s,t,t0254],[UTTER(t), ([x],[Mary(x)]), out(s), THEME(s,x3), LOCPRO(t0254), overlap(t0254,s), REFER(s)]) -> ([s,t,t0255],[UTTER(t), ([y],[([x],[Mary(x)]), POSS(y,x2), husband(y3)]), away(s), THEME(s,y3), LOCPRO(t0255), overlap(t0255,s), REFER(s)]))])
+
+No inadmissible readings
+
+26. None If Mary is out, her husband is away.
+
+Admissible interpretation:  ([n],[(([s,t,t0256],[UTTER(t), ([x],[Mary(x)]), out(s), THEME(s,x3), LOCPRO(t0256), overlap(t0256,s), REFER(s)]) -> ([s,t,t0257],[UTTER(t), ([x],[POSS(x,y2), ([y],[PPRO(y)]), husband(x2)]), away(s), THEME(s,x2), LOCPRO(t0257), overlap(t0257,s), REFER(s)]))])
+
+No inadmissible readings
+
+27. None If Mary is married, Mary's husband is away.
+
+Admissible interpretation:  ([n],[(([s,t,t0258],[UTTER(t), ([x],[Mary(x)]), married(s), THEME(s,x3), LOCPRO(t0258), overlap(t0258,s), REFER(s)]) -> ([s,t,t0259],[UTTER(t), ([y],[([x],[Mary(x)]), POSS(y,x2), husband(y3)]), away(s), THEME(s,y3), LOCPRO(t0259), overlap(t0259,s), REFER(s)]))])
+
+#!!!#: !Unexpected error! #!!!#
+
+28. None If Mary is married, her husband is away.
+
+Admissible interpretation:  ([n],[(([s,t,t0260],[UTTER(t), ([x],[Mary(x)]), married(s), THEME(s,x3), LOCPRO(t0260), overlap(t0260,s), REFER(s)]) -> ([s,t,t0261],[UTTER(t), ([x],[POSS(x,y2), ([y],[PPRO(y)]), husband(x2)]), away(s), THEME(s,x2), LOCPRO(t0261), overlap(t0261,s), REFER(s)]))])
+
+#!!!#: !Unexpected error! #!!!#
+24. !!!unexpected error!!!
+Angus owns a garden but wants a hammer. He needs the tool.
+Variable 'z271' does not resolve to anything.
+25. !!!failed reading (1)!!!
+
+The garden is abloom. The car is broken.
+
+Expected:	([n,s,s010,x,z9],[garden(x), abloom(s), THEME(s,x), overlap(n,s), car(z9), broken(s010), THEME(s010,z9), overlap(n,s010), overlap(s,s010)])
+
+Returns:	([n,s,t,t0274,t0275,z277,z278],[UTTER(t), ([x],[garden(x)]), abloom(s), THEME(s,x3), LOCPRO(t0274), overlap(t0274,s), REFER(s), UTTER(z277), ([z276],[car(z276)]), broken(z278), THEME(z278,x3), LOCPRO(t0275), overlap(t0275,z278), REFER(z278)])
+
+26. !!!failed reading (1)!!!
+
+A farmer owned a hammer. Fido bit him. The animal was stupid.
+
+Expected:	([e,n,s,s017,t,t012,t018,x,z6,z11],[earlier(t,n), farmer(x), hammer(z6), own(s), AGENT(s,x), PATIENT(s,z6), overlap(t,s), earlier(t012,n), Fido(z11), bite(e), AGENT(e,z11), PATIENT(e,x), include(t012,e), include(s,e), earlier(t018,n), animal(z11), stupid(s017), THEME(s017,z11), overlap(t018,s017), include(s017,e)])
+
+Returns:	([e,n,s,t,t02,t04,t0280,t0282,t0286,x,z279,z284,z285,z288,z289],[UTTER(t02), earlier(t,t02), farmer(x), hammer(z279), own(s), AGENT(s,x3), PATIENT(s,x4), LOCPRO(t0280), overlap(t0280,s), REFER(s), UTTER(z285), earlier(z284,z285), ([z283],[Fido(z283)]), ([z281],[(z281 = [x,z279,z285,z284,z288,z289])]), bite(e), AGENT(e,x2), PATIENT(e,x4), LOCPRO(t0282), include(t0282,e), REFER(e), UTTER(t04), earlier(z288,t04), ([z287],[animal(z287)]), stupid(z289), THEME(z289,x3), LOCPRO(t0286), overlap(t0286,z289), REFER(z289)])
+
+27. !!!failed reading (1)!!!
+
+A dog bit a cat. The feline was upset.
+
+Expected:	([e,n,s,t,t011,x,z6],[earlier(t,n), dog(x), cat(z6), bite(e), AGENT(e,x), PATIENT(e,z6), include(t,e), earlier(t011,n), feline(z6), upset(s), THEME(s,z6), overlap(t011,s), include(s,e)])
+
+Returns:	([e,n,s,t,t02,t04,t0291,t0292,x,z290,z294],[UTTER(t02), earlier(t,t02), dog(x), cat(z290), bite(e), AGENT(e,x3), PATIENT(e,x4), LOCPRO(t0291), include(t0291,e), REFER(e), UTTER(t04), earlier(z294,t04), ([z293],[feline(z293)]), upset(s), THEME(s,x3), LOCPRO(t0292), overlap(t0292,s), REFER(s)])
+
+
+	# ################################################################################ #
+	### ####################### Testing Inference Component  ####################### ###
+	# ################################################################################ #
+
+
+
+1. Mia is away Mia is not away
+
+Admissible interpretation:  ([n,s,t,t0295],[([t0298],[UTTER(t0298), ([z297],[Mia(z297)]), -([s0299,t0296],[away(s0299), THEME(s0299,x2), LOCPRO(t0296), overlap(t0296,s0299), REFER(s0299)])]), UTTER(t), ([x],[Mia(x)]), away(s), THEME(s,x2), LOCPRO(t0295), overlap(t0295,s), REFER(s)])
+
+#!!!#: !Unexpected error! #!!!#
+
+2. Mia is away Mia is away
+
+Admissible interpretation:  ([n,s,t,t0300],[([s0304,t0301,t0303],[UTTER(t0303), ([z302],[Mia(z302)]), away(s0304), THEME(s0304,x2), LOCPRO(t0301), overlap(t0301,s0304), REFER(s0304)]), UTTER(t), ([x],[Mia(x)]), away(s), THEME(s,x2), LOCPRO(t0300), overlap(t0300,s), REFER(s)])
+
+#!!!#: !Unexpected error! #!!!#
+
+3. Mia is away If Mia is away Angus is out
+
+Admissible interpretation:  ([n,s,t,t0305],[([],[(([s0310,t0306,t0309],[UTTER(t0309), ([z308],[Mia(z308)]), away(s0310), THEME(s0310,x3), LOCPRO(t0306), overlap(t0306,s0310), REFER(s0310)]) -> ([s0310,t0307,t0309],[UTTER(t0309), ([z308],[Angus(z308)]), out(s0310), THEME(s0310,x4), LOCPRO(t0307), overlap(t0307,s0310), REFER(s0310)]))]), UTTER(t), ([x],[Mia(x)]), away(s), THEME(s,x2), LOCPRO(t0305), overlap(t0305,s), REFER(s)])
+
+#!!!#: !Unexpected error! #!!!#
+
+4. Mia is away If Mia is not away Angus is out
+
+Admissible interpretation:  ([n,s,t,t0311],[([],[(([t0315],[UTTER(t0315), ([z314],[Mia(z314)]), -([s0316,t0312],[away(s0316), THEME(s0316,x3), LOCPRO(t0312), overlap(t0312,s0316), REFER(s0316)])]) -> ([s0316,t0313,t0315],[UTTER(t0315), ([z314],[Angus(z314)]), out(s0316), THEME(s0316,x4), LOCPRO(t0313), overlap(t0313,s0316), REFER(s0316)]))]), UTTER(t), ([x],[Mia(x)]), away(s), THEME(s,x2), LOCPRO(t0311), overlap(t0311,s), REFER(s)])
+
+#!!!#: !Unexpected error! #!!!#
+
+5. Mia is away If Angus is out Mia is away
+
+Admissible interpretation:  ([n,s,t,t0317],[([],[(([s0322,t0318,t0321],[UTTER(t0321), ([z320],[Angus(z320)]), out(s0322), THEME(s0322,x3), LOCPRO(t0318), overlap(t0318,s0322), REFER(s0322)]) -> ([s0322,t0319,t0321],[UTTER(t0321), ([z320],[Mia(z320)]), away(s0322), THEME(s0322,x4), LOCPRO(t0319), overlap(t0319,s0322), REFER(s0322)]))]), UTTER(t), ([x],[Mia(x)]), away(s), THEME(s,x2), LOCPRO(t0317), overlap(t0317,s), REFER(s)])
+
+#!!!#: !Unexpected error! #!!!#
+
+6. Mia is away If Angus is out Mia is not away
+
+Admissible interpretation:  ([n,s,t,t0323],[([],[(([s0328,t0324,t0327],[UTTER(t0327), ([z326],[Angus(z326)]), out(s0328), THEME(s0328,x3), LOCPRO(t0324), overlap(t0324,s0328), REFER(s0328)]) -> ([t0327],[UTTER(t0327), ([z326],[Mia(z326)]), -([s0328,t0325],[away(s0328), THEME(s0328,x4), LOCPRO(t0325), overlap(t0325,s0328), REFER(s0328)])]))]), UTTER(t), ([x],[Mia(x)]), away(s), THEME(s,x2), LOCPRO(t0323), overlap(t0323,s), REFER(s)])
+
+#!!!#: !Unexpected error! #!!!#
+
+7. Mia is away Angus is out or Mia is away
+
+Admissible interpretation:  ([n,s,t,t0329],[([],[(([s0334,t0330,t0333],[UTTER(t0333), ([z332],[Angus(z332)]), out(s0334), THEME(s0334,x3), LOCPRO(t0330), overlap(t0330,s0334), REFER(s0334)]) | ([s0334,t0331,t0333],[UTTER(t0333), ([z332],[Mia(z332)]), away(s0334), THEME(s0334,x4), LOCPRO(t0331), overlap(t0331,s0334), REFER(s0334)]))]), UTTER(t), ([x],[Mia(x)]), away(s), THEME(s,x2), LOCPRO(t0329), overlap(t0329,s), REFER(s)])
+
+#!!!#: !Unexpected error! #!!!#
+
+8. Mia is away Angus is out or Mia is not away
+
+Admissible interpretation:  ([n,s,t,t0335],[([],[(([s0340,t0336,t0339],[UTTER(t0339), ([z338],[Angus(z338)]), out(s0340), THEME(s0340,x3), LOCPRO(t0336), overlap(t0336,s0340), REFER(s0340)]) | ([t0339],[UTTER(t0339), ([z338],[Mia(z338)]), -([s0340,t0337],[away(s0340), THEME(s0340,x4), LOCPRO(t0337), overlap(t0337,s0340), REFER(s0340)])]))]), UTTER(t), ([x],[Mia(x)]), away(s), THEME(s,x2), LOCPRO(t0335), overlap(t0335,s), REFER(s)])
+
+#!!!#: !Unexpected error! #!!!#
+
+	# ################################################################################ #
+	### ######################## Testing Temporal Component ######################## ###
+	# ################################################################################ #
+
+
+1. !!!failed reading (1)!!!
+
+Angus owns a car
+
+Expected:	([n,s,x,z6],[Angus(x), car(z6), own(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)])
+
+Returns:	([n,s,t,t0342,z341],[UTTER(t), ([x],[Angus(x)]), car(z341), own(s), AGENT(s,x2), PATIENT(s,x3), LOCPRO(t0342), overlap(t0342,s), REFER(s)])
+
+2. !!!failed reading (1)!!!
+
+Angus does not own a car
+
+Expected:	([n,x],[Angus(x), -([s,z9],[car(z9), own(s), AGENT(s,x), PATIENT(s,z9), overlap(n,s)])])
+
+Returns:	([n,t],[UTTER(t), ([x],[Angus(x)]), -([s,t0344,z343],[car(z343), own(s), AGENT(s,x2), PATIENT(s,x3), LOCPRO(t0344), overlap(t0344,s), REFER(s)])])
+
+3. !!!failed reading (1)!!!
+
+Angus owned a car
+
+Expected:	([n,s,t,x,z13],[earlier(t,n), Angus(x), car(z13), own(s), AGENT(s,x), PATIENT(s,z13), overlap(t,s)])
+
+Returns:	([n,s,t,t02,t0347,z346],[UTTER(t02), earlier(t,t02), ([x],[Angus(x)]), car(z346), own(s), AGENT(s,x2), PATIENT(s,x3), LOCPRO(t0347), overlap(t0347,s), REFER(s)])
+
+4. !!!failed reading (1)!!!
+
+Angus did not own a car
+
+Expected:	([n,t,x],[earlier(t,n), Angus(x), -([s,z16],[car(z16), own(s), AGENT(s,x), PATIENT(s,z16), overlap(t,s)])])
+
+Returns:	([n,t,t02],[UTTER(t02), earlier(t,t02), ([x],[Angus(x)]), -([s,t0349,z348],[car(z348), own(s), AGENT(s,x2), PATIENT(s,x3), LOCPRO(t0349), overlap(t0349,s), REFER(s)])])
+
+5. !!!failed reading (1)!!!
+
+Angus will own a car
+
+Expected:	([n,s,t,x,z20],[earlier(n,t), Angus(x), car(z20), own(s), AGENT(s,x), PATIENT(s,z20), overlap(t,s)])
+
+Returns:	([n,s,t,t01,t0352,z351],[UTTER(t01), earlier(t01,t), ([x],[Angus(x)]), car(z351), own(s), AGENT(s,x2), PATIENT(s,x3), LOCPRO(t0352), overlap(t0352,s), REFER(s)])
+
+6. !!!failed reading (1)!!!
+
+Angus will not own a car
+
+Expected:	([n,t,x],[earlier(n,t), Angus(x), -([s,z23],[car(z23), own(s), AGENT(s,x), PATIENT(s,z23), overlap(t,s)])])
+
+Returns:	([n,t,t01],[UTTER(t01), earlier(t01,t), ([x],[Angus(x)]), -([s,t0354,z353],[car(z353), own(s), AGENT(s,x2), PATIENT(s,x3), LOCPRO(t0354), overlap(t0354,s), REFER(s)])])
+
+7. !!!failed reading (1)!!!
+
+A dog bit Angus
+
+Expected:	([e,n,t,x,z27],[earlier(t,n), dog(x), Angus(z27), bite(e), AGENT(e,x), PATIENT(e,z27), include(t,e)])
+
+Returns:	([e,n,t,t02,t0357,x],[UTTER(t02), earlier(t,t02), dog(x), ([z356],[Angus(z356)]), bite(e), AGENT(e,x3), PATIENT(e,x2), LOCPRO(t0357), include(t0357,e), REFER(e)])
+
+8. !!!unexpected error!!!
+Everyone owned a car
+Grammar does not cover some of the input words: "'Every'".
+9. !!!unexpected error!!!
+Everyone owned a dog but wanted a car
+Grammar does not cover some of the input words: "'Every'".
+10. !!!unexpected error!!!
+Angus will buy every car.
+Grammar does not cover some of the input words: "'every'".
+11. !!!failed reading (1)!!!
+
+Angus has written a letter
+
+Expected:	([e,n,s,x,z39],[include(s,n), Angus(x), letter(z39), write(e), AGENT(e,x), PATIENT(e,z39), abut(e,s)])
+
+Returns:	([e,n,s,t,z358],[UTTER(t), include(s,t), REFER(s), ([x],[Angus(x)]), letter(z358), write(e), AGENT(e,x2), PATIENT(e,x3), PERF(e)])
+
+12. !!!failed reading (1)!!!
+
+Angus has not written a letter
+
+Expected:	([n,s,x],[include(s,n), Angus(x), -([e,z41],[letter(z41), write(e), AGENT(e,x), PATIENT(e,z41), abut(e,s)])])
+
+Returns:	([n,s,t],[UTTER(t), include(s,t), REFER(s), ([x],[Angus(x)]), -([e,z360],[letter(z360), write(e), AGENT(e,x2), PATIENT(e,x3), PERF(e)])])
+
+13. !!!failed reading (1)!!!
+
+No one has written a letter
+
+Expected:	([n,s],[include(s,n), -([e,x,z44],[human(x), letter(z44), write(e), AGENT(e,x), PATIENT(e,z44), abut(e,s)])])
+
+Returns:	([n,s,t],[UTTER(t), include(s,t), REFER(s), -([e,x,z362],[human(x), letter(z362), write(e), AGENT(e,x3), PATIENT(e,x4), PERF(e)])])
+
+14. !!!failed reading (1)!!!
+
+Angus had died
+
+Expected:	([e,n,s,t,x],[overlap(s,t), earlier(t,n), Angus(x), die(e), AGENT(e,x), abut(e,s)])
+
+Returns:	([e,n,s,t,t03],[UTTER(t03), overlap(s,t), earlier(t,t03), REFER(s), ([x],[Angus(x)]), die(e), AGENT(e,x2), PERF(e)])
+
+15. !!!failed reading (1)!!!
+
+Angus had not died
+
+Expected:	([n,s,t,x],[overlap(s,t), earlier(t,n), Angus(x), -([e],[die(e), AGENT(e,x), abut(e,s)])])
+
+Returns:	([n,s,t,t03],[UTTER(t03), overlap(s,t), earlier(t,t03), REFER(s), ([x],[Angus(x)]), -([e],[die(e), AGENT(e,x2), PERF(e)])])
+
+16. !!!unexpected error!!!
+Mary kissed John. He smiled
+Variable 'z371' does not resolve to anything.
+17. !!!unexpected error!!!
+Mary will kiss John and he will smile
+Variable 'z378' does not resolve to anything.
+18. !!!unexpected error!!!
+John bought a fancy car. He was rich.
+Variable 'z382' does not resolve to anything.
+19. !!!failed reading (1)!!!
+
+John was away. His car was broken
+
+Expected:	([n,s,s070,t,t072,x,y],[earlier(t,n), John(x), away(s), THEME(s,x), overlap(t,s), earlier(t072,n), POSS(y,x), car(y), broken(s070), THEME(s070,y), overlap(t072,s070), overlap(s,s070)])
+
+Returns:	([n,s,t,t04,t0384,t0385,z387,z388,z389],[UTTER(t04), earlier(t,t04), ([x],[John(x)]), away(s), THEME(s,x2), LOCPRO(t0384), overlap(t0384,s), REFER(s), UTTER(z387), earlier(z388,z387), ([z386],[POSS(z386,y3), ([y],[PPRO(y)]), car(x3)]), broken(z389), THEME(z389,x3), LOCPRO(t0385), overlap(t0385,z389), REFER(z389)])
+
+20. !!!unexpected error!!!
+If John owns a car he is rich
+Variable 'x' does not resolve to anything.
+21. !!!unexpected error!!!
+John owns a broken car or he is rich
+Variable 'x' does not resolve to anything.
+
+22. Mia died Mia will die
+
+Admissible interpretation:  ([e,n,t,t02,t0396],[([e0398,t01,t0397,t0399],[UTTER(t01), earlier(t01,t0399), ([z400],[Mia(z400)]), die(e0398), AGENT(e0398,x2), LOCPRO(t0397), include(t0397,e0398), REFER(e0398)]), UTTER(t02), earlier(t,t02), ([x],[Mia(x)]), die(e), AGENT(e,x2), LOCPRO(t0396), include(t0396,e), REFER(e)])
+
+#!!!#: !Unexpected error! #!!!#
+
+23. Jones has died Jones is dead
+
+Admissible interpretation:  ([e,n,s,t],[([s0404,t0401,t0403],[UTTER(t0403), ([z402],[Jones(z402)]), dead(s0404), THEME(s0404,x2), LOCPRO(t0401), overlap(t0401,s0404), REFER(s0404)]), UTTER(t), include(s,t), REFER(s), ([x],[Jones(x)]), die(e), AGENT(e,x2), PERF(e)])
+
+#!!!#: !Unexpected error! #!!!#
+
+	##################################### THE  END #####################################

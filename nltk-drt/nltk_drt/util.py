@@ -7,13 +7,13 @@ __date__ = "Tue, 24 Aug 2010"
 
 import re
 from nltk import load_parser
-from temporaldrt import DrtVariableExpression, unique_variable, NewInfoDRS
-from presuppdrt import ResolutionException, DrtParser as PresuppDrtParser
-from presuppdrt import DrtConcatenation, DrtExpression
+from .temporaldrt import DrtVariableExpression, unique_variable, NewInfoDRS
+from .presuppdrt import ResolutionException, DrtParser as PresuppDrtParser
+from .presuppdrt import DrtConcatenation, DrtExpression
 from types import LambdaType
 from nltk.sem.logic import AndExpression, LogicalExpressionException, LogicParser
 from nltk.sem import drt
-from inference import inference_check, get_bk, AdmissibilityError, ConsistencyError, InformativityError
+from .inference import inference_check, get_bk, AdmissibilityError, ConsistencyError, InformativityError
 
 class UngrammaticalException(Exception):
     pass

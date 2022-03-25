@@ -8,8 +8,9 @@ __date__ = "Tue, 24 Aug 2010"
 
 import nltk
 from nltk.corpus.reader.wordnet import WordNetCorpusReader
-import temporaldrt as drt
-from temporaldrt import DrtTokens, DrtFeatureConstantExpression
+#import temporaldrt as drt
+from . import temporaldrt as drt
+from .temporaldrt import DrtTokens, DrtFeatureConstantExpression
 
 class DefiniteDescriptionDRS(drt.DefiniteDescriptionDRS):
     def __init__(self, refs, conds):
@@ -128,6 +129,9 @@ class DrtParser(drt.DrtParser):
             return drt.DrtParser.handle_PresuppositionDRS(self, tok, context)
 
 def test():
+    """
+    Test function
+    """
     wn = WordNetLookup()
 
     dog_syn = wn._noun_synset('dog', ind=1)

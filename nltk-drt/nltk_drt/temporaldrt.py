@@ -6,41 +6,42 @@ __author__ = "Peter Makarov, Alex Kislev, Emma Li"
 __version__ = "1.0"
 __date__ = "Tue, 24 Aug 2010"
 
-import presuppdrt as drt
+#import presuppdrt as drt
+from . import presuppdrt as drt
 from nltk.sem.logic import Variable
-from presuppdrt import DrsDrawer
-from presuppdrt import ReverseIterator
-from presuppdrt import AnaphoraResolutionException
-from presuppdrt import DrtApplicationExpression
-from presuppdrt import DrtTimeVariableExpression
-from presuppdrt import DRS
-from presuppdrt import DrtExpression
-from presuppdrt import DrtVariableExpression
-from presuppdrt import DrtStateVariableExpression
-from presuppdrt import Binding
-from presuppdrt import DrtEventVariableExpression
-from presuppdrt import VariableReplacer
-from presuppdrt import ConditionReplacer
-from presuppdrt import ConditionRemover
-from presuppdrt import DrtEqualityExpression
-from presuppdrt import DrtConstantExpression
-from presuppdrt import unique_variable
-from presuppdrt import DrtNegatedExpression
-from presuppdrt import is_statevar
-from presuppdrt import is_eventvar
-from presuppdrt import is_timevar
-from presuppdrt import is_uttervar
-from presuppdrt import DrtAbstractVariableExpression
-from presuppdrt import DrtUtterVariableExpression
-from presuppdrt import DrtIndividualVariableExpression
-from presuppdrt import DefiniteDescriptionDRS
-from presuppdrt import DrtEventualityApplicationExpression
-from presuppdrt import DrtLambdaExpression
-from presuppdrt import DrtBooleanExpression
-from presuppdrt import DrtConcatenation
-from presuppdrt import DrtImpExpression
-from presuppdrt import DrtOrExpression
-from presuppdrt import DrtFeatureConstantExpression
+from .presuppdrt import DrsDrawer
+from .presuppdrt import ReverseIterator
+from .presuppdrt import AnaphoraResolutionException
+from .presuppdrt import DrtApplicationExpression
+from .presuppdrt import DrtTimeVariableExpression
+from .presuppdrt import DRS
+from .presuppdrt import DrtExpression
+from .presuppdrt import DrtVariableExpression
+from .presuppdrt import DrtStateVariableExpression
+from .presuppdrt import Binding
+from .presuppdrt import DrtEventVariableExpression
+from .presuppdrt import VariableReplacer
+from .presuppdrt import ConditionReplacer
+from .presuppdrt import ConditionRemover
+from .presuppdrt import DrtEqualityExpression
+from .presuppdrt import DrtConstantExpression
+from .presuppdrt import unique_variable
+from .presuppdrt import DrtNegatedExpression
+from .presuppdrt import is_statevar
+from .presuppdrt import is_eventvar
+from .presuppdrt import is_timevar
+from .presuppdrt import is_uttervar
+from .presuppdrt import DrtAbstractVariableExpression
+from .presuppdrt import DrtUtterVariableExpression
+from .presuppdrt import DrtIndividualVariableExpression
+from .presuppdrt import DefiniteDescriptionDRS
+from .presuppdrt import DrtEventualityApplicationExpression
+from .presuppdrt import DrtLambdaExpression
+from .presuppdrt import DrtBooleanExpression
+from .presuppdrt import DrtConcatenation
+from .presuppdrt import DrtImpExpression
+from .presuppdrt import DrtOrExpression
+from .presuppdrt import DrtFeatureConstantExpression
 
 class DrtTokens(drt.DrtTokens):
     NEWINFO_DRS = 'NEWINFO'

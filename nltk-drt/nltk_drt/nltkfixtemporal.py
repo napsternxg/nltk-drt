@@ -1,4 +1,4 @@
-from temporaldrt import DRS, DrtLambdaExpression, DrtApplicationExpression, DrtAbstractVariableExpression, DrtNegatedExpression, DrsDrawer
+from .temporaldrt import DRS, DrtLambdaExpression, DrtApplicationExpression, DrtAbstractVariableExpression, DrtNegatedExpression, DrsDrawer
 from nltk.sem.logic import BinaryExpression
 
 def _handle(self, expression, command, x=0, y=0):

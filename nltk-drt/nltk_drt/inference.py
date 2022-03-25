@@ -56,7 +56,7 @@ from nltk.sem import drt
 from nltk.inference.mace import MaceCommand
 from nltk.inference.prover9 import convert_to_prover9
 from nltk.sem.logic import AndExpression, NegatedExpression
-from temporaldrt import DRS, DrtExpression, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
+from .temporaldrt import DRS, DrtExpression, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
                         DrtApplicationExpression, ReverseIterator, DrtTokens, NewInfoDRS, \
                         DrtConcatenation, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
                         DrtEventualityApplicationExpression

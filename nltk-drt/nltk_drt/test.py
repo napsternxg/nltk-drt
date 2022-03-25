@@ -5,8 +5,8 @@ __author__ = "Alex Kislev, Emma Li, Peter Makarov"
 __version__ = "1.0"
 __date__ = "Tue, 24 Aug 2010"
 
-from util import Tester
-from wntemporaldrt import DrtParser
+from .util import Tester
+from .wntemporaldrt import DrtParser
 
 #background knowledge
 BK = {

@@ -1,5 +1,7 @@
 """
-NLTK DRT module extended with presuppositions
+.. module:: curt
+   :synopsis: A useful module indeed.
+
 """
 
 __author__ = "Alex Kislev, Emma Li, Peter Makarov"
@@ -7,10 +9,10 @@ __version__ = "1.0"
 __date__ = "Tue, 24 Aug 2010"
 
 import random
-from test import BK
-from util import Tester, UngrammaticalException
-from temporaldrt import DrtParser
-from inference import AdmissibilityError, ConsistencyError, InformativityError
+from .test import BK
+from .util import Tester, UngrammaticalException
+from .temporaldrt import DrtParser
+from .inference import AdmissibilityError, ConsistencyError, InformativityError
 
 class Curt(object):
     INADMISSIBLE = ["That's Greek to me", "Do you get my drift?", "Now, hold your horses!", "Well, I dunno...", "Neither rhyme nor reason."]
@@ -74,6 +76,9 @@ class Curt(object):
         return str(self.discourse)
 
 def main():
+    """
+    Main function.
+    """
     show_model = False
     explicit = False
     verbose = False
