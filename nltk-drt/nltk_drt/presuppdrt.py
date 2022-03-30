@@ -29,11 +29,11 @@ from functools import reduce
 #from copy import deepcopy
 import copy
 
+from typing import *
 
 
 class TimeType(BasicType):
-    """
-    Basic type of times added on top of nltk.sem.logic.
+    """Basic type of times added on top of nltk.sem.logic.
     """
     def __str__(self):
         return 'i'
@@ -44,8 +44,7 @@ class TimeType(BasicType):
 TIME_TYPE = TimeType()
 
 class StateType(BasicType):
-    """
-    Basic type of states added on top of nltk.sem.logic.
+    """Basic type of states added on top of nltk.sem.logic.
     """
     def __str__(self):
         return 's'
@@ -55,61 +54,65 @@ class StateType(BasicType):
 
 STATE_TYPE = StateType()
 
-def is_indvar(expr):
-    """
-    An individual variable must be a single lowercase character other than 'e', 't', 'n', 's',
+def is_indvar(expr: str) -> bool:
+    """An individual variable must be a single lowercase character other than 'e', 't', 'n', 's',
     followed by zero or more digits.
 
-    @param expr: C{str}
-    @return: C{boolean} True if expr is of the correct form
+    :param expr: expression
+    :type expr: str
+    :return: True if expr is of the correct form
+    :rtype: bool
     """
     assert isinstance(expr, str), "%s is not a string" % expr
     return re.match(r'^[a-df-mo-ru-z]\d*$', expr)
 
-def is_timevar(expr):
-    """
-    An time variable must be a single lowercase 't' or 'n' character followed by
+def is_timevar(expr: str) -> bool:
+    """An time variable must be a single lowercase 't' or 'n' character followed by
     zero or more digits. Do we need a separate type for utterance time n?
 
-    @param expr: C{str}
-    @return: C{boolean} True if expr is of the correct form
+    :param expr: expression
+    :type expr: str
+    :return: True if expr is of the correct form
+    :rtype: bool
     """
     assert isinstance(expr, str), "%s is not a string" % expr
     return re.match(r'^[tn]\d*$', expr)
 
 
-def is_statevar(expr):
-    """
-    An state variable must be a single lowercase 's' character followed by
+def is_statevar(expr: str) -> bool:
+    """An state variable must be a single lowercase 's' character followed by
     zero or more digits.
 
-    @param expr: C{str}
-    @return: C{boolean} True if expr is of the correct form
+    :param expr: expression
+    :type expr: str
+    :return: True if expr is of the correct form
+    :rtype: bool
     """
     assert isinstance(expr, str), "%s is not a string" % expr
     return re.match(r'^s\d*$', expr)
 
 
-def is_uttervar(expr):
-    """
-    An utterance time variable must be a single lowercase 'n' character followed by
+def is_uttervar(expr: str) -> bool:
+    """An utterance time variable must be a single lowercase 'n' character followed by
     zero or more digits.
 
-    @param expr: C{str}
-    @return: C{boolean} True if expr is of the correct form
+    :param expr: expression
+    :type expr: str
+    :return: True if expr is of the correct form
+    :rtype: bool
     """
     assert isinstance(expr, str), "%s is not a string" % expr
     return re.match(r'^n\d*$', expr)
 
 
-def unique_variable(pattern=None, ignore=None):
-    """
-    Return a new, unique variable.
-    param pattern: C{Variable} that is being replaced.  The new variable must
-    be the same type.
-    param term: a C{set} of C{Variable}s that should not be returned from
-    this function.
-    return: C{Variable}
+def unique_variable(pattern: Optional[Variable] = None, ignore: Optional[Set[Variable]] = None) -> Variable:
+    """Return a new, unique variable.
+
+    :param pattern: ``Variable`` that is being replaced.  The new variable must be the same type.
+    :type pattern: Variable
+    :param ignore: a set of ``Variable`` that should not be returned from this function.
+    :type ignore: Set[Variable]
+    :rtype: Variable
     """
     if pattern is not None:
         if is_indvar(pattern.name):
@@ -134,35 +137,29 @@ def unique_variable(pattern=None, ignore=None):
 
 class TimeVariableExpression(IndividualVariableExpression):
     """This class represents variables that take the form of a single lowercase
-    'i' character followed by zero or more digits."""
+    'i' character followed by zero or more digits.
+
+    :classes: `IndividualVariableExpression`
+    """
     type = TIME_TYPE
 
 class StateVariableExpression(IndividualVariableExpression):
     """This class represents variables that take the form of a single lowercase
-    's' character followed by zero or more digits."""
+    's' character followed by zero or more digits.
+    
+    :classes: `IndividualVariableExpression`
+    """
     type = STATE_TYPE
 
 def is_unary_predicate(expr):
-    """check whether the given expression is an unary predicate"""
+    """Check whether the given expression is an unary predicate
+    
+    :classes: `IndividualVariableExpression`"""
     return isinstance(expr, DrtApplicationExpression) and isinstance(expr.function, DrtAbstractVariableExpression)
 
-class ReverseIterator:
-    """A generator which yields the given sequence in a reverse order"""
-    def __init__(self, sequence, start= -1):
-        self.sequence = sequence
-        self.start = start
-    def __iter__(self):
-        if self.start > 0:
-            i = self.start + 1
-        else:
-            i = len(self.sequence) + self.start + 1
-        while i > 0:
-            i -= 1
-            yield self.sequence[i]
 
 class Reading(list):
-    """
-    A single reading, consists of a list of operations
+    """A single reading, consists of a list of operations
     each operation is a tuple of a DRS and a function,
     where the function would be executed on the given DRS
     when the reading is generated
@@ -170,56 +167,37 @@ class Reading(list):
     pass
 
 class Binding(Reading):
+    """Binding
+    
+    :classes: `Reading`
+    """
     pass
 
 class LocalAccommodation(Reading):
+    """Local accomodation
+
+    :classes: `Reading`
+    """
     pass
 
 class IntermediateAccommodation(Reading):
+    """Intermediate accomodation
+    
+    :classes: `Reading`"""
     pass
 
 class GlobalAccommodation(Reading):
+    """Global accomodation
+    
+    :classes: `Reading`"""
     pass
 
-class VariableReplacer(object):
-    """A generic variable replacer functor to be used in readings"""
-    def __init__(self, var, new_var, remove_ref=True):
-        self.var = var
-        self.new_var = new_var
-        self.remove_ref = remove_ref
-    def __call__(self, drs):
-        if self.remove_ref:
-            drs.refs.remove(self.var)
-        return drs.__class__(drs.refs, [cond.replace(self.var, self.new_var, False) for cond in drs.conds])
-
-class ConditionReplacer(object):
-    """
-    A generic condition replacer functor to be used in readings
-    replace the condition at the given index with any number of
-    conditions, optionally adds a referent
-    """
-    def __init__(self, index, conds, ref=None):
-        self.index = index
-        self.conds = conds
-        self.ref = ref
-    def __call__(self, drs):
-        if self.ref:
-            drs.refs.append(self.ref)
-        drs.conds[self.index:self.index + 1] = self.conds
-        return drs
-
-class ConditionRemover(object):
-    """A generic condition remover functor to be used in readings"""
-    def __init__(self, cond_index):
-        self.cond_index = cond_index
-    def __call__(self, drs):
-        drs.conds.pop(self.cond_index)
-        return drs
 
 class ResolutionException(Exception):
     pass
 
 class DrtTokens(drt.DrtTokens):
+    """Extended tokens from ``drt.DrtTokens``"""
     OPEN_BRACE = '{'
     CLOSE_BRACE = '}'
     PUNCT = [OPEN_BRACE, CLOSE_BRACE]
@@ -254,7 +232,7 @@ class DrtExpression(drt.DrtExpression):
     def __neg__(self):
         return DrtNegatedExpression(self)
 
-    def __or__(self, other):
+    def __or__(self, other: 'DrtExpression'):
         assert isinstance(other, DrtExpression)
         return DrtOrExpression(self, other)
 
@@ -272,10 +250,12 @@ class DrtExpression(drt.DrtExpression):
     def __deepcopy__(self, memo):
         return self.deepcopy()
 
-    def make_EqualityExpression(self, first, second):
+    def make_EqualityExpression(self, first: 'DrtExpression', second: 'DrtExpression'):
+        """This method serves as a hook for other logic parsers that have different equality expression classes"""
         return DrtEqualityExpression(first, second)
 
-    def make_VariableExpression(self, variable):
+    def make_VariableExpression(self, variable: 'Variable'):
+        """Make variable expression"""
         return DrtVariableExpression(variable)
 
     def normalize(self):
@@ -304,7 +284,8 @@ class DrtExpression(drt.DrtExpression):
                         self.make_VariableExpression(Variable(newVar)), True)
         return result
 
-    def substitute_bindings(self, bindings):
+    def substitute_bindings(self, bindings: Dict[Any, Any]) -> 'DrtExpression':
+        """Substitute bindings. TODO"""
         expr = self
         for var in expr.variables():
             val = bindings.get(var, None)
@@ -386,7 +367,7 @@ class DRS(DrtExpression, drt.DRS):
         if not self.conds:
             raise Exception("Cannot convert DRS with no conditions to FOL.")
         accum = reduce(AndExpression, [c.fol() for c in self.conds])
-        for ref in ReverseIterator(self.refs):
+        for ref in reversed(self.refs):
             accum = ExistsExpression(ref, AndExpression(accum, self._ref_type(ref).fol()))
         return accum
 
@@ -858,7 +839,7 @@ class PresuppositionDRS(DRS):
 
     def _find_local_drs(self, trail):
         drs = None
-        for expr in ReverseIterator(trail):
+        for expr in reversed(trail):
             if drs:
                 if not isinstance(expr, DrtNegatedExpression):
                     return drs
@@ -1218,7 +1199,7 @@ class DefiniteDescriptionDRS(PresuppositionDRS):
         for drsindex, drs in enumerate(trail):
             drs_readings = []
             if drsindex in possible_bindings:
-                for cond in ReverseIterator(possible_bindings[drsindex]):
+                for cond in reversed(possible_bindings[drsindex]):
                     variable = cond.argument.variable
                     if self._is_binding(variable, individuals[variable], self._get_defdescr_events(event_data), event_data, presupp_event_data, presupp_individuals) and \
                     not cond.argument in antecedent_tracker:
@@ -1436,6 +1417,57 @@ class DrtParser(drt.DrtParser):
 
     def make_LambdaExpression(self, variables, term):
         return DrtLambdaExpression(variables, term)
+
+
+class ConditionRemover(object):
+    """A generic condition remover functor to be used in readings"""
+    def __init__(self, cond_index: int):
+        self.cond_index = cond_index
+    def __call__(self, drs: DRS):
+        drs.conds.pop(self.cond_index)
+        return drs
+
+
+class VariableReplacer(object):
+    """A generic variable replacer functor to be used in readings
+    
+    :param var: replaced variable
+    :type var: Variable
+    :param new_var: replacement variable
+    :type new_var: Variable
+    :param remove_ref: remove reference (??)
+    :type remove_ref: bool
+    """
+    def __init__(self, var: Variable, new_var: Variable, remove_ref: bool=True):
+        self.var = var
+        self.new_var = new_var
+        self.remove_ref = remove_ref
+
+    def __call__(self, drs: DRS) -> DRS:
+        if self.remove_ref:
+            drs.refs.remove(self.var)
+        return drs.__class__(drs.refs, [cond.replace(self.var, self.new_var, False) for cond in drs.conds])
+
+
+class ConditionReplacer(object):
+    """A generic condition replacer functor to be used in readings
+    replace the condition at the given index with any number of
+    conditions, optionally adds a referent
+
+    :param index: index of the condition
+    :type index: int
+    :param conds: list of ``DrtExpression`` for conditions
+    :type conds: List[DrtExpression]
+    """
+    def __init__(self, index: int, conds: List[DrtExpression], ref: Optional[bool] = None):
+        self.index = index
+        self.conds = conds
+        self.ref = ref
+    def __call__(self, drs: drt.DRS):
+        if self.ref:
+            drs.refs.append(self.ref)
+        drs.conds[self.index:self.index + 1] = self.conds
+        return drs
 
 drt.DRS.deepcopy = lambda self, *args: copy.deepcopy(self)
 drt.DrtIndividualVariableExpression.deepcopy = DrtIndividualVariableExpression.deepcopy

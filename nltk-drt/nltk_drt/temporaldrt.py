@@ -10,7 +10,6 @@ __date__ = "Tue, 24 Aug 2010"
 from . import presuppdrt as drt
 from nltk.sem.logic import Variable
 from .presuppdrt import DrsDrawer
-from .presuppdrt import ReverseIterator
 from .presuppdrt import AnaphoraResolutionException
 from .presuppdrt import DrtApplicationExpression
 from .presuppdrt import DrtTimeVariableExpression
@@ -82,13 +81,13 @@ class DrtLocationTimeApplicationExpression(DrtTimeApplicationExpression):
     def readings(self, trail=[]):
         utter_time_search = False
 
-        for drs in (ancestor for ancestor in ReverseIterator(trail) if isinstance(ancestor, DRS)):
+        for drs in (ancestor for ancestor in reversed(trail) if isinstance(ancestor, DRS)):
             search_list = drs.refs
 
             if self.argument.variable in drs.refs:
                 search_list = drs.refs[:drs.refs.index(self.argument.variable)]
 
-            for ref in ReverseIterator(search_list):
+            for ref in reversed(search_list):
                 refex = DrtVariableExpression(ref)
 
                 if isinstance(refex, DrtUtterVariableExpression):
@@ -148,7 +147,7 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
         state_reference_point = None
         index = trail[-1].conds.index(self)
         #state reference point in case there are no previous events
-        for drs in (ancestor for ancestor in ReverseIterator(trail) if isinstance(ancestor, DRS)):
+        for drs in (ancestor for ancestor in reversed(trail) if isinstance(ancestor, DRS)):
 
             search_list = drs.refs
 
@@ -159,7 +158,7 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
 
                 search_list = drs.refs[:drs.refs.index(self.argument.variable)]
 
-            for ref in ReverseIterator(search_list):
+            for ref in reversed(search_list):
                 #search for the most recent reference
                 refex = DrtVariableExpression(ref)
 

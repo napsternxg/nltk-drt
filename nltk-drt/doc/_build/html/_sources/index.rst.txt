@@ -9,6 +9,9 @@ Welcome to NLTK-DRT Extension's documentation!
 
 .. automodule:: nltk_drt.curt
     :members:
+.. automodule:: nltk_drt.presuppdrt
+    :members:
+    :special-members:
 .. automodule:: nltk_drt.test
     :members:
 

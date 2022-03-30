@@ -57,7 +57,7 @@ from nltk.inference.mace import MaceCommand
 from nltk.inference.prover9 import convert_to_prover9
 from nltk.sem.logic import AndExpression, NegatedExpression
 from .temporaldrt import DRS, DrtExpression, DrtBooleanExpression, DrtNegatedExpression, DrtConstantExpression, \
-                        DrtApplicationExpression, ReverseIterator, DrtTokens, NewInfoDRS, \
+                        DrtApplicationExpression, DrtTokens, NewInfoDRS, \
                         DrtConcatenation, DrtImpExpression, DrtOrExpression, PresuppositionDRS, \
                         DrtEventualityApplicationExpression
 
@@ -317,7 +317,7 @@ def inference_check(expr, background_knowledge=False, verbose=False):
         if verbose:
             print("### Informativity check initiated...\n")
         local_check = []
-        for cond in ReverseIterator(expression.conds):
+        for cond in reversed(expression.conds):
             if isinstance(cond, DRS) and \
             not isinstance(cond, PresuppositionDRS):
                 #New discourse in the previous discourse
