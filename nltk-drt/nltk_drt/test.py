@@ -28,7 +28,15 @@ BK = {
     }
 
 
-def test_anaphora(tester):
+def test_anaphora(tester: Tester) -> None:
+    """Method for testing anaphora resolution
+
+    :param tester: testing tool
+    :type tester: Tester
+    
+    :return: Does not return anything, just using 'assert'
+    :rtype: None
+    """
     cases = [
     (1, "He wants a car. Jones needs it.", None),
 
@@ -77,7 +85,15 @@ def test_anaphora(tester):
     tester.test(cases)
 
 
-def test_presupposition(tester):
+def test_presupposition(tester: Tester) -> None:
+    """Method to test "presupposition as anaphora" cases
+
+    :param tester: testing tool
+    :type tester: Tester
+    
+    :return: Does not return anything, just using 'assert'
+    :rtype: None
+    """
 
     cases = [
     #definite description
@@ -159,7 +175,16 @@ def test_presupposition(tester):
     tester.inference_test(admissibility_cases, BK)
     tester.test(cases_wn)
 
-def test_tenses(tester):
+def test_tenses(tester: Tester) -> None:
+    """Method to test "tense as anaphora" cases
+
+    :param tester: testing tool
+    :type tester: Tester
+    
+    :return: Does not return anything, just using 'assert'
+    :rtype: None
+    """
+
     cases = [
     #simple tenses with / without negation, quantified NPs
     (1, "Angus owns a car", "([n,z6,s,x],[Angus{sg,m}(x), car{sg,n}(z6), own(s), AGENT(s,x), PATIENT(s,z6), overlap(n,s)])"),
@@ -215,7 +240,15 @@ def test_tenses(tester):
     tester.test(cases)
     tester.inference_test(case_inf, BK, verbose=False)
 
-def test_inference(tester):
+def test_inference(tester: Tester) -> None:
+    """Method to test inference
+
+    :param tester: testing tool
+    :type tester: Tester
+    
+    :return: Does not return anything, just using 'assert'
+    :rtype: None
+    """
 
     cases_inf = [
     # No background knowledge attached
@@ -249,7 +282,10 @@ TESTS = [("Anaphora Component", test_anaphora),
          ("Inference Component ", test_inference),
          ("Temporal Component", test_tenses)
          ]
+
+
 def main():
+    """Main function to start it all."""
     tester = Tester('file:../data/grammar.fcfg', DrtParser)
     for header, test in TESTS:
         print_header("Testing %s" % header)
