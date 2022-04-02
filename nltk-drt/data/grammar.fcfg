@@ -156,8 +156,8 @@ LexPos[NUM=sg,GEN=n,SEM=<PPRO>] -> 'its' | 'Its'
 # Determiners:
 ##############
 
-# Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'every' | 'Every' 
-# Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'all' | 'All'
+# Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'every' | 'Every' 
+# Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'all' | 'All'
 Det[SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'some' | 'Some'
 Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
 PredDet[NUM=sg,SEM=<\P x.(P(s)+DRS([s,t],[THEME(s,x),LOCPRO(t)]))>] -> 'a'

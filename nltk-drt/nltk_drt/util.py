@@ -15,7 +15,15 @@ from nltk.sem.logic import AndExpression, LogicalExpressionException, LogicParse
 from nltk.sem import drt
 from .inference import inference_check, get_bk, AdmissibilityError, ConsistencyError, InformativityError
 
+import pytest_subtests as subtests
+
 class UngrammaticalException(Exception):
+    pass
+
+class FailedReading(Exception):
+    pass
+
+class ComparisonFailed(Exception):
     pass
 
 class Tester(object):
@@ -41,13 +49,14 @@ class Tester(object):
      (re.compile("^wrote$"), ("did", "write")),
     ]
 
-    def __init__(self, grammar, drt_parser):
+    def __init__(self, grammar, drt_parser, subtests=None):
         assert isinstance(grammar, str) and grammar.endswith('.fcfg'), \
                             "%s is not a grammar name" % grammar
         self.drt_parser = drt_parser()
         self.presupp_parser = PresuppDrtParser()
         self.logic_parser = LogicParser()
         self.parser = load_parser(grammar, logic_parser=self.drt_parser)
+        self.subtests = subtests
 
     def _split(self, sentence):
         words = []
@@ -108,32 +117,32 @@ class Tester(object):
 
     def test(self, cases, **args):
         verbose = args.get("verbose", False)
+        i = 0
         for number, sentence, expected in cases:
             expected_drs = []
             if expected:
                 for item in expected if isinstance(expected, list) else [expected]:
                     expected_drs.append(self.presupp_parser.parse(item, verbose))
 
-            try:
-                expression = self.parse(sentence, **args)
-                #readings, errors = expression.resolve(lambda x: (True, None), verbose)
-                result = expression.resolve_anaphora()
-                readings = [result] # TODO
-                errors = [] # TODO (??)
-                if len(expected_drs) == len(readings):
-                    for index, pair in enumerate(zip(expected_drs, readings)):
+            expression = self.parse(sentence, **args)
+            #readings, errors = expression.resolve(lambda x: (True, None), verbose)
+            result = expression.resolve_anaphora()
+            readings = [result] # TODO
+            errors = [] # TODO (??)
+            if len(expected_drs) == len(readings):
+                for index, pair in enumerate(zip(expected_drs, readings)):
+                    with self.subtests.test(msg="seed", i=i):
+                        i += 1
                         if pair[0] == pair[1]:
                             print(("%s. %s -- Reading (%s): %s\n" % (number, sentence, index + 1, pair[1])))
                         else:
-                            print(("%s. !!!failed reading (%s)!!!\n\n%s\n\nExpected:\t%s\n\nReturns:\t%s\n" %
-                                  (number, index + 1, sentence, pair[0], pair[1])))
-                else:
-                        print(("%s. !!!comparison failed!!!\n\n%s\n" % (number, sentence)))
-            except Exception as e:
-                if type(e) is ResolutionException:
-                    print(("%s. *%s -- Exception:%s\n" % (number, sentence, e)))
-                else:
-                    print(("%s. !!!unexpected error!!!\n%s\n%s" % (number, sentence, e)))
+                            raise FailedReading(("%s. !!!failed reading (%s)!!!\n\n%s\n\nExpected:\t%s\n\nReturns:\t%s\n" %
+                                (number, index + 1, sentence, pair[0], pair[1])))
+                        
+            else:
+                with self.subtests.test(msg="seed", i=i):
+                    i += 1
+                    raise ComparisonFailed(("%s. !!!comparison failed!!!\n\n%s\n" % (number, sentence)))
 
     def interpret(self, expr_1, expr_2, background=None, verbose=False, test=False):
         """Interprets a new expression with respect to some previous discourse

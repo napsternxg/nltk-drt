@@ -154,7 +154,8 @@ class DrtFindEventualityExpression(DrtApplicationExpression):
             if drs is trail[-1]:
 
                 #Described eventuality in the object's referents?
-                #Take refs' list up to described eventuality
+                #Take r
+                # efs' list up to described eventuality
 
                 search_list = drs.refs[:drs.refs.index(self.argument.variable)]
 
