@@ -200,7 +200,6 @@ class Theorem(object):
         while prover_thread.is_alive() and (not run_builder or builder_thread.is_alive()):
             pass
 
-        prover_thread.run()
         stdout, stderr = prover_thread.result
         returncode = prover_process.poll()
         result = not (returncode == 0)
