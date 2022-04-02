@@ -325,11 +325,12 @@ class DrtExpression(drt.DrtExpression):
                 new_reading = base_reading.deepcopy(operation)
                 if verbose:
                     print(("reading: %s" % new_reading))
-                try:
+                new_operations = new_reading.readings()
+                '''try:
                     new_operations = new_reading.readings()
                 except Exception as ex:
                     errors.append(str(ex))
-                    continue
+                    continue'''
                 if not new_operations:
                     if inference_check:
                         success, error = inference_check(new_reading)
@@ -353,6 +354,7 @@ class DrtExpression(drt.DrtExpression):
             return [self]
 
         if not readings and errors:
+            print("ERRORS:", errors)
             raise ResolutionException(". ".join(errors))
         return readings, failed_readings if inference_check else readings
 
@@ -385,8 +387,7 @@ class DRS(DrtExpression, drt.DRS):
 
         return DrtApplicationExpression(ref_cond, DrtAbstractVariableExpression(referent))
 
-
-    '''def replace(self, variable, expression, replace_bound=False):
+    def replace(self, variable, expression, replace_bound=False, alpha_convert=True):
         """Replace all instances of variable v with expression E in self,
         where v is free in self."""
         if variable in self.get_refs():
@@ -421,7 +422,7 @@ class DRS(DrtExpression, drt.DRS):
             #replace in the conditions
             return self.__class__(self.refs,
                        [cond.replace(variable, expression, replace_bound)
-                        for cond in self.conds])'''
+                        for cond in self.conds])
 
     def free(self, indvar_only=True):
         """@see: Expression.free()"""
@@ -576,7 +577,7 @@ class DrtLambdaExpression(DrtExpression, drt.DrtLambdaExpression):
         return self.__class__(newvar, self.term.replace(self.variable,
                           DrtVariableExpression(newvar), True))
 
-    '''def replace(self, variable, expression, replace_bound=False):
+    def replace(self, variable, expression, replace_bound=False, alpha_convert=True):
         """@see: Expression.replace()"""
         assert isinstance(variable, Variable), "%s is not a Variable" % variable
         assert isinstance(expression, Expression), "%s is not an Expression" % expression
@@ -597,7 +598,7 @@ class DrtLambdaExpression(DrtExpression, drt.DrtLambdaExpression):
 
             #replace in the term
             return self.__class__(self.variable,
-                                  self.term.replace(variable, expression, replace_bound))'''
+                                  self.term.replace(variable, expression, replace_bound))
 
     def readings(self, trail=[]):
         return self.term.readings(trail + [self])
@@ -857,7 +858,8 @@ class PresuppositionDRS(DRS):
             event_data_map = {}
             event_strings_map = {}
         is_bindable = True # do not allow forward binding
-        for drs in (expr for expr in trail if list(filter(expr))):
+        #print([expr for expr in trail if list(expr)]) # if list(filter(expr))])
+        for drs in trail: # (expr for expr in trail):
             for cond in drs.conds:
                 # Ignore conditions following the presupposition DRS
                 if cond is self:
@@ -1306,7 +1308,7 @@ class DrtParser(drt.DrtParser):
         elif tok == DrtTokens.PRONOUN_DRS:
             return PronounDRS(drs.refs, drs.conds)
 
-    '''
+    
     def handle_variable(self, tok, context):
         # It's either: 1) a predicate expression: sees(x,y)
         #             2) an application expression: P(x)
@@ -1336,7 +1338,6 @@ class DrtParser(drt.DrtParser):
                 )
             self.assertNextToken(Tokens.CLOSE)
         return accum
-    '''
 
     def handle_variable(self, tok, context):
         #It's either: 1) a predicate expression: sees(x,y)

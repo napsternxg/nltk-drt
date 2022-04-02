@@ -9,13 +9,12 @@ import re
 from nltk import load_parser
 from .temporaldrt import DrtVariableExpression, unique_variable, NewInfoDRS
 from .presuppdrt import ResolutionException, DrtParser as PresuppDrtParser
-from .presuppdrt import DrtConcatenation, DrtExpression
+from .presuppdrt import DrtConcatenation, DrtExpression, DRS
 from types import LambdaType
 from nltk.sem.logic import AndExpression, LogicalExpressionException, LogicParser
 from nltk.sem import drt
 from .inference import inference_check, get_bk, AdmissibilityError, ConsistencyError, InformativityError
 
-import pytest_subtests as subtests
 
 class UngrammaticalException(Exception):
     pass
@@ -125,10 +124,15 @@ class Tester(object):
                     expected_drs.append(self.presupp_parser.parse(item, verbose))
 
             expression = self.parse(sentence, **args)
-            #readings, errors = expression.resolve(lambda x: (True, None), verbose)
-            result = expression.resolve_anaphora()
-            readings = [result] # TODO
-            errors = [] # TODO (??)
+            try:
+                readings, errors = expression.resolve(lambda x: (True, None), verbose)
+            except Exception as e:
+                with self.subtests.test(msg="seed", i=i):
+                    i += 1
+                    raise e
+            #result = expression.resolve_anaphora()
+            #readings = [result] # TODO
+            #errors = [] # TODO (??)
             if len(expected_drs) == len(readings):
                 for index, pair in enumerate(zip(expected_drs, readings)):
                     with self.subtests.test(msg="seed", i=i):
@@ -227,8 +231,9 @@ class Tester(object):
             #print("background:", background_knowledge)
             #new_discourse2 = DrtExpression.fromstring(str(new_discourse))
             #print(":2:", type(new_discourse2), new_discourse2)
-            #return new_discourse2.resolve(lambda x: inference_check(x, background_knowledge, verbose), verbose)
-            return new_discourse.resolve_anaphora()
+            print("EXPRESSION:", vars(expression))
+            return new_discourse.resolve(lambda x: inference_check(x, background_knowledge, verbose), verbose)
+            #return new_discourse.resolve_anaphora()
 
         except IndexError:
             print("Input sentences only!")
