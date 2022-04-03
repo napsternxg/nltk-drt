@@ -20,7 +20,7 @@ from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
 #from nltk.sem.drt import DrtConcatenation
 
 # additional imports
-from nltk.sem.logic import ImpExpression, IffExpression, APP
+from nltk.sem.logic import ImpExpression, IffExpression, APP, AllExpression
 
 
 import nltk.sem.drt as drt
@@ -325,12 +325,12 @@ class DrtExpression(drt.DrtExpression):
                 new_reading = base_reading.deepcopy(operation)
                 if verbose:
                     print(("reading: %s" % new_reading))
-                new_operations = new_reading.readings()
-                '''try:
+                #new_operations = new_reading.readings()
+                try:
                     new_operations = new_reading.readings()
-                except Exception as ex:
+                except AnaphoraResolutionException as ex:
                     errors.append(str(ex))
-                    continue'''
+                    continue
                 if not new_operations:
                     if inference_check:
                         success, error = inference_check(new_reading)
@@ -426,8 +426,9 @@ class DRS(DrtExpression, drt.DRS):
 
     def free(self, indvar_only=True):
         """@see: Expression.free()"""
+        print(self.conds)
         conds_free = reduce(operator.or_,
-                            [c.variables() for c in self.conds], set()) # .free(indvar_only)
+                            [c.free() for c in self.conds], set()) # .free(indvar_only)
         return conds_free - (set(self.refs) | reduce(operator.or_, [set(c.refs) for c in self.conds if isinstance(c, PresuppositionDRS)], set()))
 
     def get_refs(self, recursive=False):
@@ -860,6 +861,8 @@ class PresuppositionDRS(DRS):
         is_bindable = True # do not allow forward binding
         #print([expr for expr in trail if list(expr)]) # if list(filter(expr))])
         for drs in trail: # (expr for expr in trail):
+            if not filter(drs):
+                continue
             for cond in drs.conds:
                 # Ignore conditions following the presupposition DRS
                 if cond is self:

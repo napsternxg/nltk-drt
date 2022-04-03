@@ -74,7 +74,7 @@ class WordNetLookup(object):
 
     def wn(self):
         if not self.WN:
-            self.WN = WordNetCorpusReader(nltk.data.find(self.path))
+            self.WN = WordNetCorpusReader(nltk.data.find(self.path), None)
 
     def is_superclass_of(self, first, second):
         "Is the second noun the superclass of the first one?"

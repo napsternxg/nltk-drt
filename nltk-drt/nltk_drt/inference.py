@@ -74,6 +74,10 @@ class Communicator(Thread):
             self.result = self.process.communicate(self.input)
         except OSError:
             pass
+    
+    @property
+    def res(self):
+        return self.process.communicate(self.input)
 
 class Theorem(object):
 
@@ -200,7 +204,8 @@ class Theorem(object):
         while prover_thread.is_alive() and (not run_builder or builder_thread.is_alive()):
             pass
 
-        stdout, stderr = prover_thread.result
+        #stdout, stderr = prover_thread.result
+        stdout, stderr = prover_thread.res
         returncode = prover_process.poll()
         result = not (returncode == 0)
         output = None

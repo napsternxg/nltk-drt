@@ -144,7 +144,10 @@ class Tester(object):
                                 (number, index + 1, sentence, pair[0], pair[1])))
                         
             else:
+                
                 with self.subtests.test(msg="seed", i=i):
+                    print("READINGS:", readings)
+
                     i += 1
                     raise ComparisonFailed(("%s. !!!comparison failed!!!\n\n%s\n" % (number, sentence)))
 
