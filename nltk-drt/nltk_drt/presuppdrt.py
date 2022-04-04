@@ -425,7 +425,7 @@ class DRS(DrtExpression, drt.DRS):
                         for cond in self.conds])
 
     def free(self, indvar_only=True):
-        """@see: Expression.free()"""
+        """@see: Expression.free(). TODO"""
         print(self.conds)
         conds_free = reduce(operator.or_,
                             [c.free() for c in self.conds], set()) # .free(indvar_only)
@@ -1472,6 +1472,3 @@ class ConditionReplacer(object):
             drs.refs.append(self.ref)
         drs.conds[self.index:self.index + 1] = self.conds
         return drs
-
-drt.DRS.deepcopy = lambda self, *args: copy.deepcopy(self)
-drt.DrtIndividualVariableExpression.deepcopy = DrtIndividualVariableExpression.deepcopy
