@@ -20,8 +20,8 @@ sys.path.append(os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'NLTK-DRT Extension'
-copyright = '2022, Fyodor Sizov, Ivan Rygaev'
-author = 'Fyodor Sizov, Ivan Rygaev'
+copyright = '2022, Fyodor Sizov, Ivan Rygaev, Alexander Kislev, Peter Makarov, Emma Li'
+author = 'Fyodor Sizov, Ivan Rygaev, Alexander Kislev, Peter Makarov, Emma Li'
 
 
 # -- General configuration ---------------------------------------------------
