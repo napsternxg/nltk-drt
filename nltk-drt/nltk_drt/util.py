@@ -25,6 +25,9 @@ class FailedReading(Exception):
 class ComparisonFailed(Exception):
     pass
 
+class NoReadingProduced(Exception):
+    pass
+
 class Tester(object):
 
     INFERROR = {
@@ -127,8 +130,12 @@ class Tester(object):
                     expected_drs.append(self.presupp_parser.parse(item, verbose))
 
             expression = self.parse(sentence, **args)
+            readings = []
+            errors = []
             try:
                 readings, errors = expression.resolve(lambda x: (True, None), verbose)
+            except ResolutionException as e:
+                pass
             except Exception as e:
                 with self.subtests.test(msg="seed", i=i):
                     i += 1
@@ -136,7 +143,13 @@ class Tester(object):
             #result = expression.resolve_anaphora()
             #readings = [result] # TODO
             #errors = [] # TODO (??)
-            if len(expected_drs) == len(readings):
+            if not readings and expected:
+                with self.subtests.test(msg="seed", i=i):
+                    i += 1
+                    raise NoReadingProduced(f"{number}. No reading produced, but expected in test!")
+            elif not readings and not expected:
+                pass
+            elif len(expected_drs) == len(readings):
                 for index, pair in enumerate(zip(expected_drs, readings)):
                     with self.subtests.test(msg="seed", i=i):
                         i += 1
