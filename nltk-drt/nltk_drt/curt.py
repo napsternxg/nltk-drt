@@ -51,7 +51,7 @@ class Curt(object):
         elif isinstance(s, InformativityError):
             return "%s%s" % (self.uninformative(), "(uninformative)" if explicit else "")
 
-    def process(self, utterance, explicit=False, verbose=False):
+    def process(self, utterance, explicit=False, verbose=True):
         if self.discourse is None:
             self.discourse = self.tester.parse(utterance, utter=True)
         else:

@@ -92,7 +92,7 @@ class Theorem(object):
         self.prover_timeout = prover_timeout
         self.builder_max_models = builder_max_models
 
-    def _find_binary(self, name, verbose=False):
+    def _find_binary(self, name, verbose=True):
         return find_binary(name,
             searchpath=Theorem.BINARY_LOCATIONS,
             env_vars=['PROVER9HOME'],
@@ -109,7 +109,7 @@ class Theorem(object):
     def _input(self, goal):
         return "formulas(goals).\n    %s.\nend_of_list.\n\n" % convert_to_prover9(goal)
 
-    def check(self, run_builder=False, verbose=False):
+    def check(self, run_builder=False, verbose=True):
         prover_input = 'assign(max_seconds, %d).\n\n' % self.prover_timeout if self.prover_timeout > 0 else ""
         prover_input += self._prover9_input()
 
@@ -118,7 +118,7 @@ class Theorem(object):
 
         return self._call(prover_input, builder_input, run_builder, verbose)
 
-    def _model(self, valuation_str, verbose=False):
+    def _model(self, valuation_str, verbose=True):
         """
         Transform the output file into an NLTK-style Valuation.
 
@@ -158,7 +158,7 @@ class Theorem(object):
 
         return Valuation(val)
 
-    def _transform_output(self, input_str, format, verbose=False):
+    def _transform_output(self, input_str, format, verbose=True):
 
         if Theorem.INTERPFORMAT_BINARY is None:
             Theorem.INTERPFORMAT_BINARY = self._find_binary('interpformat', verbose)
@@ -251,7 +251,7 @@ class Theorem(object):
 
         return (result, output)
 
-def inference_check(expr, background_knowledge=False, verbose=False):
+def inference_check(expr, background_knowledge=False, verbose=True):
     """General function for all kinds of inference-based checks:
     consistency, global and local informativity"""
 

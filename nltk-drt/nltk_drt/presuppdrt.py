@@ -17,7 +17,7 @@ from nltk.sem.logic import BasicType
 from nltk.sem.logic import Expression
 from nltk.sem.logic import LogicalExpressionException
 from nltk.sem.drt import DrsDrawer, AnaphoraResolutionException
-#from nltk.sem.drt import DrtConcatenation
+from nltk.sem.drt import DrtConcatenation
 
 # additional imports
 from nltk.sem.logic import ImpExpression, IffExpression, APP, AllExpression
@@ -284,11 +284,17 @@ class DrtExpression(drt.DrtExpression):
                         self.make_VariableExpression(Variable(newVar)), True)
         return result
 
-    def substitute_bindings(self, bindings: Dict[Any, Any]) -> 'DrtExpression':
+
+    def substitute_bindings(self, bindings) -> 'DrtExpression':
         """Substitute bindings. TODO"""
         expr = self
+
+        print("BINDINGS:", bindings)
+
+        print("__before", expr)
         for var in expr.variables():
             val = bindings.get(var, None)
+            print(f"var '{var}' to val '{val}'")
             if val:
                 if isinstance(val, Variable):
                     val = DrtVariableExpression(val)
@@ -299,15 +305,18 @@ class DrtExpression(drt.DrtExpression):
                 else:
                     raise ValueError('Can not substitute a non-expression '
                                          'value into an expression: %r' % (val,))
+                print(f"val finally converted to '{val}'")
                 expr = expr.replace(var, val)
+
         return expr.simplify()
+
 
     RESOLUTION_ORDER = {Binding:0,
                         GlobalAccommodation:1,
                         IntermediateAccommodation:2,
                         LocalAccommodation:3}
 
-    def resolve(self, inference_check=None, verbose=False):
+    def resolve(self, inference_check=None, verbose=True):
         """
         This method does the whole job of collecting multiple readings.
         We aim to get new readings from the old ones by resolving
@@ -390,6 +399,7 @@ class DRS(DrtExpression, drt.DRS):
     def replace(self, variable, expression, replace_bound=False, alpha_convert=True):
         """Replace all instances of variable v with expression E in self,
         where v is free in self."""
+        replace_bound = True
         if variable in self.get_refs():
             #if a bound variable is the thing being replaced
             if not replace_bound:
@@ -426,9 +436,10 @@ class DRS(DrtExpression, drt.DRS):
 
     def free(self, indvar_only=True):
         """@see: Expression.free(). TODO"""
-        print(self.conds)
+
         conds_free = reduce(operator.or_,
                             [c.free() for c in self.conds], set()) # .free(indvar_only)
+        
         return conds_free - (set(self.refs) | reduce(operator.or_, [set(c.refs) for c in self.conds if isinstance(c, PresuppositionDRS)], set()))
 
     def get_refs(self, recursive=False):
@@ -533,7 +544,7 @@ class DrtFeatureExpression(DrtConstantExpression):
 
 class DrtFeatureConstantExpression(DrtConstantExpression):
     """A constant expression with syntactic features attached"""
-    def __init__(self, variable, features):
+    def __init__(self, variable, features: Iterable[DrtFeatureExpression]):
         DrtConstantExpression.__init__(self, variable)
         self.features = features
 
@@ -594,6 +605,7 @@ class DrtLambdaExpression(DrtExpression, drt.DrtLambdaExpression):
         else:
             # if the bound variable appears in the expression, then it must
             # be alpha converted to avoid a conflict
+            print("ALPHA_CONVERSION COMP", self.variable, expression.free())
             if self.variable in expression.free():
                 self = self.alpha_convert(unique_variable(pattern=self.variable))
 
@@ -709,8 +721,14 @@ class DrtConcatenation(DrtExpression, drt.DrtConcatenation):
     def replace(self, variable, expression, replace_bound=False, alpha_convert=True):
         """Replace all instances of variable v with expression E in self,
         where v is free in self."""
+        replace_bound = True
         first = self.first
         second = self.second
+        print("FIRST", first)
+        print("SECOND", second)
+        print("FIRST isinstance", isinstance(first, DRS))
+        print("SECOND isinstance", isinstance(second, DRS))
+
 
         # If variable is bound by both first and second
         if isinstance(first, DRS) and isinstance(second, DRS) and \

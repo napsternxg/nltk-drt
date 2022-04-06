@@ -227,7 +227,7 @@ def test_tenses(subtests):
 
 
     tester.test(cases)
-    tester.inference_test(case_inf, BK, verbose=False)
+    tester.inference_test(case_inf, BK, verbose=True)
 
 def test_inference(subtests):
     """Method to test inference"""
@@ -253,7 +253,7 @@ def test_inference(subtests):
     (8, "Mia is away", "Angus is out or Mia is not away", 3),
     ]
 
-    tester.inference_test(cases_inf, BK, verbose=False)
+    tester.inference_test(cases_inf, BK, verbose=True)
 
 HASH_LINE = "#"*80
 
