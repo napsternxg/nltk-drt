@@ -100,13 +100,11 @@ class Tester(object):
                 if verbose:
                     print(words)
                 trees = [tree for tree in self.parser.parse(words)]
-                print("TREES", trees)
-                '''raise Exception("jkegkjgrekj")'''
+
                 #print("TREES", trees)
                 #trees = self.parser.nbest_parse(words)
                 try:
                     new_drs = trees[0].label()["SEM"].simplify()
-                    print("NEW_DRS:", new_drs)
                 except IndexError:
                     raise UngrammaticalException()
                 if verbose:
@@ -162,9 +160,6 @@ class Tester(object):
             else:
                 
                 with self.subtests.test(msg="seed", i=i):
-                    print("READINGS:", readings)
-                    print("SET(READINGS):", readings)
-
                     i += 1
                     raise ComparisonFailed(("%s. !!!comparison failed!!!\n\n%s\n" % (number, sentence)))
 
@@ -248,10 +243,6 @@ class Tester(object):
             else:
                 background_knowledge = None
 
-            #print("background:", background_knowledge)
-            #new_discourse2 = DrtExpression.fromstring(str(new_discourse))
-            #print(":2:", type(new_discourse2), new_discourse2)
-            print("EXPRESSION:", vars(expression))
             #
             return new_discourse.resolve(lambda x: inference_check(x, background_knowledge, verbose), verbose)
             #return new_discourse.resolve_anaphora()

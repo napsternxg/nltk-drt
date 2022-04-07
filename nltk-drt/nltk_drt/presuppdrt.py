@@ -289,12 +289,8 @@ class DrtExpression(drt.DrtExpression):
         """Substitute bindings. TODO"""
         expr = self
 
-        print("BINDINGS:", bindings)
-
-        print("__before", expr)
         for var in expr.variables():
             val = bindings.get(var, None)
-            print(f"var '{var}' to val '{val}'")
             if val:
                 if isinstance(val, Variable):
                     val = DrtVariableExpression(val)
@@ -305,7 +301,6 @@ class DrtExpression(drt.DrtExpression):
                 else:
                     raise ValueError('Can not substitute a non-expression '
                                          'value into an expression: %r' % (val,))
-                print(f"val finally converted to '{val}'")
                 expr = expr.replace(var, val)
 
         return expr.simplify()
@@ -363,7 +358,6 @@ class DrtExpression(drt.DrtExpression):
             return [self]
 
         if not readings and errors:
-            print("ERRORS:", errors)
             raise ResolutionException(". ".join(errors))
         return readings, failed_readings if inference_check else readings
 
@@ -605,7 +599,6 @@ class DrtLambdaExpression(DrtExpression, drt.DrtLambdaExpression):
         else:
             # if the bound variable appears in the expression, then it must
             # be alpha converted to avoid a conflict
-            print("ALPHA_CONVERSION COMP", self.variable, expression.free())
             if self.variable in expression.free():
                 self = self.alpha_convert(unique_variable(pattern=self.variable))
 
@@ -724,10 +717,6 @@ class DrtConcatenation(DrtExpression, drt.DrtConcatenation):
         replace_bound = True
         first = self.first
         second = self.second
-        print("FIRST", first)
-        print("SECOND", second)
-        print("FIRST isinstance", isinstance(first, DRS))
-        print("SECOND isinstance", isinstance(second, DRS))
 
 
         # If variable is bound by both first and second
