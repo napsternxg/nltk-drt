@@ -134,10 +134,11 @@ class Tester(object):
                 readings, errors = expression.resolve(lambda x: (True, None), verbose)
             except ResolutionException as e:
                 pass
-            except Exception as e:
+            '''except Exception as e:
                 with self.subtests.test(msg="seed", i=i):
                     i += 1
-                    raise e
+                    raise e'''
+
             #result = expression.resolve_anaphora()
             #readings = [result] # TODO
             #errors = [] # TODO (??)
@@ -161,7 +162,12 @@ class Tester(object):
                 
                 with self.subtests.test(msg="seed", i=i):
                     i += 1
-                    raise ComparisonFailed(("%s. !!!comparison failed!!!\n\n%s\n" % (number, sentence)))
+                    msg = f"{number}. {sentence} \n"
+                    msg += "!!! comparison failed !!! \n\n Expected: \n " + '\n'.join(str(x) for x in expected_drs) + "\n\n"
+                    msg += "Got:\n" + '\n'.join(str(x) for x in readings)
+                    raise ComparisonFailed(msg)
+                    #raise ComparisonFailed(("%s. !!!comparison failed!!!\n\n%s\n" % (number, sentence)))
+
 
     def interpret(self, expr_1, expr_2, background=None, verbose=True, test=False):
         """Interprets a new expression with respect to some previous discourse

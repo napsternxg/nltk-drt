@@ -1079,6 +1079,7 @@ class PronounDRS(PresuppositionDRS):
     def _presupposition_readings(self, trail=[]):
         #trail[0].draw()
         possible_bindings, event_data = self.find_bindings(trail, True, filter=lambda x: x.__class__ is DRS or isinstance(x, PresuppositionDRS))
+        pro_events = self._get_pro_events(event_data)
         bindings = [cond for cond in possible_bindings if self._is_binding(cond, self._get_pro_events(event_data), event_data)]
         ranked_bindings = self._rank_bindings(bindings, event_data)
         return [Binding([(trail[-1], VariableReplacer(self.variable, cond.argument, False))]) for cond, rank in sorted(ranked_bindings, key=lambda e: e[1], reverse=True)], True
@@ -1112,6 +1113,7 @@ class PronounDRS(PresuppositionDRS):
             for index, variable in enumerate(bindings):
                 var_roles = set((role for event_list in event_data.get(variable, ()) for event, role, event_string in event_list))
                 bindings[index] = (variable, index + len(var_roles.intersection(pro_roles)))
+            #raise Exception
         return bindings
 
     def _is_binding(self, cond, pro_events, event_data):
@@ -1120,7 +1122,19 @@ class PronounDRS(PresuppositionDRS):
             return True
         else:
             variable = cond.argument.variable
-            variable_events = set((event for event, role, event_string in event_data.get(variable, ())))
+            variable_occ = event_data.get(variable, ())
+            variable_events = set((event for event, role, event_string in variable_occ))
+        
+        # Don't allow binding x to y if there are conditions like POSS(x,y), POSS(y,x), REL(x,y), REL(y,x) and suchlike
+        for event_tuple in event_data.get(variable, []):
+            event = event_tuple[0]
+            if event.__class__ == DrtIndividualVariableExpression and event.variable == self.variable:
+                return False
+        for event_tuple in event_data.get(self.variable, []):
+            event = event_tuple[0]
+            if event.__class__ == DrtIndividualVariableExpression and event.variable == variable:
+                return False
+        
         if self.function_name == DrtTokens.PRONOUN:
             return variable_events.isdisjoint(pro_events)
         elif self.function_name == DrtTokens.REFLEXIVE_PRONOUN:
