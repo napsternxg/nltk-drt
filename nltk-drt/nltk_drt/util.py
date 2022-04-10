@@ -101,8 +101,6 @@ class Tester(object):
                     print(words)
                 trees = [tree for tree in self.parser.parse(words)]
 
-                #print("TREES", trees)
-                #trees = self.parser.nbest_parse(words)
                 try:
                     new_drs = trees[0].label()["SEM"].simplify()
                 except IndexError:

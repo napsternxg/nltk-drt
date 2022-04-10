@@ -302,6 +302,13 @@ class DrtExpression(drt.DrtExpression):
                     raise ValueError('Can not substitute a non-expression '
                                          'value into an expression: %r' % (val,))
                 expr = expr.replace(var, val)
+                # Support substitutions for '?n' and '?g' properties (TODO for making this solution more abstract)
+                for prop in ("?n", "?g"):
+                    if Variable(prop) in bindings:
+                        replacement = bindings[Variable(prop)]
+                        if isinstance(replacement, str):
+                            replacement = Variable(replacement)
+                        expr = expr.replace(Variable(prop), DrtFeatureExpression(replacement))
 
         return expr.simplify()
 
@@ -1113,7 +1120,6 @@ class PronounDRS(PresuppositionDRS):
             for index, variable in enumerate(bindings):
                 var_roles = set((role for event_list in event_data.get(variable, ()) for event, role, event_string in event_list))
                 bindings[index] = (variable, index + len(var_roles.intersection(pro_roles)))
-            #raise Exception
         return bindings
 
     def _is_binding(self, cond, pro_events, event_data):

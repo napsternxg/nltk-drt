@@ -37,7 +37,7 @@ def test_properties(subtests):
     tester = Tester('file:./nltk-drt/data/grammar.fcfg', DrtParser, subtests)
 
     cases = [
-        (9, "Bill likes Jones's picture of him.", "([n,s,x,z15,y],[Bill{sg,m}(x), POSS(y,z15), REL(y,x), picture{sg,n}(y), Jones{sg,m}(z15), like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)])"),
+        (14, "Mary likes John's car or she hates it.", "([n,x,z307,y],[(([s],[like(s), AGENT(s,x), PATIENT(s,y), overlap(n,s)]) | ([s0327],[hate(s0327), AGENT(s0327,x), PATIENT(s0327,y), overlap(n,s0327)])), POSS(y,z307), car{sg,n}(y), John{sg,m}(z307), Mary{sg,f}(x)])")
     ]
     tester.test(cases)
 
