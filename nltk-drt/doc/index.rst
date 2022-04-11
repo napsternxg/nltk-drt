@@ -9,11 +9,25 @@ Welcome to NLTK-DRT Extension's documentation!
 
 .. automodule:: nltk_drt.curt
     :members:
+    :special-members:
+.. automodule:: nltk_drt.inference
+    :members:
+    :special-members:
+.. automodule:: nltk_drt.nltkfixtemporal
+    :members:
+    :special-members:
 .. automodule:: nltk_drt.presuppdrt
     :members:
     :special-members:
-.. automodule:: nltk_drt.test
+.. automodule:: nltk_drt.temporaldrt
     :members:
+    :special-members:
+.. automodule:: nltk_drt.util
+    :members:
+    :special-members:
+.. automodule:: nltk_drt.wntemporaldrt
+    :members:
+    :special-members:
 
 
 .. toctree::
