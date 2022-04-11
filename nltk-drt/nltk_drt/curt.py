@@ -1,8 +1,4 @@
-"""
-.. module:: curt
-   :synopsis: A useful module indeed.
-
-"""
+"""Curt client"""
 
 __author__ = "Alex Kislev, Emma Li, Peter Makarov"
 __version__ = "1.0"
