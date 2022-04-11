@@ -303,7 +303,7 @@ class DrtExpression(drt.DrtExpression):
                                          'value into an expression: %r' % (val,))
                 expr = expr.replace(var, val)
                 # Support substitutions for '?n' and '?g' properties (TODO for making this solution more abstract)
-                for prop in ("?n", "?g"):
+                for prop in ("?n", "?g", "?f"):
                     if Variable(prop) in bindings:
                         replacement = bindings[Variable(prop)]
                         if isinstance(replacement, str):
@@ -418,7 +418,7 @@ class DRS(DrtExpression, drt.DRS):
 
             # any bound variable that appears in the expression must
             # be alpha converted to avoid a conflict
-            for ref in (set(self.get_refs()) & expression.free()):
+            for ref in (set(self.get_refs(recursive=True)) & expression.free()):
                 newvar = unique_variable(ref)
                 newvarex = DrtVariableExpression(newvar)
                 if ref in self.refs:
