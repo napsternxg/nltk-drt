@@ -156,8 +156,8 @@ LexPos[NUM=sg,GEN=n,SEM=<PPRO>] -> 'its' | 'Its'
 # Determiners:
 ##############
 
-Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'every' | 'Every' 
-Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) implies Q(x))])>] -> 'all' | 'All'
+Det[NUM=sg,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'every' | 'Every' 
+Det[NUM=pl,SEM=<\P Q.DRS([],[((DRS([x],[])+P(x)) -> Q(x))])>] -> 'all' | 'All'
 Det[SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'some' | 'Some'
 Det[NUM=sg,SEM=<\P Q.((DRS([x],[])+P(x))+Q(x))>] -> 'a' | 'A'
 PredDet[NUM=sg,SEM=<\P x.(P(s)+DRS([s,t],[THEME(s,x),LOCPRO(t)]))>] -> 'a'
@@ -245,15 +245,15 @@ P[SEM=<\Q P z.(Q(\y.DRS([],[REL(z,y)]))+P(z))>] -> 'of'
 # Connectives:
 ##############
 
-OR[SEM=<\X Y.DRS([],[(X or Y)])>] -> 'or'
+OR[SEM=<\X Y.DRS([],[(X | Y)])>] -> 'or'
 
-IF[SEM=<\X Y.DRS([],[(X implies Y)])>] -> 'if' | 'If'
+IF[SEM=<\X Y.DRS([],[(X -> Y)])>] -> 'if' | 'If'
 
 AND[SEM=<\X Y.(X+Y)>] -> 'and' | 'but'
 
 IbarAND[SEM=<\X Y Z.Y(\Q.X(\P.Z(\y.(P(y)+Q(y)))))>] -> 'and' | 'but'
 
-IbarOR[SEM=<\X Y Z.Y(\Q.X(\P.Z(\y.(DRS([],[(P(y) or Q(y))])))))>] -> 'or'
+IbarOR[SEM=<\X Y Z.Y(\Q.X(\P.Z(\y.(DRS([],[(P(y) | Q(y))])))))>] -> 'or'
 
 ###############################
 ###############################

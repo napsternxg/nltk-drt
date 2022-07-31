@@ -1,4 +1,4 @@
-from temporaldrt import DRS, DrtLambdaExpression, DrtApplicationExpression, DrtAbstractVariableExpression, DrtNegatedExpression, DrsDrawer
+from .temporaldrt import DRS, DrtLambdaExpression, DrtApplicationExpression, DrtAbstractVariableExpression, DrtNegatedExpression, DrsDrawer
 from nltk.sem.logic import BinaryExpression
 
 def _handle(self, expression, command, x=0, y=0):
@@ -19,7 +19,7 @@ def _handle(self, expression, command, x=0, y=0):
         except AttributeError:
             #the values have not been cached yet, so compute them
             pass
-    
+
     if isinstance(expression, DrtAbstractVariableExpression):
         factory = self._handle_VariableExpression
     elif isinstance(expression, DRS):
@@ -33,14 +33,14 @@ def _handle(self, expression, command, x=0, y=0):
     elif isinstance(expression, DrtApplicationExpression):
         factory = self._handle_ApplicationExpression
     else:
-        raise Exception, expression.__class__.__name__
-        
+        raise Exception(expression.__class__.__name__)
+
     (right, bottom) = factory(expression, command, x, y)
-    
+
     #cache the values
     expression._drawing_width = right - x
     expression._drawing_height = bottom - y
-        
+
     return (right, bottom)
 
 DrsDrawer._handle = _handle
